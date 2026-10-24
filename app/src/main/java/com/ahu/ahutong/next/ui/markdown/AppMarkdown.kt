@@ -44,7 +44,7 @@ fun AppMarkdown(
 ) {
     if (parseAsync) {
         val blocks by produceState<List<MarkdownBlock>?>(null, markdown) {
-            value = withContext(Dispatchers.Default) { MarkdownParser.parse(markdown) }
+            value = withContext(Dispatchers.Default) { parseSafely(markdown) }
         }
         val ready = blocks
         if (ready == null) {
@@ -59,10 +59,17 @@ fun AppMarkdown(
         MarkdownContent(ready, lazy, modifier)
     } else {
         // 流式场景：同步解析，避免每个 token 都闪一次 loading 占位。
-        val blocks = remember(markdown) { MarkdownParser.parse(markdown) }
+        val blocks = remember(markdown) { parseSafely(markdown) }
         MarkdownContent(blocks, lazy, modifier)
     }
 }
+
+private fun parseSafely(markdown: String): List<MarkdownBlock> =
+    runCatching { MarkdownParser.parse(markdown) }
+        .getOrElse {
+            // 半截语法不应让流式渲染崩掉整个页面，退回纯文本。
+            listOf(MarkdownBlock.Paragraph(listOf(InlineRun.Text(markdown))))
+        }
 
 @Composable
 private fun MarkdownContent(

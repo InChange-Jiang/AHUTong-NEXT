@@ -54,6 +54,15 @@ class MarkdownParserTest {
     }
 
     @Test
+    fun `incomplete bullet marker during streaming does not crash`() {
+        val blocks = MarkdownParser.parse("- ")
+        assertIs<MarkdownBlock.BulletList>(blocks.single())
+
+        val unclosed = MarkdownParser.parse("- **未闭合")
+        assertIs<MarkdownBlock.BulletList>(unclosed.single())
+    }
+
+    @Test
     fun `defense empty input and unpaired markers`() {
         assertTrue(MarkdownParser.parse("").isEmpty())
         val runs = MarkdownParser.parseInline("不成对的 **粗体")

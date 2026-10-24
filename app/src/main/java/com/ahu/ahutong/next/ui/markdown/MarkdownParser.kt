@@ -41,7 +41,9 @@ object MarkdownParser {
                     while (i < lines.size &&
                         (lines[i].trimStart().startsWith("- ") || lines[i].trimStart().startsWith("* "))
                     ) {
-                        items += parseInline(lines[i].trim().substring(2).trim())
+                        val raw = lines[i].trim()
+                        val stripped = raw.removePrefix("- ").removePrefix("* ")
+                        items += parseInline(if (stripped == raw) "" else stripped.trim())
                         i++
                     }
                     blocks += MarkdownBlock.BulletList(items)
