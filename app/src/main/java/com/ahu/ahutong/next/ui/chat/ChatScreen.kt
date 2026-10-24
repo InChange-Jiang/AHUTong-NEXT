@@ -160,6 +160,7 @@ private fun FloatingTopBar(
     online: Boolean,
     onOpenSettings: () -> Unit,
 ) {
+    val accountName = com.ahu.ahutong.legacy.LegacyCampusApi.currentUserName()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,7 +192,7 @@ private fun FloatingTopBar(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    if (online) "在线" else "本地",
+                    accountName ?: if (online) "在线" else "本地",
                     style = MaterialTheme.typography.labelSmall,
                     color = NextPalette.InkSecondary,
                 )
@@ -229,7 +230,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "我是安筱桐，帮你查课表、作业和成绩。",
+            "我是安筱桐。课表、作业、成绩、考勤、空闲教室，一句话就能查。",
             style = MaterialTheme.typography.bodyMedium,
             color = NextPalette.InkSecondary,
             textAlign = TextAlign.Center,
@@ -241,7 +242,8 @@ private fun EmptyHero(onSend: (String) -> Unit) {
             Suggestion("作业", "这周还有哪些作业？", R.drawable.ic_iconpark_assignment),
             Suggestion("课表", "我今天的课表", R.drawable.ic_iconpark_calendar),
             Suggestion("成绩", "查一下我的成绩", R.drawable.ic_iconpark_grades),
-            Suggestion("日程", "把小组会议加到日程", R.drawable.ic_iconpark_plus),
+            Suggestion("空闲教室", "今天有哪些空闲教室", R.drawable.ic_iconpark_calendar),
+            Suggestion("天气", "合肥今天天气怎么样", R.drawable.ic_iconpark_weather),
         )
 
         LazyRow(
@@ -286,7 +288,7 @@ private fun InputPill(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = NextPalette.Ink),
                 placeholder = {
                     Text(
-                        "问课表、作业、成绩…",
+                        "问课表、作业、成绩、考勤…",
                         style = MaterialTheme.typography.bodyLarge,
                         color = NextPalette.InkSecondary,
                     )

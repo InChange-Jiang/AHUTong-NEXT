@@ -42,7 +42,13 @@ import com.ahu.ahutong.next.agent.ToolError
 import com.ahu.ahutong.next.agent.ToolOutput
 import com.ahu.ahutong.next.agent.ToolRegistry
 import com.ahu.ahutong.next.agent.ToolSpec
-import com.ahu.ahutong.next.data.MockCampusRepository
+import com.ahu.ahutong.next.app.data.NextCampusRepository
+import com.ahu.ahutong.next.tools.GetAttendanceTool
+import com.ahu.ahutong.next.tools.GetFreeRoomsTool
+import com.ahu.ahutong.next.tools.GetLostFoundTool
+import com.ahu.ahutong.next.tools.GetNoticesTool
+import com.ahu.ahutong.next.tools.GetProgramCompletionTool
+import com.ahu.ahutong.next.tools.GetWeatherTool
 import com.ahu.ahutong.next.tools.campusTools
 import com.ahu.ahutong.next.ui.chat.ToolLabResult
 import com.ahu.ahutong.next.ui.components.SoftBackground
@@ -63,8 +69,19 @@ import java.time.format.DateTimeFormatter
 
 @Composable
 fun ToolLabScreen(onBack: () -> Unit) {
-    val repository = remember { MockCampusRepository() }
-    val registry = remember { ToolRegistry(campusTools(repository)) }
+    val repository = remember { NextCampusRepository() }
+    val registry = remember {
+        ToolRegistry(
+            campusTools(repository) + listOf(
+                GetWeatherTool(),
+                GetAttendanceTool(),
+                GetProgramCompletionTool(),
+                GetLostFoundTool(),
+                GetNoticesTool(),
+                GetFreeRoomsTool(),
+            ),
+        )
+    }
     val specs = registry.specs
 
     var selected by remember { mutableStateOf(specs.first()) }

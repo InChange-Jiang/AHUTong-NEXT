@@ -1,7 +1,6 @@
 package com.ahu.ahutong.legacy
 
 import android.content.Context
-import android.util.Log
 import com.ahu.ahutong.core.common.AhuError
 import com.ahu.ahutong.core.common.AhuResult
 import com.ahu.ahutong.core.common.AppEnvironment
@@ -21,6 +20,9 @@ import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.data.xuexiaotong.Work
 import com.ahu.ahutong.data.schedule.CurrentWeekResolver
 import com.ahu.ahutong.data.schedule.ScheduleSectionTimes
+import com.ahu.ahutong.data.schedule.TeachingWeekPolicy
+import com.ahu.ahutong.data.session.DefaultAhuSession
+import com.ahu.ahutong.data.session.SecureCredentialVault
 import com.ahu.ahutong.data.session.SessionStore
 import com.tencent.mmkv.MMKV
 import java.time.LocalDate
@@ -73,7 +75,7 @@ object LegacyCampusApi {
             is AhuResult.Failure -> LoginResult.Failure(result.error.toChinese())
             is AhuResult.Success -> when (val outcome = result.value) {
                 is LoginOutcome.Success -> {
-                    persistUser(outcome.user)
+                    persistUser(outcome.user, password)
                     LoginResult.Success(outcome.user.name.orEmpty())
                 }
                 is LoginOutcome.JwxtWebVerificationRequired -> {
@@ -90,7 +92,8 @@ object LegacyCampusApi {
         return when (result) {
             is AhuResult.Success -> {
                 pendingWebUser = null
-                persistUser(user)
+                persistUser(user, null)
+                runCatching { DefaultAhuSession.completeWebVerification() }
                 LoginResult.Success(user.name.orEmpty())
             }
             is AhuResult.Failure -> LoginResult.Failure(result.error.toChinese())
@@ -100,12 +103,14 @@ object LegacyCampusApi {
     fun logout() {
         pendingWebUser = null
         runCatching { AHUCache.clearCurrentUser() }
+        runCatching { SecureCredentialVault.clearWisdomPassword() }
         runCatching {
             com.ahu.ahutong.data.crawler.manager.CookieManager.cookieJar.clear()
         }
     }
 
-    private fun persistUser(user: User) {
+    private fun persistUser(user: User, password: String?) {
+        password?.let { SecureCredentialVault.saveWisdomPassword(it) }
         AHUCache.saveCurrentUser(user)
     }
 
@@ -176,14 +181,15 @@ object LegacyCampusApi {
         val config = runCatching { CurrentWeekResolver.resolveLocalFirst() }.getOrNull()
             ?: CurrentWeekResolver.defaultConfig()
         val today = LocalDate.now()
+        val semesterStart = config.config.startTime?.let { start ->
+            java.time.Instant.ofEpochMilli(start.time)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+        } ?: today.minusDays((today.dayOfWeek.value - 1).toLong())
         val dated = buildList {
             for (offset in 0 until days.coerceIn(1, 30)) {
                 val date = today.plusDays(offset.toLong())
-                val week = if (config.config.isInSemester) {
-                    config.config.week + ((date.toEpochDay() - today.toEpochDay()) / 7).toInt()
-                } else {
-                    config.config.week
-                }
+                val week = TeachingWeekPolicy.weekForDate(semesterStart, date)
                 courses.filter { course -> course.occursOn(date.dayOfWeek.value, week) }
                     .sortedBy { it.startTime }
                     .forEach { course ->
