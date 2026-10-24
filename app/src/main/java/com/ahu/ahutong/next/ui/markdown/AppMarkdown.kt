@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -38,34 +39,50 @@ import kotlinx.coroutines.withContext
 fun AppMarkdown(
     markdown: String,
     modifier: Modifier = Modifier,
-    lazy: Boolean = true
+    lazy: Boolean = true,
+    parseAsync: Boolean = true,
 ) {
-    val blocks by produceState<List<MarkdownBlock>?>(null, markdown) {
-        value = withContext(Dispatchers.Default) { MarkdownParser.parse(markdown) }
-    }
-    val ready = blocks
-    if (ready == null) {
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+    if (parseAsync) {
+        val blocks by produceState<List<MarkdownBlock>?>(null, markdown) {
+            value = withContext(Dispatchers.Default) { MarkdownParser.parse(markdown) }
         }
-        return
+        val ready = blocks
+        if (ready == null) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            return
+        }
+        MarkdownContent(ready, lazy, modifier)
+    } else {
+        // 流式场景：同步解析，避免每个 token 都闪一次 loading 占位。
+        val blocks = remember(markdown) { MarkdownParser.parse(markdown) }
+        MarkdownContent(blocks, lazy, modifier)
     }
+}
+
+@Composable
+private fun MarkdownContent(
+    blocks: List<MarkdownBlock>,
+    lazy: Boolean,
+    modifier: Modifier,
+) {
     if (lazy) {
         LazyColumn(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(ready) { block -> MarkdownBlockContent(block) }
+            items(blocks) { block -> MarkdownBlockContent(block) }
         }
     } else {
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            ready.forEach { block -> MarkdownBlockContent(block) }
+            blocks.forEach { block -> MarkdownBlockContent(block) }
         }
     }
 }

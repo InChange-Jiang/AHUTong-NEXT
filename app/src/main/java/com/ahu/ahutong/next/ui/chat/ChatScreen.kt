@@ -1,10 +1,6 @@
 package com.ahu.ahutong.next.ui.chat
 
 import android.os.Build
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -402,30 +398,22 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
                 color = NextPalette.Accent,
             )
             Spacer(Modifier.height(3.dp))
-            AnimatedContent(
-                targetState = streaming,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(240)) togetherWith
-                        fadeOut(animationSpec = tween(140))
-                },
-                label = "assistant-content",
-            ) { isStreaming ->
-                if (isStreaming) {
-                    StreamingText(text)
-                } else {
-                    AppMarkdown(
-                        markdown = text,
-                        modifier = Modifier.fillMaxWidth(),
-                        lazy = false,
-                    )
-                }
+            if (streaming) {
+                StreamingMarkdown(text)
+            } else {
+                AppMarkdown(
+                    markdown = text,
+                    modifier = Modifier.fillMaxWidth(),
+                    lazy = false,
+                    parseAsync = false,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StreamingText(text: String) {
+private fun StreamingMarkdown(text: String) {
     val blur = remember { Animatable(7f) }
     val alpha = remember { Animatable(0.55f) }
     var started by remember { mutableStateOf(false) }
@@ -433,7 +421,8 @@ private fun StreamingText(text: String) {
     LaunchedEffect(text.isNotEmpty()) {
         if (text.isNotEmpty() && !started) {
             started = true
-            coroutineScope {                launch {
+            coroutineScope {
+                launch {
                     alpha.animateTo(
                         targetValue = 1f,
                         animationSpec = tween(360, easing = FastOutSlowInEasing),
@@ -449,8 +438,7 @@ private fun StreamingText(text: String) {
         }
     }
 
-    Text(
-        text = text,
+    Box(
         modifier = Modifier
             .graphicsLayer { this.alpha = alpha.value }
             .then(
@@ -461,9 +449,14 @@ private fun StreamingText(text: String) {
                     Modifier
                 },
             ),
-        style = MaterialTheme.typography.bodyLarge,
-        color = NextPalette.Ink,
-    )
+    ) {
+        AppMarkdown(
+            markdown = text,
+            modifier = Modifier.fillMaxWidth(),
+            lazy = false,
+            parseAsync = false,
+        )
+    }
 }
 
 @Composable
