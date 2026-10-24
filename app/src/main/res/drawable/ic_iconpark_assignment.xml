@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- IconPark (https://github.com/bytedance/IconPark), Apache License 2.0 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M39 4H11C9.89543 4 9 4.89543 9 6V42C9 43.1046 9.89543 44 11 44H39C40.1046 44 41 43.1046 41 42V6C41 4.89543 40.1046 4 39 4Z"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF333333"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        />
+    <path
+        android:pathData="M17 30L31 30"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF333333"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        />
+    <path
+        android:pathData="M17 36H24"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF333333"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        />
+    <path
+        android:pathData="M17.0,12.0 L31.0,12.0 L31.0,22.0 L17.0,22.0 Z"
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FF333333"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        />
+</vector>

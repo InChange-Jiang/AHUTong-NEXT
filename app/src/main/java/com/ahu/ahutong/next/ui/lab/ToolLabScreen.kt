@@ -3,27 +3,25 @@ package com.ahu.ahutong.next.ui.lab
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,9 +31,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.agent.AgentJson
 import com.ahu.ahutong.next.agent.ToolError
 import com.ahu.ahutong.next.agent.ToolOutput
@@ -44,18 +45,22 @@ import com.ahu.ahutong.next.agent.ToolSpec
 import com.ahu.ahutong.next.data.MockCampusRepository
 import com.ahu.ahutong.next.tools.campusTools
 import com.ahu.ahutong.next.ui.chat.ToolLabResult
+import com.ahu.ahutong.next.ui.components.SoftBackground
+import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftIconButton
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
+import com.ahu.ahutong.next.ui.components.SoftSurface
+import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolLabScreen(onBack: () -> Unit) {
     val repository = remember { MockCampusRepository() }
@@ -68,160 +73,212 @@ fun ToolLabScreen(onBack: () -> Unit) {
     var running by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                title = { Text("工具工作台", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { padding ->
+    SoftBackground {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SoftIconButton(onClick = onBack) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_iconpark_left),
+                        contentDescription = "返回",
+                        tint = NextPalette.Ink,
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    "工具工作台",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = NextPalette.Ink,
+                )
+            }
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                 items(specs, key = { it.name }) { spec ->
-                    FilterChip(
+                    SoftChip(
+                        label = spec.displayName,
                         selected = selected.name == spec.name,
                         onClick = {
                             selected = spec
                             args = defaultArgs(spec.name)
                             result = null
                         },
-                        label = { Text(spec.displayName) },
                     )
                 }
             }
 
-            Text(
-                selected.description,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (selected.kind.name == "WRITE") "写入" else "只读",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (selected.kind.name == "WRITE") {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.secondary
-                    },
-                )
-                Text(
-                    "  ·  来源：${selected.source}  ·  超时 ${selected.timeoutMs / 1000}s",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            Text(
-                "参数 schema",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                pretty(selected.parameters),
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            OutlinedTextField(
-                value = args,
-                onValueChange = { args = it },
+            SoftSurface(
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("参数 JSON") },
-                minLines = 4,
-                maxLines = 10,
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-            )
-
-            Button(
-                onClick = {
-                    if (running) return@Button
-                    running = true
-                    result = null
-                    scope.launch {
-                        val started = System.currentTimeMillis()
-                        val output = execute(registry, selected, args)
-                        result = ToolLabResult(
-                            toolName = selected.name,
-                            ok = output.ok,
-                            latencyMs = System.currentTimeMillis() - started,
-                            payload = AgentJson.encodeToString(ToolOutput.serializer(), output),
-                            error = output.error?.message,
-                        )
-                        running = false
-                    }
-                },
-                enabled = !running,
-                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = 8.dp,
             ) {
-                if (running) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.padding(end = 10.dp),
-                        strokeWidth = 2.dp,
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        selected.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NextPalette.Ink,
                     )
+                    Text(
+                        "${if (selected.kind.name == "WRITE") "写入" else "只读"} · ${selected.source} · 超时 ${selected.timeoutMs / 1000}s",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selected.kind.name == "WRITE") {
+                            NextPalette.Danger
+                        } else {
+                            NextPalette.InkSecondary
+                        },
+                    )
+                    Text(
+                        "参数 schema",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NextPalette.Ink,
+                    )
+                    SoftSurface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = NextPalette.SurfaceSoft,
+                        elevation = 0.dp,
+                    ) {
+                        Text(
+                            pretty(selected.parameters),
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
                 }
-                Text(if (running) "执行中…" else "运行工具")
             }
 
-            if (selected.kind.name == "WRITE") {
-                Text(
-                    "工作台会直接执行写入工具，仅用于调试；正式对话里会先弹确认卡。",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            SoftSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = 8.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        "参数 JSON",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = NextPalette.Ink,
+                    )
+                    OutlinedTextField(
+                        value = args,
+                        onValueChange = { args = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        maxLines = 10,
+                        shape = RoundedCornerShape(16.dp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color = NextPalette.Ink,
+                        ),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = NextPalette.SurfaceSoft,
+                            unfocusedContainerColor = NextPalette.SurfaceSoft,
+                            focusedBorderColor = NextPalette.Accent.copy(alpha = 0.55f),
+                            unfocusedBorderColor = Color.Transparent,
+                            cursorColor = NextPalette.Accent,
+                            focusedTextColor = NextPalette.Ink,
+                            unfocusedTextColor = NextPalette.Ink,
+                        ),
+                    )
+                    SoftPrimaryButton(
+                        text = if (running) "执行中…" else "运行工具",
+                        enabled = !running,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            if (running) return@SoftPrimaryButton
+                            running = true
+                            result = null
+                            scope.launch {
+                                val started = System.currentTimeMillis()
+                                val output = execute(registry, selected, args)
+                                result = ToolLabResult(
+                                    toolName = selected.name,
+                                    ok = output.ok,
+                                    latencyMs = System.currentTimeMillis() - started,
+                                    payload = AgentJson.encodeToString(ToolOutput.serializer(), output),
+                                    error = output.error?.message,
+                                )
+                                running = false
+                            }
+                        },
+                    )
+                    if (selected.kind.name == "WRITE") {
+                        Text(
+                            "工作台会直接执行写入工具，仅用于调试；正式对话里会先弹确认卡。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                }
             }
 
             result?.let { r ->
-                Card(
+                SoftSurface(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(22.dp),
+                    elevation = 8.dp,
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 if (r.ok) "成功" else "失败",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = if (r.ok) {
-                                    MaterialTheme.colorScheme.secondary
-                                } else {
-                                    MaterialTheme.colorScheme.error
-                                },
+                                color = if (r.ok) NextPalette.Success else NextPalette.Danger,
                             )
                             Text(
                                 "  ${r.latencyMs} ms",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = NextPalette.InkSecondary,
                             )
                         }
                         r.error?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NextPalette.Danger,
+                            )
                         }
-                        Text(
-                            r.payload,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                        )
+                        SoftSurface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = NextPalette.SurfaceSoft,
+                            elevation = 0.dp,
+                        ) {
+                            Text(
+                                r.payload,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
                     }
                 }
             }
+
+            Spacer(Modifier.height(18.dp))
         }
     }
 }

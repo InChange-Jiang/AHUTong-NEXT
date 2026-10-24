@@ -1,34 +1,41 @@
 package com.ahu.ahutong.next.ui.chat
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.agent.AgentJson
 import com.ahu.ahutong.next.agent.ToolResult
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CalendarEvent
 import com.ahu.ahutong.next.data.CourseOccurrence
 import com.ahu.ahutong.next.data.Grade
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
+import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
+import com.ahu.ahutong.next.ui.components.SoftSurface
+import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -44,36 +51,50 @@ private val prettyJson = Json { prettyPrint = true }
 
 @Composable
 fun ToolResultCard(result: ToolResult) {
-    val colors = MaterialTheme.colorScheme
-    Card(
+    SoftSurface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colors.surface),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(24.dp),
+        elevation = 8.dp,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    toolTitle(result.toolName),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    if (result.ok) "已完成" else "失败",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (result.ok) colors.secondary else colors.error,
-                )
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(NextPalette.AccentSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(toolIcon(result.toolName)),
+                        contentDescription = null,
+                        tint = NextPalette.Accent,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        toolTitle(result.toolName),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NextPalette.Ink,
+                    )
+                    Text(
+                        if (result.ok) "已完成" else "执行失败",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (result.ok) NextPalette.Success else NextPalette.Danger,
+                    )
+                }
             }
 
             if (!result.ok) {
                 Text(
                     result.error?.message ?: "执行失败",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.error,
+                    color = NextPalette.Danger,
                 )
             } else {
                 when (result.toolName) {
@@ -82,18 +103,18 @@ fun ToolResultCard(result: ToolResult) {
                     "get_grades" -> GradeBody(result.data)
                     "add_calendar_event" -> CalendarBody(result.data)
                     else -> Text(
-                        prettyJson.encodeToString(JsonObject.serializer(), result.data ?: JsonObject(emptyMap())),
+                        prettyJson.encodeToString(JsonElement.serializer(), result.data ?: JsonObject(emptyMap())),
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                     )
                 }
             }
 
-            HorizontalDivider(color = colors.outline.copy(alpha = 0.45f))
+            HorizontalDivider(color = NextPalette.Line)
             Text(
                 "来源：${result.source} · 更新于 ${formatTimestamp(result.fetchedAt)}",
                 style = MaterialTheme.typography.labelSmall,
-                color = colors.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
         }
     }
@@ -113,7 +134,7 @@ private fun ScheduleBody(data: JsonObject?) {
             formatDate(date),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            color = NextPalette.Accent,
         )
         list.take(3).forEach { CourseRow(it) }
     }
@@ -121,7 +142,7 @@ private fun ScheduleBody(data: JsonObject?) {
         Text(
             "还有 ${grouped.size - 3} 天未展示",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = NextPalette.InkSecondary,
         )
     }
 }
@@ -129,12 +150,16 @@ private fun ScheduleBody(data: JsonObject?) {
 @Composable
 private fun CourseRow(course: CourseOccurrence) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Column(modifier = Modifier.width(52.dp)) {
-            Text(course.startTime, style = MaterialTheme.typography.labelMedium)
+        Column(modifier = Modifier.width(54.dp)) {
+            Text(
+                course.startTime,
+                style = MaterialTheme.typography.labelMedium,
+                color = NextPalette.Ink,
+            )
             Text(
                 course.endTime,
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
         }
         Spacer(Modifier.width(8.dp))
@@ -143,11 +168,12 @@ private fun CourseRow(course: CourseOccurrence) {
                 course.name,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
+                color = NextPalette.Ink,
             )
             Text(
                 "${course.location} · ${course.teacher}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
         }
     }
@@ -163,26 +189,36 @@ private fun AssignmentBody(data: JsonObject?) {
 
     assignments.take(6).forEach { assignment ->
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 7.dp)
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (assignment.status == "已完成") NextPalette.Success else NextPalette.Danger,
+                    ),
+            )
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     assignment.title,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
+                    color = NextPalette.Ink,
                 )
                 Text(
                     "${assignment.course} · 截止 ${assignment.dueAt}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = NextPalette.InkSecondary,
                 )
             }
-            Spacer(Modifier.width(8.dp))
             Text(
                 assignment.status,
                 style = MaterialTheme.typography.labelSmall,
                 color = if (assignment.status == "已完成") {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    NextPalette.InkSecondary
                 } else {
-                    MaterialTheme.colorScheme.error
+                    NextPalette.Danger
                 },
             )
         }
@@ -200,19 +236,18 @@ private fun GradeBody(data: JsonObject?) {
     val gpa = data?.get("gpaAverage")?.jsonPrimitive?.content.orEmpty()
     val credits = data?.get("credits")?.jsonPrimitive?.content.orEmpty()
     Row(verticalAlignment = Alignment.Bottom) {
-        Text("加权绩点", style = MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.width(8.dp))
+        Text("加权绩点", style = MaterialTheme.typography.labelMedium, color = NextPalette.InkSecondary)
+        Spacer(Modifier.width(10.dp))
         Text(
             gpa,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         Text(
             "$credits 学分",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = NextPalette.InkSecondary,
         )
     }
 
@@ -222,23 +257,25 @@ private fun GradeBody(data: JsonObject?) {
                 grade.course,
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
+                color = NextPalette.Ink,
             )
             Text(
                 "${grade.credit.toInt()} 学分",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
             Spacer(Modifier.width(10.dp))
             Text(
                 formatScore(grade.score),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
+                color = NextPalette.Ink,
             )
             Spacer(Modifier.width(10.dp))
             Text(
                 "绩点 ${grade.gpa}",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
         }
     }
@@ -255,16 +292,17 @@ private fun CalendarBody(data: JsonObject?) {
     Text(
         event.title,
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
+        color = NextPalette.Ink,
     )
     Text(
         "${event.start} - ${event.end}",
         style = MaterialTheme.typography.bodyMedium,
+        color = NextPalette.Ink,
     )
     Text(
         "提前 ${event.reminderMinutes} 分钟提醒",
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = NextPalette.InkSecondary,
     )
 }
 
@@ -274,84 +312,106 @@ fun ApprovalCard(
     onApprove: () -> Unit,
     onReject: () -> Unit,
 ) {
-    val colors = MaterialTheme.colorScheme
     val pending = item.decision == ApprovalDecision.PENDING
     val statusText = when (item.decision) {
-        ApprovalDecision.PENDING -> "等待中"
+        ApprovalDecision.PENDING -> "等待确认"
         ApprovalDecision.APPROVED -> "已确认"
         ApprovalDecision.REJECTED -> "已取消"
     }
 
-    Card(
+    SoftSurface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant.copy(alpha = 0.65f)),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            1.dp,
-            if (pending) colors.primary.copy(alpha = 0.55f) else colors.outline,
-        ),
+        shape = RoundedCornerShape(24.dp),
+        color = if (pending) androidx.compose.ui.graphics.Color(0xFFF3F7FF) else NextPalette.Surface,
+        elevation = 10.dp,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "需要你确认",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    statusText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (pending) colors.primary else colors.onSurfaceVariant,
-                )
-            }
-
-            Text(item.request.summary, style = MaterialTheme.typography.bodyMedium)
-
-            item.request.arguments.forEach { (key, value) ->
-                if (key != "reminder_minutes") {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            labelFor(key),
-                            modifier = Modifier.width(64.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.onSurfaceVariant,
-                        )
-                        Text(
-                            value.display(),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(NextPalette.AccentSoft),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "N",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NextPalette.Accent,
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "需要你确认",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NextPalette.Ink,
+                    )
+                    Text(
+                        statusText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (pending) NextPalette.Accent else NextPalette.InkSecondary,
+                    )
                 }
             }
 
-            val reminder = item.request.arguments["reminder_minutes"]?.display()
-            if (reminder != null) {
-                Text(
-                    "提前 $reminder 分钟提醒",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = colors.onSurfaceVariant,
-                )
+            Text(
+                item.request.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = NextPalette.Ink,
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                item.request.arguments.forEach { (key, value) ->
+                    if (key != "reminder_minutes") {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                labelFor(key),
+                                modifier = Modifier.width(64.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Text(
+                                value.display(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = NextPalette.Ink,
+                            )
+                        }
+                    }
+                }
+                val reminder = item.request.arguments["reminder_minutes"]?.display()
+                if (reminder != null) {
+                    Text(
+                        "提前 $reminder 分钟提醒",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                }
             }
 
             Text(
                 item.request.risk,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(NextPalette.SurfaceSoft)
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
                 style = MaterialTheme.typography.labelSmall,
-                color = colors.onSurfaceVariant,
+                color = NextPalette.InkSecondary,
             )
-            Spacer(Modifier.height(2.dp))
 
             if (pending) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(onClick = onReject) { Text("取消") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = onApprove) { Text("确认执行") }
+                    SoftSecondaryButton(text = "取消", onClick = onReject)
+                    Spacer(Modifier.width(10.dp))
+                    SoftPrimaryButton(text = "确认执行", onClick = onApprove)
                 }
             }
         }
@@ -360,19 +420,17 @@ fun ApprovalCard(
 
 @Composable
 fun ErrorCard(text: String) {
-    Card(
+    SoftSurface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.10f),
-        ),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+        shape = RoundedCornerShape(22.dp),
+        color = NextPalette.DangerSoft,
+        elevation = 4.dp,
     ) {
         Text(
             text,
             modifier = Modifier.padding(14.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error,
+            color = NextPalette.Danger,
         )
     }
 }
@@ -382,8 +440,16 @@ private fun EmptyHint(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = NextPalette.InkSecondary,
     )
+}
+
+private fun toolIcon(name: String): Int = when (name) {
+    "get_schedule" -> R.drawable.ic_iconpark_calendar
+    "get_assignments" -> R.drawable.ic_iconpark_assignment
+    "get_grades" -> R.drawable.ic_iconpark_grades
+    "add_calendar_event" -> R.drawable.ic_iconpark_plus
+    else -> R.drawable.ic_iconpark_grades
 }
 
 private fun toolTitle(name: String): String = when (name) {

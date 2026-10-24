@@ -1,27 +1,28 @@
 package com.ahu.ahutong.next.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,16 +30,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.BuildConfig
+import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.app.data.SettingsRepository
+import com.ahu.ahutong.next.ui.components.SoftBackground
+import com.ahu.ahutong.next.ui.components.SoftIconButton
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
+import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
+import com.ahu.ahutong.next.ui.components.SoftSurface
+import com.ahu.ahutong.next.ui.components.SoftTextField
+import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     modelLabel: String,
@@ -59,117 +69,128 @@ fun SettingsScreen(
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
     var showClearDialog by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = { Text("设置", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    TextButton(onClick = onBack) { Text("返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            SectionTitle("模型")
-            Text(
-                "自带 API Key（BYOK）。Key 只用 Android Keystore 加密保存在本机，不会上传到安大通服务器。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = apiKeyInput,
-                onValueChange = { apiKeyInput = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("API Key") },
-                placeholder = {
-                    Text(if (hasKey) "已保存；留空则不修改" else "sk-...")
-                },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-            )
-            OutlinedTextField(
-                value = baseUrl,
-                onValueChange = { baseUrl = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Base URL") },
-                singleLine = true,
-            )
-            OutlinedTextField(
-                value = model,
-                onValueChange = { model = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("模型名") },
-                singleLine = true,
-            )
+    Box(modifier = Modifier.fillMaxSize()) {
+        SoftBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp),
+            ) {
+                SettingsTopBar(onBack)
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {
-                        settings.save(
-                            baseUrl = baseUrl,
-                            model = model,
-                            apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
+                SettingsCard {
+                    SectionTitle("模型")
+                    Text(
+                        "自带 API Key（BYOK）。Key 只用 Android Keystore 加密保存在本机，不会上传到安大通服务器。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    SoftTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        label = "API Key",
+                        placeholder = if (hasKey) "已保存；留空则不修改" else "sk-...",
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    SoftTextField(
+                        value = baseUrl,
+                        onValueChange = { baseUrl = it },
+                        label = "Base URL",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    SoftTextField(
+                        value = model,
+                        onValueChange = { model = it },
+                        label = "模型名",
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SoftPrimaryButton(
+                            text = "保存",
+                            onClick = {
+                                settings.save(
+                                    baseUrl = baseUrl,
+                                    model = model,
+                                    apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
+                                )
+                                hasKey = !settings.apiKey().isNullOrBlank()
+                                apiKeyInput = ""
+                                onSaved()
+                                scope.launch { snackbar.showSnackbar("已保存") }
+                            },
                         )
-                        hasKey = !settings.apiKey().isNullOrBlank()
-                        apiKeyInput = ""
-                        onSaved()
-                        scope.launch { snackbar.showSnackbar("已保存") }
-                    },
-                ) {
-                    Text("保存")
+                        SoftSecondaryButton(
+                            text = "清除 Key",
+                            onClick = {
+                                settings.clearApiKey()
+                                hasKey = false
+                                onSaved()
+                                scope.launch { snackbar.showSnackbar("已清除 API Key") }
+                            },
+                        )
+                    }
+
+                    Text(
+                        "当前模式：$modelLabel",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = NextPalette.AccentDeep,
+                    )
                 }
-                OutlinedButton(
-                    onClick = {
-                        settings.clearApiKey()
-                        hasKey = false
-                        onSaved()
-                        scope.launch { snackbar.showSnackbar("已清除 API Key") }
-                    },
-                ) {
-                    Text("清除 Key")
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
+                    SectionTitle("数据")
+                    Text(
+                        "单会话本地历史，共 $historyCount 条。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    SoftSecondaryButton(
+                        text = "清除聊天记录",
+                        onClick = { showClearDialog = true },
+                    )
                 }
+
+                if (BuildConfig.DEBUG) {
+                    Spacer(Modifier.padding(top = 14.dp))
+                    SettingsCard {
+                        SectionTitle("开发者")
+                        SoftSecondaryButton(
+                            text = "工具工作台",
+                            onClick = onOpenLab,
+                        )
+                        Text(
+                            "直接调用工具，绕过模型与确认卡，仅用于调试。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                }
+
+                Spacer(Modifier.padding(bottom = 24.dp))
             }
+        }
 
-            Text(
-                "当前模式：$modelLabel",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-
-            SectionTitle("数据")
-            Text(
-                "单会话本地历史，共 $historyCount 条。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedButton(onClick = { showClearDialog = true }) {
-                Text("清除聊天记录")
-            }
-
-            if (BuildConfig.DEBUG) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                SectionTitle("开发者")
-                OutlinedButton(onClick = onOpenLab) {
-                    Text("工具工作台")
-                }
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(18.dp),
+        ) { data ->
+            SoftSurface(
+                shape = RoundedCornerShape(18.dp),
+                elevation = 14.dp,
+            ) {
                 Text(
-                    "直接调用工具，绕过模型与确认卡，仅用于调试。",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    data.visuals.message,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NextPalette.Ink,
                 )
             }
         }
@@ -199,10 +220,52 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun SettingsTopBar(onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SoftIconButton(onClick = onBack) {
+            Icon(
+                painter = painterResource(R.drawable.ic_iconpark_left),
+                contentDescription = "返回",
+                tint = NextPalette.Ink,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Text(
+            "设置",
+            style = MaterialTheme.typography.titleLarge,
+            color = NextPalette.Ink,
+        )
+    }
+}
+
+@Composable
+private fun SettingsCard(content: @Composable () -> Unit) {
+    SoftSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        elevation = 8.dp,
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
 private fun SectionTitle(text: String) {
     Text(
         text,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
+        color = NextPalette.Ink,
     )
 }

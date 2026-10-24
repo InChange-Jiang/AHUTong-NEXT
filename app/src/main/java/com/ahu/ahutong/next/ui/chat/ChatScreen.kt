@@ -1,49 +1,59 @@
 package com.ahu.ahutong.next.ui.chat
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.ahu.ahutong.next.R
+import com.ahu.ahutong.next.ui.components.GlossyOrb
+import com.ahu.ahutong.next.ui.components.SoftBackground
+import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftIconButton
+import com.ahu.ahutong.next.ui.components.SoftSurface
+import com.ahu.ahutong.next.ui.components.softClickable
+import com.ahu.ahutong.next.ui.theme.NextPalette
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     state: ChatUiState,
@@ -61,210 +71,240 @@ fun ChatScreen(
         if (target >= 0) listState.animateScrollToItem(target)
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            TopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-                title = {
-                    Column {
-                        Text("AHUTong NEXT", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "模式：${state.modelLabel}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onOpenSettings) { Text("设置") }
-                },
+    SoftBackground {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+        ) {
+            FloatingTopBar(
+                online = state.hasApiKey,
+                onOpenSettings = onOpenSettings,
             )
-        },
-        bottomBar = {
-            InputBar(
+
+            Box(modifier = Modifier.weight(1f)) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 18.dp,
+                        end = 18.dp,
+                        top = 10.dp,
+                        bottom = 150.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    if (state.items.isEmpty()) {
+                        item {
+                            EmptyHero(onSend = onSend)
+                        }
+                    } else {
+                        items(state.items, key = { it.id }) { item ->
+                            MessageItem(
+                                item = item,
+                                onApprove = onApprove,
+                                onReject = onReject,
+                            )
+                        }
+                    }
+
+                    if (state.status != null) {
+                        item {
+                            StatusPill(text = state.status, onCancel = onCancel)
+                        }
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+        ) {
+            InputPill(
                 value = state.input,
                 enabled = !state.isRunning,
                 onValueChange = onInputChange,
                 onSend = { onSend(state.input) },
             )
-        },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            if (!state.hasApiKey) {
-                ModeBanner(onOpenSettings)
-            }
-
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (state.items.isEmpty()) {
-                    item {
-                        EmptyState(onSend = onSend)
-                    }
-                } else {
-                    items(state.items, key = { it.id }) { item ->
-                        MessageItem(
-                            item = item,
-                            onApprove = onApprove,
-                            onReject = onReject,
-                        )
-                    }
-                }
-
-                if (state.status != null) {
-                    item {
-                        StatusRow(text = state.status, onCancel = onCancel)
-                    }
-                }
-            }
         }
     }
 }
 
 @Composable
-private fun ModeBanner(onOpenSettings: () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.10f),
+private fun FloatingTopBar(
+    online: Boolean,
+    onOpenSettings: () -> Unit,
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        GlossyOrb(size = 42.dp)
+        Spacer(Modifier.width(12.dp))
+
+        SoftSurface(
+            shape = RoundedCornerShape(50),
+            elevation = 8.dp,
         ) {
-            Text(
-                "本地演示模式，未连接模型",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "AHUTong NEXT",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = NextPalette.Ink,
+                )
+                Spacer(Modifier.width(9.dp))
+                Box(
+                    Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(if (online) NextPalette.Success else NextPalette.Warning),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (online) "在线" else "本地",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                )
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        SoftIconButton(onClick = onOpenSettings) {
+            Icon(
+                painter = painterResource(R.drawable.ic_iconpark_setting),
+                contentDescription = "设置",
+                tint = NextPalette.Ink,
+                modifier = Modifier.size(20.dp),
             )
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = onOpenSettings) { Text("填 API Key") }
         }
     }
 }
 
 @Composable
-private fun InputBar(
+private fun EmptyHero(onSend: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 26.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        GlossyOrb(size = 96.dp)
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "嗨，今天想做什么",
+            style = MaterialTheme.typography.displaySmall,
+            color = NextPalette.Ink,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "查课表、看作业、问成绩，或者让我加一条日程。",
+            style = MaterialTheme.typography.bodyMedium,
+            color = NextPalette.InkSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 24.dp),
+        )
+        Spacer(Modifier.height(26.dp))
+
+        val suggestions = listOf(
+            Suggestion("作业", "这周还有哪些作业？", R.drawable.ic_iconpark_assignment),
+            Suggestion("课表", "我今天的课表", R.drawable.ic_iconpark_calendar),
+            Suggestion("成绩", "查一下我的成绩", R.drawable.ic_iconpark_grades),
+            Suggestion("日程", "把小组会议加到日程", R.drawable.ic_iconpark_plus),
+        )
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp),
+        ) {
+            items(suggestions, key = { it.label }) { suggestion ->
+                SoftChip(
+                    label = suggestion.label,
+                    icon = painterResource(suggestion.iconRes),
+                    onClick = { onSend(suggestion.query) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InputPill(
     value: String,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 10.dp,
+    val canSend = enabled && value.isNotBlank()
+
+    SoftSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(30.dp),
+        elevation = 18.dp,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            OutlinedTextField(
+            BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
                 enabled = enabled,
-                placeholder = { Text("问课表、作业、成绩，或让我加日程") },
-                shape = RoundedCornerShape(22.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 12.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = NextPalette.Ink),
                 maxLines = 4,
+                cursorBrush = SolidColor(NextPalette.Accent),
+                decorationBox = { inner ->
+                    if (value.isEmpty()) {
+                        Text(
+                            "问课表、作业、成绩…",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                    inner()
+                },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
             )
+
             Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = onSend,
-                enabled = enabled && value.isNotBlank(),
-                shape = RoundedCornerShape(50),
-                modifier = Modifier.height(52.dp),
+
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (canSend) {
+                            Brush.linearGradient(listOf(Color(0xFF4A82FF), NextPalette.Accent))
+                        } else {
+                            SolidColor(Color(0xFFE7E5DF))
+                        },
+                    )
+                    .softClickable(onClick = onSend, enabled = canSend),
+                contentAlignment = Alignment.Center,
             ) {
-                Text("发送")
+                Icon(
+                    painter = painterResource(R.drawable.ic_iconpark_send),
+                    contentDescription = "发送",
+                    tint = if (canSend) Color.White else NextPalette.InkSecondary,
+                    modifier = Modifier.size(19.dp),
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun EmptyState(onSend: (String) -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 40.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            "今天想做什么？",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "直接说需求，我会调用安大通的数据帮你完成。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(26.dp))
-
-        val suggestions = listOf(
-            "这周还有哪些作业？" to "学习通 + 本地日程",
-            "我今天的课表" to "课程与教室",
-            "查一下我的成绩" to "分数与绩点",
-            "把小组会议加到日程" to "确认后写入",
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            suggestions.chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    row.forEach { (title, subtitle) ->
-                        SuggestionCard(
-                            title = title,
-                            subtitle = subtitle,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onSend(title) },
-                        )
-                    }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuggestionCard(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(18.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -283,24 +323,37 @@ private fun MessageItem(
         is ChatItem.Error -> ErrorCard(item.text)
         is ChatItem.Notice -> Text(
             item.text,
+            modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = NextPalette.InkSecondary,
+            textAlign = TextAlign.Center,
         )
     }
 }
 
 @Composable
 private fun UserBubble(text: String) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Surface(
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-            shape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)),
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        Box(
+            modifier = Modifier
+                .shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(22.dp, 22.dp, 8.dp, 22.dp),
+                    clip = false,
+                    ambientColor = Color(0x332F6BFF),
+                    spotColor = Color(0x332F6BFF),
+                )
+                .clip(RoundedCornerShape(22.dp, 22.dp, 8.dp, 22.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF4A82FF), NextPalette.Accent)))
+                .padding(horizontal = 16.dp, vertical = 11.dp),
         ) {
             Text(
                 text,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 style = MaterialTheme.typography.bodyLarge,
+                color = Color.White,
             )
         }
     }
@@ -308,41 +361,70 @@ private fun UserBubble(text: String) {
 
 @Composable
 private fun AssistantMessage(text: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            "NEXT",
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyLarge,
-            lineHeight = 24.sp,
-        )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+    ) {
+        GlossyOrb(size = 28.dp)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "NEXT",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = NextPalette.Accent,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = NextPalette.Ink,
+            )
+        }
     }
 }
 
 @Composable
-private fun StatusRow(text: String, onCancel: () -> Unit) {
+private fun StatusPill(text: String, onCancel: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(14.dp),
-            strokeWidth = 2.dp,
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.weight(1f))
-        TextButton(onClick = onCancel) { Text("取消") }
+        SoftSurface(
+            shape = RoundedCornerShape(50),
+            elevation = 6.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                    color = NextPalette.Accent,
+                )
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = NextPalette.InkSecondary,
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    "取消",
+                    modifier = Modifier
+                        .softClickable(onClick = onCancel)
+                        .padding(4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.Accent,
+                )
+            }
+        }
     }
 }
+
+private data class Suggestion(
+    val label: String,
+    val query: String,
+    val iconRes: Int,
+)
