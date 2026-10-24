@@ -1,5 +1,13 @@
 package com.ahu.ahutong.next.ui.chat
 
+import android.os.Build
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,12 +45,18 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -56,6 +70,9 @@ import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.theme.NextPalette
+
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
@@ -385,21 +402,68 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
                 color = NextPalette.Accent,
             )
             Spacer(Modifier.height(3.dp))
-            if (streaming) {
-                Text(
-                    text = if (text.isEmpty()) "▍" else "$text▍",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = NextPalette.Ink,
-                )
-            } else {
-                AppMarkdown(
-                    markdown = text,
-                    modifier = Modifier.fillMaxWidth(),
-                    lazy = false,
-                )
+            AnimatedContent(
+                targetState = streaming,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(240)) togetherWith
+                        fadeOut(animationSpec = tween(140))
+                },
+                label = "assistant-content",
+            ) { isStreaming ->
+                if (isStreaming) {
+                    StreamingText(text)
+                } else {
+                    AppMarkdown(
+                        markdown = text,
+                        modifier = Modifier.fillMaxWidth(),
+                        lazy = false,
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun StreamingText(text: String) {
+    val blur = remember { Animatable(7f) }
+    val alpha = remember { Animatable(0.55f) }
+    var started by remember { mutableStateOf(false) }
+
+    LaunchedEffect(text.isNotEmpty()) {
+        if (text.isNotEmpty() && !started) {
+            started = true
+            coroutineScope {                launch {
+                    alpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(360, easing = FastOutSlowInEasing),
+                    )
+                }
+                launch {
+                    blur.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(700, easing = FastOutSlowInEasing),
+                    )
+                }
+            }
+        }
+    }
+
+    Text(
+        text = text,
+        modifier = Modifier
+            .graphicsLayer { this.alpha = alpha.value }
+            .then(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Modifier.blur(blur.value.dp)
+                } else {
+                    // Modifier.blur 在 API 31 以下无效，低版本只保留淡入。
+                    Modifier
+                },
+            ),
+        style = MaterialTheme.typography.bodyLarge,
+        color = NextPalette.Ink,
+    )
 }
 
 @Composable
