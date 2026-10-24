@@ -3,6 +3,7 @@ package com.ahu.ahutong.next.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -239,40 +240,41 @@ fun SoftChip(
 }
 
 @Composable
-fun GlossyOrb(
-    size: Dp = 88.dp,
+fun AhtorusMark(
+    size: Dp = 44.dp,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
             .size(size)
             .shadow(
-                elevation = 20.dp,
+                elevation = size * 0.2f,
                 shape = CircleShape,
                 clip = false,
-                ambientColor = Color(0x402F6BFF),
-                spotColor = Color(0x402F6BFF),
+                ambientColor = Color(0x332F6BFF),
+                spotColor = Color(0x332F6BFF),
             )
-            .clip(CircleShape)
-            .background(
-                Brush.linearGradient(
+            .border(
+                width = size * 0.24f,
+                brush = Brush.linearGradient(
                     colors = listOf(Color(0xFFB7D6FF), Color(0xFF4A82FF), Color(0xFF1F55E8)),
                 ),
+                shape = CircleShape,
             ),
     ) {
         Box(
             Modifier
                 .align(Alignment.TopStart)
-                .padding(start = size * 0.16f, top = size * 0.14f)
-                .size(width = size * 0.34f, height = size * 0.2f)
-                .background(Color.White.copy(alpha = 0.55f), CircleShape),
+                .padding(start = size * 0.13f, top = size * 0.08f)
+                .size(width = size * 0.28f, height = size * 0.13f)
+                .background(Color.White.copy(alpha = 0.62f), CircleShape),
         )
         Box(
             Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = size * 0.18f, bottom = size * 0.16f)
-                .size(size * 0.16f)
-                .background(Color.White.copy(alpha = 0.16f), CircleShape),
+                .padding(end = size * 0.14f, bottom = size * 0.10f)
+                .size(size * 0.11f)
+                .background(Color.White.copy(alpha = 0.18f), CircleShape),
         )
     }
 }

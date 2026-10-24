@@ -46,7 +46,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
-import com.ahu.ahutong.next.ui.components.GlossyOrb
+import com.ahu.ahutong.next.ui.components.AhtorusMark
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -146,7 +146,7 @@ private fun FloatingTopBar(
             .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GlossyOrb(size = 42.dp)
+        AhtorusMark(size = 42.dp)
         Spacer(Modifier.width(12.dp))
 
         SoftSurface(
@@ -158,7 +158,7 @@ private fun FloatingTopBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "AHUTong NEXT",
+                    "NEXT",
                     style = MaterialTheme.typography.titleSmall,
                     color = NextPalette.Ink,
                 )
@@ -199,7 +199,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
             .padding(top = 26.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        GlossyOrb(size = 96.dp)
+        AhtorusMark(size = 104.dp)
         Spacer(Modifier.height(28.dp))
         Text(
             "嗨，今天想做什么",
@@ -209,7 +209,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "查课表、看作业、问成绩，或者让我加一条日程。",
+            "我是 Ahtorus。查课表、看作业、问成绩，或者让我加一条日程。",
             style = MaterialTheme.typography.bodyMedium,
             color = NextPalette.InkSecondary,
             textAlign = TextAlign.Center,
@@ -365,11 +365,11 @@ private fun AssistantMessage(text: String) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
     ) {
-        GlossyOrb(size = 28.dp)
+        AhtorusMark(size = 30.dp)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "NEXT",
+                "Ahtorus",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = NextPalette.Accent,
