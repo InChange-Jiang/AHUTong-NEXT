@@ -17,6 +17,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Legacy data layer uses franmontiel/PersistentCookieJar, published on JitPack.
+        exclusiveContent {
+            forRepository { maven("https://jitpack.io") }
+            filter { includeGroup("com.github.franmontiel") }
+        }
     }
 }
 
@@ -27,3 +32,4 @@ include(":agent-core")
 include(":agent-tools")
 include(":data-sdk")
 include(":model-gateway")
+include(":legacy-data")

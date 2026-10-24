@@ -8,6 +8,15 @@ lifecycle = "2.9.4"
 coroutines = "1.10.2"
 serialization = "1.8.1"
 okhttp = "5.1.0"
+retrofit = "2.11.0"
+gson = "2.11.0"
+jsoup = "1.19.1"
+mmkv = "2.2.2"
+persistentCookieJar = "v1.0.1"
+datastore = "1.2.1"
+javaxInject = "1"
+commonmark = "0.13.0"
+coil = "2.7.0"
 markdownRenderer = "0.38.1"
 junit = "4.13.2"
 
@@ -29,6 +38,18 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
+okhttp-dnsoverhttps = { module = "com.squareup.okhttp3:okhttp-dnsoverhttps", version.ref = "okhttp" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+retrofit-converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+mmkv-static = { module = "com.tencent:mmkv-static", version.ref = "mmkv" }
+persistentcookiejar = { module = "com.github.franmontiel:PersistentCookieJar", version.ref = "persistentCookieJar" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+javax-inject = { module = "javax.inject:javax.inject", version.ref = "javaxInject" }
+commonmark-tables = { module = "com.atlassian.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
+commonmark-strikethrough = { module = "com.atlassian.commonmark:commonmark-ext-gfm-strikethrough", version.ref = "commonmark" }
+coil = { module = "io.coil-kt:coil", version.ref = "coil" }
 markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "markdownRenderer" }
 junit = { module = "junit:junit", version.ref = "junit" }
 
