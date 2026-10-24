@@ -58,6 +58,18 @@ class FakeChatModel : ChatModel {
             text.contains("成绩") || text.contains("绩点") || text.contains("分数") ->
                 ModelReply("我查一下你的成绩。", listOf(call("get_grades", "{}")))
 
+            text.contains("余额") || text.contains("一卡通") ->
+                ModelReply("我查一下你的一卡通余额。", listOf(call("get_balance", "{}")))
+
+            text.contains("账单") || text.contains("流水") || text.contains("消费") ->
+                ModelReply("我查一下近期的一卡通流水。", listOf(call("get_bills", "{}")))
+
+            text.contains("考试") ->
+                ModelReply("我查一下考试安排。", listOf(call("get_exams", "{}")))
+
+            text.contains("电费") || text.contains("电量") ->
+                ModelReply("我查一下宿舍电费。", listOf(call("get_electricity", "{}")))
+
             text.contains("日程") || text.contains("提醒") || text.contains("加到") ->
                 ModelReply(
                     "我整理了一条日程，需要你确认后才会写入。",
@@ -65,7 +77,7 @@ class FakeChatModel : ChatModel {
                 )
 
             else -> ModelReply(
-                "我可以帮你查课表、作业、成绩，也可以在确认后添加日程。你可以直接问“这周还有哪些作业”。",
+                "我可以帮你查课表、作业、成绩、考试、一卡通余额与账单、宿舍电费，也可以在确认后添加日程。你可以直接问“这周还有哪些作业”。",
             )
         }
     }
@@ -95,6 +107,10 @@ class FakeChatModel : ChatModel {
             "get_schedule" -> "课表查到了，明细在下面的卡片里。"
             "get_assignments" -> "作业查到了，按截止时间排在下面。"
             "get_grades" -> "成绩查到了，明细在下面。"
+            "get_balance" -> "余额查到了，在下面的卡片里。"
+            "get_bills" -> "账单查到了，在下面的卡片里。"
+            "get_exams" -> "考试安排查到了，在下面的卡片里。"
+            "get_electricity" -> "电费查到了，在下面的卡片里。"
             "add_calendar_event" -> "日程已添加，可在本地历史里查看。"
             else -> "结果在下面。"
         }

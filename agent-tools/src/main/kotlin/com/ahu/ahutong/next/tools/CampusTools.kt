@@ -99,6 +99,91 @@ class GetGradesTool(private val repository: CampusRepository) : Tool {
     }
 }
 
+class GetBalanceTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "get_balance",
+        displayName = "查询一卡通余额",
+        description = "查询校园一卡通的当前余额与卡号。",
+        parameters = schema(buildJsonObject { }),
+        kind = ToolKind.READ,
+        source = "一卡通系统 · 演示数据",
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput {
+        val balance = repository.balance()
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("balance", AgentJson.encodeToJsonElement(balance))
+            },
+        )
+    }
+}
+
+class GetBillsTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "get_bills",
+        displayName = "查询一卡通账单",
+        description = "查询校园一卡通近期流水：本月消费、充值、消费地点和逐笔明细。",
+        parameters = schema(buildJsonObject { }),
+        kind = ToolKind.READ,
+        source = "一卡通系统 · 演示数据",
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput {
+        val bills = repository.bills()
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("bills", AgentJson.encodeToJsonElement(bills))
+            },
+        )
+    }
+}
+
+class GetExamsTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "get_exams",
+        displayName = "查询考试安排",
+        description = "查询教务系统里的期末考试安排：课程、时间、地点与座位号。",
+        parameters = schema(buildJsonObject { }),
+        kind = ToolKind.READ,
+        source = "教务系统 · 演示数据",
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput {
+        val exams = repository.exams()
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("count", exams.size)
+                put("exams", AgentJson.encodeToJsonElement(exams))
+            },
+        )
+    }
+}
+
+class GetElectricityTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "get_electricity",
+        displayName = "查询宿舍电费",
+        description = "查询宿舍剩余电费、近七日用电量和预计可用天数。",
+        parameters = schema(buildJsonObject { }),
+        kind = ToolKind.READ,
+        source = "电费系统 · 演示数据",
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput {
+        val electricity = repository.electricity()
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("electricity", AgentJson.encodeToJsonElement(electricity))
+            },
+        )
+    }
+}
+
 class AddCalendarEventTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
         name = "add_calendar_event",
@@ -151,5 +236,9 @@ fun campusTools(repository: CampusRepository): List<Tool> = listOf(
     GetScheduleTool(repository),
     GetAssignmentsTool(repository),
     GetGradesTool(repository),
+    GetBalanceTool(repository),
+    GetBillsTool(repository),
+    GetExamsTool(repository),
+    GetElectricityTool(repository),
     AddCalendarEventTool(repository),
 )

@@ -32,8 +32,12 @@ import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.agent.AgentJson
 import com.ahu.ahutong.next.agent.ToolResult
 import com.ahu.ahutong.next.data.Assignment
+import com.ahu.ahutong.next.data.Balance
+import com.ahu.ahutong.next.data.BillSummary
 import com.ahu.ahutong.next.data.CalendarEvent
 import com.ahu.ahutong.next.data.CourseOccurrence
+import com.ahu.ahutong.next.data.Electricity
+import com.ahu.ahutong.next.data.Exam
 import com.ahu.ahutong.next.data.Grade
 import com.ahu.ahutong.next.tools.SearchResult
 import com.ahu.ahutong.next.ui.components.AgentAvatar
@@ -106,6 +110,10 @@ fun ToolResultCard(result: ToolResult) {
                     "get_schedule" -> ScheduleBody(result.data)
                     "get_assignments" -> AssignmentBody(result.data)
                     "get_grades" -> GradeBody(result.data)
+                    "get_balance" -> BalanceBody(result.data)
+                    "get_bills" -> BillsBody(result.data)
+                    "get_exams" -> ExamBody(result.data)
+                    "get_electricity" -> ElectricityBody(result.data)
                     "add_calendar_event" -> CalendarBody(result.data)
                     "web_search" -> SearchBody(result.data)
                     else -> Text(
@@ -285,6 +293,156 @@ private fun GradeBody(data: JsonObject?) {
             )
         }
     }
+}
+
+@Composable
+private fun BalanceBody(data: JsonObject?) {
+    val balance = decodeBalance(data)
+    if (balance == null) {
+        EmptyHint("没有拿到余额。")
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text("¥", style = MaterialTheme.typography.titleMedium, color = NextPalette.AccentDeep)
+        Spacer(Modifier.width(2.dp))
+        Text(
+            formatScore(balance.yuan),
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
+        )
+    }
+    Text(
+        balance.cardNo,
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
+}
+
+@Composable
+private fun BillsBody(data: JsonObject?) {
+    val bills = decodeBills(data)
+    if (bills == null) {
+        EmptyHint("没有拿到账单。")
+        return
+    }
+    Row(modifier = Modifier.fillMaxWidth()) {
+        StatColumn("本月支出", "¥${formatScore(bills.monthSpend)}", Modifier.weight(1f))
+        StatColumn("本月充值", "¥${formatScore(bills.monthIncome)}", Modifier.weight(1f))
+    }
+    Text(
+        "最常去：${bills.topPlace}",
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
+    bills.items.take(5).forEach { item ->
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.place, style = MaterialTheme.typography.bodyMedium, color = NextPalette.Ink)
+                Text(item.time, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+            }
+            Text(
+                if (item.amount < 0) "-¥${formatScore(-item.amount)}" else "+¥${formatScore(item.amount)}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (item.amount < 0) NextPalette.Ink else NextPalette.Success,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExamBody(data: JsonObject?) {
+    val exams = decodeExams(data)
+    if (exams.isEmpty()) {
+        EmptyHint("暂无考试安排。")
+        return
+    }
+    exams.forEach { exam ->
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    exam.course,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = NextPalette.Ink,
+                )
+                Text(
+                    exam.time,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.AccentDeep,
+                )
+            }
+            Text(
+                "${exam.location} · 座位 ${exam.seat}",
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ElectricityBody(data: JsonObject?) {
+    val electricity = decodeElectricity(data)
+    if (electricity == null) {
+        EmptyHint("没有拿到电费数据。")
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            "¥${formatScore(electricity.balanceYuan)}",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "预计可用 ${electricity.estimatedDays} 天",
+            style = MaterialTheme.typography.labelSmall,
+            color = NextPalette.InkSecondary,
+        )
+    }
+    Text(
+        electricity.room,
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
+    if (electricity.dailyUsage.isNotEmpty()) {
+        UsageBars(electricity.dailyUsage)
+    }
+}
+
+@Composable
+private fun StatColumn(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+        Text(value, style = MaterialTheme.typography.titleMedium, color = NextPalette.Ink)
+    }
+}
+
+@Composable
+private fun UsageBars(values: List<Double>) {
+    val max = values.maxOrNull()?.takeIf { it > 0 } ?: 1.0
+    Row(
+        modifier = Modifier.fillMaxWidth().height(46.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        values.forEach { value ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height((8 + (value / max) * 38).dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(NextPalette.AccentSoft),
+            )
+        }
+    }
+    Text(
+        "近 ${values.size} 日用电量（度）",
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
 }
 
 @Composable
@@ -499,6 +657,10 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_schedule" -> R.drawable.ic_iconpark_calendar
     "get_assignments" -> R.drawable.ic_iconpark_assignment
     "get_grades" -> R.drawable.ic_iconpark_grades
+    "get_balance" -> R.drawable.ic_iconpark_wallet
+    "get_bills" -> R.drawable.ic_iconpark_bill
+    "get_exams" -> R.drawable.ic_iconpark_exam
+    "get_electricity" -> R.drawable.ic_iconpark_electricity
     "add_calendar_event" -> R.drawable.ic_iconpark_plus
     "web_search" -> R.drawable.ic_iconpark_search
     else -> R.drawable.ic_iconpark_grades
@@ -508,6 +670,10 @@ private fun toolTitle(name: String): String = when (name) {
     "get_schedule" -> "课表"
     "get_assignments" -> "作业"
     "get_grades" -> "成绩"
+    "get_balance" -> "一卡通余额"
+    "get_bills" -> "一卡通账单"
+    "get_exams" -> "考试安排"
+    "get_electricity" -> "宿舍电费"
     "add_calendar_event" -> "新建日程"
     "web_search" -> "联网搜索"
     else -> name
@@ -564,6 +730,34 @@ private fun decodeGrades(data: JsonObject?): List<Grade> {
             element,
         )
     }.getOrDefault(emptyList())
+}
+
+private fun decodeBalance(data: JsonObject?): Balance? {
+    val element = data?.get("balance") ?: return null
+    return runCatching {
+        AgentJson.decodeFromJsonElement(Balance.serializer(), element)
+    }.getOrNull()
+}
+
+private fun decodeBills(data: JsonObject?): BillSummary? {
+    val element = data?.get("bills") ?: return null
+    return runCatching {
+        AgentJson.decodeFromJsonElement(BillSummary.serializer(), element)
+    }.getOrNull()
+}
+
+private fun decodeExams(data: JsonObject?): List<Exam> {
+    val element = data?.get("exams") ?: return emptyList()
+    return runCatching {
+        AgentJson.decodeFromJsonElement(ListSerializer(Exam.serializer()), element)
+    }.getOrDefault(emptyList())
+}
+
+private fun decodeElectricity(data: JsonObject?): Electricity? {
+    val element = data?.get("electricity") ?: return null
+    return runCatching {
+        AgentJson.decodeFromJsonElement(Electricity.serializer(), element)
+    }.getOrNull()
 }
 
 private fun decodeEvent(data: JsonObject?): CalendarEvent? {

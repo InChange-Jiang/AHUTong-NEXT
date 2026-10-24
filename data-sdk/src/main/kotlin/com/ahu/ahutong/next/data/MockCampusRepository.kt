@@ -102,6 +102,42 @@ class MockCampusRepository : CampusRepository {
         )
     }
 
+    override suspend fun balance(): Balance = Balance(
+        yuan = 186.40,
+        cardNo = "6222 **** **** 3187",
+        updatedAt = LocalDateTime.now().withSecond(0).withNano(0).format(dateTimeFormatter),
+    )
+
+    override suspend fun bills(): BillSummary {
+        val today = LocalDate.now()
+        val items = listOf(
+            BillItem(today.minusDays(0).toString() + " 12:04", "桔园餐厅二楼", -14.5, "消费"),
+            BillItem(today.minusDays(0).toString() + " 07:52", "梅园餐厅一楼", -6.0, "消费"),
+            BillItem(today.minusDays(1).toString() + " 18:21", "教育超市", -23.8, "消费"),
+            BillItem(today.minusDays(2).toString() + " 11:37", "桔园餐厅一楼", -12.0, "消费"),
+            BillItem(today.minusDays(3).toString() + " 09:10", "校园卡充值", 200.0, "充值"),
+        )
+        return BillSummary(
+            monthSpend = items.filter { it.amount < 0 }.sumOf { -it.amount },
+            monthIncome = items.filter { it.amount > 0 }.sumOf { it.amount },
+            topPlace = "桔园餐厅二楼",
+            items = items,
+        )
+    }
+
+    override suspend fun exams(): List<Exam> = listOf(
+        Exam("高等数学", "2027-01-11 09:00", "博学南楼 A201", "A-032"),
+        Exam("大学物理", "2027-01-13 14:00", "博学北楼 B105", "B-118"),
+        Exam("数据结构", "2027-01-15 09:00", "计算机楼 401", "C-046"),
+    )
+
+    override suspend fun electricity(): Electricity = Electricity(
+        room = "磬苑校区 梅园 3 栋 412",
+        balanceYuan = 42.6,
+        dailyUsage = listOf(3.1, 2.8, 4.2, 3.6, 5.1, 4.4, 3.9),
+        estimatedDays = 9,
+    )
+
     override suspend fun addCalendarEvent(
         title: String,
         start: String,

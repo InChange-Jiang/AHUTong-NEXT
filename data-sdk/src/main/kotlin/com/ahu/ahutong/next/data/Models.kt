@@ -38,3 +38,42 @@ data class CalendarEvent(
     val end: String,
     val reminderMinutes: Int,
 )
+
+@Serializable
+data class Balance(
+    val yuan: Double,
+    val cardNo: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class BillItem(
+    val time: String,
+    val place: String,
+    val amount: Double,
+    val kind: String,
+)
+
+@Serializable
+data class BillSummary(
+    val monthSpend: Double,
+    val monthIncome: Double,
+    val topPlace: String,
+    val items: List<BillItem>,
+)
+
+@Serializable
+data class Exam(
+    val course: String,
+    val time: String,
+    val location: String,
+    val seat: String,
+)
+
+@Serializable
+data class Electricity(
+    val room: String,
+    val balanceYuan: Double,
+    val dailyUsage: List<Double>,
+    val estimatedDays: Int,
+)
