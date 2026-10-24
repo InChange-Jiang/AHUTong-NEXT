@@ -230,7 +230,7 @@ fun AgentAvatar(
     ) {
         Image(
             painter = painterResource(R.drawable.agent_ahtorus),
-            contentDescription = "Ahtorus",
+            contentDescription = "安筱桐",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )

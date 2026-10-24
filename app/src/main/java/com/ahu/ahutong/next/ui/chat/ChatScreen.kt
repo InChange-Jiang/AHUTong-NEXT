@@ -211,7 +211,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "我是 Ahtorus，帮你查课表、作业和成绩。",
+            "我是安筱桐，帮你查课表、作业和成绩。",
             style = MaterialTheme.typography.bodyMedium,
             color = NextPalette.InkSecondary,
             textAlign = TextAlign.Center,
@@ -377,7 +377,7 @@ private fun AssistantMessage(text: String) {
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                "Ahtorus",
+                "安筱桐",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = NextPalette.Accent,

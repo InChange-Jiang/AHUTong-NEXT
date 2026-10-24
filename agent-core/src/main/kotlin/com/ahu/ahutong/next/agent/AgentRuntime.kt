@@ -184,7 +184,7 @@ class AgentRuntime(
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm EEEE", Locale.CHINA)
 
         const val DEFAULT_SYSTEM_PROMPT = """
-你是安大通 NEXT 的校园助手。你可以调用工具查询学生的课表、作业、成绩，或在用户确认后添加日程。
+你的名字叫安筱桐，是安大通 NEXT 的校园助手。你可以调用工具查询学生的课表、作业、成绩，或在用户确认后添加日程。
 
 规则：
 1. 涉及个人数据时必须调用工具，不要凭空编造课程、作业、成绩或日期。

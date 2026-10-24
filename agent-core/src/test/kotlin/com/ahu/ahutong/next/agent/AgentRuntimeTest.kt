@@ -174,7 +174,7 @@ class AgentRuntimeTest {
     }
 
     @Test
-    fun systemPromptIncludesCurrentTime() = runTest {
+    fun systemPromptIncludesCurrentTimeAndAgentName() = runTest {
         val fixed = Instant.parse("2026-10-25T08:30:00Z").toEpochMilli()
         val model = RecordingModel()
         val events = mutableListOf<AgentEvent>()
@@ -187,6 +187,7 @@ class AgentRuntimeTest {
         job.join()
 
         val system = model.messages.first { it.role == "system" }.content.orEmpty()
+        assertTrue(system.contains("安筱桐"))
         assertTrue(system.contains("2026-10-25 16:30"))
         assertTrue(system.contains("Asia/Shanghai"))
     }
