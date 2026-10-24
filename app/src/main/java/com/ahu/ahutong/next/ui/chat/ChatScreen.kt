@@ -1,6 +1,7 @@
 package com.ahu.ahutong.next.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -410,34 +410,33 @@ private fun StatusPill(text: String, onCancel: () -> Unit) {
     ) {
         SoftSurface(
             shape = RoundedCornerShape(50),
-            elevation = 6.dp,
+            elevation = 4.dp,
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(12.dp),
+                    strokeWidth = 1.8.dp,
                     color = NextPalette.Accent,
                 )
-                Spacer(Modifier.width(9.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     text,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = NextPalette.InkSecondary,
                 )
-                Spacer(Modifier.width(8.dp))
-                TextButton(
-                    onClick = onCancel,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                ) {
-                    Text(
-                        "取消",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.Accent,
-                    )
-                }
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "取消",
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .clickable(onClick = onCancel)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.Accent,
+                )
             }
         }
     }
