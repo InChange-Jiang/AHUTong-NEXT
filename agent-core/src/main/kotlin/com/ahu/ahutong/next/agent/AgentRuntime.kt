@@ -6,6 +6,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 /**
@@ -24,7 +28,7 @@ class AgentRuntime(
         gate: ApprovalGate,
     ): Flow<AgentEvent> = flow {
         val messages = buildList {
-            add(LlmMessage(role = "system", content = systemPrompt))
+            add(LlmMessage(role = "system", content = systemPromptWithTime()))
             // 首版只回放对话文本；工具卡不进入上下文，避免把旧结果当成新事实。
             addAll(history.takeLast(24))
             add(LlmMessage(role = "user", content = userText))
@@ -157,12 +161,28 @@ class AgentRuntime(
         else -> "将执行「${spec.displayName}」，这个操作会产生实际变更。"
     }
 
+    private fun systemPromptWithTime(): String {
+        val now = Instant.ofEpochMilli(clock()).atZone(ZONE)
+        return buildString {
+            append(systemPrompt.trim())
+            append("\n\n当前时间：")
+            append(now.format(TIME_FORMAT))
+            append("（")
+            append(ZONE.id)
+            append("）。用户说“今天 / 明天 / 本周 / 下周”时，以这个时间为准。")
+        }
+    }
+
     private fun riskText(spec: ToolSpec): String = when (spec.kind) {
         ToolKind.WRITE -> "写入操作：确认后才会执行，执行前不会产生任何变更。"
         ToolKind.READ -> "只读操作"
     }
 
     companion object {
+        private val ZONE: ZoneId = ZoneId.of("Asia/Shanghai")
+        private val TIME_FORMAT: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm EEEE", Locale.CHINA)
+
         const val DEFAULT_SYSTEM_PROMPT = """
 你是安大通 NEXT 的校园助手。你可以调用工具查询学生的课表、作业、成绩，或在用户确认后添加日程。
 

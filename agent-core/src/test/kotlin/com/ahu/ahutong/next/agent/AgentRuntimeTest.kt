@@ -13,6 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -172,6 +173,24 @@ class AgentRuntimeTest {
         assertEquals("unknown_tool", result.error?.code)
     }
 
+    @Test
+    fun systemPromptIncludesCurrentTime() = runTest {
+        val fixed = Instant.parse("2026-10-25T08:30:00Z").toEpochMilli()
+        val model = RecordingModel()
+        val events = mutableListOf<AgentEvent>()
+        val job = launch {
+            AgentRuntime(model, ToolRegistry(emptyList()), clock = { fixed })
+                .run(emptyList(), "现在几点", ApprovalGate())
+                .toList(events)
+        }
+        advanceUntilIdle()
+        job.join()
+
+        val system = model.messages.first { it.role == "system" }.content.orEmpty()
+        assertTrue(system.contains("2026-10-25 16:30"))
+        assertTrue(system.contains("Asia/Shanghai"))
+    }
+
     private fun call(name: String): ToolCall = ToolCall(
         id = "call-1",
         name = name,
@@ -213,6 +232,16 @@ class AgentRuntimeTest {
             val reply = replies[minOf(index, replies.lastIndex)]
             index++
             return reply
+        }
+    }
+
+    private class RecordingModel : ChatModel {
+        override val name = "recording"
+        var messages: List<LlmMessage> = emptyList()
+
+        override suspend fun complete(messages: List<LlmMessage>, tools: List<ToolSpec>): ModelReply {
+            this.messages = messages
+            return ModelReply(content = "现在是 16:30")
         }
     }
 }
