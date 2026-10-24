@@ -61,6 +61,9 @@ import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.components.AgentAvatar
 import com.ahu.ahutong.next.ui.markdown.AppMarkdown
+import com.ahu.ahutong.next.ui.markdown.KatexMarkdown
+import com.ahu.ahutong.next.ui.markdown.StreamingAppMarkdown
+import com.ahu.ahutong.next.ui.markdown.containsMath
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -400,12 +403,15 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
             Spacer(Modifier.height(3.dp))
             if (streaming) {
                 StreamingMarkdown(text)
+            } else if (text.containsMath()) {
+                KatexMarkdown(
+                    markdown = text,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             } else {
                 AppMarkdown(
                     markdown = text,
                     modifier = Modifier.fillMaxWidth(),
-                    lazy = false,
-                    parseAsync = false,
                 )
             }
         }
@@ -450,11 +456,9 @@ private fun StreamingMarkdown(text: String) {
                 },
             ),
     ) {
-        AppMarkdown(
+        StreamingAppMarkdown(
             markdown = text,
             modifier = Modifier.fillMaxWidth(),
-            lazy = false,
-            parseAsync = false,
         )
     }
 }

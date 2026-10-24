@@ -1,214 +1,90 @@
 package com.ahu.ahutong.next.ui.markdown
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.ahu.ahutong.next.ui.theme.NextPalette
+import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownColor
+import com.mikepenz.markdown.m3.markdownTypography
 
 /**
- * 轻量 MD 渲染器（隐私政策专用语法子集）。
- * lazy=true 全屏页用 LazyColumn；弹窗内必须 lazy=false（AppDialog 的滚动容器给无限高度约束）。
- * 全部颜色走 MaterialTheme.colorScheme，暗色/主题色自动跟随。
+ * Final (non-streaming) markdown rendering. Uses the JetBrains markdown parser through
+ * multiplatform-markdown-renderer, so code blocks, tables, quotes and task lists are covered.
  */
 @Composable
 fun AppMarkdown(
     markdown: String,
     modifier: Modifier = Modifier,
-    lazy: Boolean = true,
-    parseAsync: Boolean = true,
 ) {
-    if (parseAsync) {
-        val blocks by produceState<List<MarkdownBlock>?>(null, markdown) {
-            value = withContext(Dispatchers.Default) { parseSafely(markdown) }
-        }
-        val ready = blocks
-        if (ready == null) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-            return
-        }
-        MarkdownContent(ready, lazy, modifier)
-    } else {
-        // 流式场景：同步解析，避免每个 token 都闪一次 loading 占位。
-        val blocks = remember(markdown) { parseSafely(markdown) }
-        MarkdownContent(blocks, lazy, modifier)
-    }
-}
-
-private fun parseSafely(markdown: String): List<MarkdownBlock> =
-    runCatching { MarkdownParser.parse(markdown) }
-        .getOrElse {
-            // 半截语法不应让流式渲染崩掉整个页面，退回纯文本。
-            listOf(MarkdownBlock.Paragraph(listOf(InlineRun.Text(markdown))))
-        }
-
-@Composable
-private fun MarkdownContent(
-    blocks: List<MarkdownBlock>,
-    lazy: Boolean,
-    modifier: Modifier,
-) {
-    if (lazy) {
-        LazyColumn(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(blocks) { block -> MarkdownBlockContent(block) }
-        }
-    } else {
-        Column(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            blocks.forEach { block -> MarkdownBlockContent(block) }
-        }
-    }
-}
-
-@Composable
-private fun MarkdownBlockContent(block: MarkdownBlock) {
-    when (block) {
-        is MarkdownBlock.Heading -> Text(
-            text = block.text,
-            style = when (block.level) {
-                1 -> MaterialTheme.typography.titleLarge
-                2 -> MaterialTheme.typography.titleMedium
-                else -> MaterialTheme.typography.titleSmall
-            },
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(
-                top = if (block.level <= 2) 12.dp else 6.dp,
-                bottom = 2.dp
+    Markdown(
+        content = markdown,
+        colors = nextMarkdownColors(),
+        typography = nextMarkdownTypography(),
+        modifier = modifier.fillMaxWidth(),
+        loading = {},
+        error = { errorModifier ->
+            Text(
+                text = markdown,
+                modifier = errorModifier,
+                style = MaterialTheme.typography.bodyLarge,
+                color = NextPalette.Ink,
             )
-        )
-        is MarkdownBlock.Paragraph -> InlineRunsText(block.runs)
-        is MarkdownBlock.BulletList -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            block.items.forEachIndexed { index, runs ->
-                Row {
-                    Text("• ", style = MaterialTheme.typography.bodyLarge)
-                    InlineRunsText(runs, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-        is MarkdownBlock.OrderedList -> Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            block.items.forEachIndexed { index, runs ->
-                Row {
-                    Text("${index + 1}. ", style = MaterialTheme.typography.bodyLarge)
-                    InlineRunsText(runs, modifier = Modifier.weight(1f))
-                }
-            }
-        }
-        is MarkdownBlock.Table -> MarkdownTable(block)
-    }
-}
-
-@Composable
-private fun InlineRunsText(runs: List<InlineRun>, modifier: Modifier = Modifier) {
-    val uriHandler = LocalUriHandler.current
-    val linkColor = MaterialTheme.colorScheme.primary
-    val annotated = buildAnnotatedString {
-        runs.forEach { run ->
-            when (run) {
-                is InlineRun.Text -> append(run.text)
-                is InlineRun.Bold -> withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                    append(run.text)
-                }
-                is InlineRun.Link -> {
-                    pushStringAnnotation("url", run.url)
-                    withStyle(
-                        SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline)
-                    ) {
-                        append(run.text)
-                    }
-                    pop()
-                }
-            }
-        }
-    }
-    androidx.compose.foundation.text.ClickableText(
-        text = annotated,
-        style = MaterialTheme.typography.bodyLarge.copy(
-            color = MaterialTheme.colorScheme.onSurface
-        ),
-        modifier = modifier,
-        onClick = { offset ->
-            annotated.getStringAnnotations("url", offset, offset)
-                .firstOrNull()?.let { uriHandler.openUri(it.item) }
-        }
+        },
     )
 }
 
+/**
+ * Streaming buffer rendering. 0.41 does not expose the append-only streaming state,
+ * so we re-render the accumulated text through the same renderer while it grows.
+ */
 @Composable
-private fun MarkdownTable(table: MarkdownBlock.Table) {
-    val columnCount = table.header.size.coerceAtLeast(1)
-    // 列宽策略：每列至少 96dp 放得下 → weight 等宽铺满；放不下 → 固定 112dp 列宽 + 横滚。
-    // 注意：horizontalScroll 给无限宽度约束，内部 Row 绝不可用 weight。
-    androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val fits = maxWidth / columnCount >= 96.dp
-        Column(
-            modifier = if (fits) {
-                Modifier.fillMaxWidth()
-            } else {
-                Modifier.horizontalScroll(rememberScrollState())
-            }
-        ) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                table.header.forEach { cell ->
-                    Text(
-                        text = cell,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = (if (fits) Modifier.weight(1f) else Modifier.width(112.dp))
-                            .padding(vertical = 6.dp, horizontal = 4.dp)
-                    )
-                }
-            }
-            androidx.compose.material3.HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-            table.rows.forEach { row ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    (0 until columnCount).forEach { c ->
-                        Text(
-                            text = row.getOrNull(c).orEmpty(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = (if (fits) Modifier.weight(1f) else Modifier.width(112.dp))
-                                .padding(vertical = 4.dp, horizontal = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
+fun StreamingAppMarkdown(
+    markdown: String,
+    modifier: Modifier = Modifier,
+) {
+    AppMarkdown(markdown = markdown, modifier = modifier)
 }
+
+@Composable
+private fun nextMarkdownColors() = markdownColor(
+    text = NextPalette.Ink,
+    codeBackground = NextPalette.SurfaceSoft,
+    inlineCodeBackground = NextPalette.AccentSoft,
+    dividerColor = NextPalette.Line,
+    tableBackground = NextPalette.SurfaceSoft.copy(alpha = 0.55f),
+)
+
+@Composable
+private fun nextMarkdownTypography() = markdownTypography(
+    h1 = MaterialTheme.typography.titleLarge,
+    h2 = MaterialTheme.typography.titleMedium,
+    h3 = MaterialTheme.typography.titleSmall,
+    h4 = MaterialTheme.typography.titleSmall,
+    h5 = MaterialTheme.typography.titleSmall,
+    h6 = MaterialTheme.typography.titleSmall,
+    text = MaterialTheme.typography.bodyLarge,
+    code = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+    inlineCode = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+    quote = MaterialTheme.typography.bodyMedium.copy(fontStyle = FontStyle.Italic),
+    paragraph = MaterialTheme.typography.bodyLarge,
+    ordered = MaterialTheme.typography.bodyLarge,
+    bullet = MaterialTheme.typography.bodyLarge,
+    list = MaterialTheme.typography.bodyLarge,
+    table = MaterialTheme.typography.bodySmall,
+    textLink = TextLinkStyles(
+        style = SpanStyle(
+            color = NextPalette.Accent,
+            fontWeight = FontWeight.Medium,
+            textDecoration = TextDecoration.Underline,
+        ),
+    ),
+)
