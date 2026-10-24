@@ -43,6 +43,7 @@ dependencies {
     implementation(project(":agent-tools"))
     implementation(project(":data-sdk"))
     implementation(project(":model-gateway"))
+    implementation(project(":legacy-data"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

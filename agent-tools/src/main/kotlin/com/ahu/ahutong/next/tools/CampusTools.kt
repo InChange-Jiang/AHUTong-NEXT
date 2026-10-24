@@ -22,8 +22,9 @@ class GetScheduleTool(private val repository: CampusRepository) : Tool {
                 put("days", intProp("查询天数，默认 7", minimum = 1, maximum = 30))
             },
         ),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "教务系统 · 演示数据",
+        source = "教务系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -50,8 +51,9 @@ class GetAssignmentsTool(private val repository: CampusRepository) : Tool {
                 put("days", intProp("查询天数，默认 14", minimum = 1, maximum = 30))
             },
         ),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "学习通 · 演示数据",
+        source = "学习通",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -78,8 +80,9 @@ class GetGradesTool(private val repository: CampusRepository) : Tool {
                 put("term", stringProp("学期名称，例如 2026-2027 学年第一学期；不传则用当前学期"))
             },
         ),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "教务系统 · 演示数据",
+        source = "教务系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -105,8 +108,9 @@ class GetBalanceTool(private val repository: CampusRepository) : Tool {
         displayName = "查询一卡通余额",
         description = "查询校园一卡通的当前余额与卡号。",
         parameters = schema(buildJsonObject { }),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "一卡通系统 · 演示数据",
+        source = "一卡通系统（演示）",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -126,8 +130,9 @@ class GetBillsTool(private val repository: CampusRepository) : Tool {
         displayName = "查询一卡通账单",
         description = "查询校园一卡通近期流水：本月消费、充值、消费地点和逐笔明细。",
         parameters = schema(buildJsonObject { }),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "一卡通系统 · 演示数据",
+        source = "一卡通系统（演示）",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -147,8 +152,9 @@ class GetExamsTool(private val repository: CampusRepository) : Tool {
         displayName = "查询考试安排",
         description = "查询教务系统里的期末考试安排：课程、时间、地点与座位号。",
         parameters = schema(buildJsonObject { }),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "教务系统 · 演示数据",
+        source = "教务系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -169,8 +175,9 @@ class GetElectricityTool(private val repository: CampusRepository) : Tool {
         displayName = "查询宿舍电费",
         description = "查询宿舍剩余电费、近七日用电量和预计可用天数。",
         parameters = schema(buildJsonObject { }),
+        timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "电费系统 · 演示数据",
+        source = "电费系统（演示）",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -199,7 +206,7 @@ class AddCalendarEventTool(private val repository: CampusRepository) : Tool {
             required = listOf("title", "start", "end"),
         ),
         kind = ToolKind.WRITE,
-        source = "本地日历 · 演示数据",
+        source = "本地日历",
         requiresConfirmation = true,
     )
 

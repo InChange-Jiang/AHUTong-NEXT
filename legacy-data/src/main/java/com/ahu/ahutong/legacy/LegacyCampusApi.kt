@@ -7,10 +7,18 @@ import com.ahu.ahutong.core.common.AhuResult
 import com.ahu.ahutong.core.common.AppEnvironment
 import com.ahu.ahutong.core.common.AppEnvironmentHolder
 import com.ahu.ahutong.data.AHURepository
+import com.ahu.ahutong.data.FreeClassroomGateway
+import com.ahu.ahutong.data.crawler.model.jwxt.DateTimeSegmentCmd
+import com.ahu.ahutong.data.crawler.model.jwxt.GetFreeRoomsRequest
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.LoginOutcome
 import com.ahu.ahutong.data.model.User
+import com.ahu.ahutong.data.notice.CampusNotice
+import com.ahu.ahutong.data.notice.UniversityNoticeCrawler
+import com.ahu.ahutong.data.notice.UniversityNoticeHttpFetcher
+import com.ahu.ahutong.data.xuexiaotong.Store
+import com.ahu.ahutong.data.xuexiaotong.Work
 import com.ahu.ahutong.data.schedule.CurrentWeekResolver
 import com.ahu.ahutong.data.schedule.ScheduleSectionTimes
 import com.ahu.ahutong.data.session.SessionStore
@@ -100,6 +108,45 @@ object LegacyCampusApi {
     private fun persistUser(user: User) {
         AHUCache.saveCurrentUser(user)
     }
+
+    fun hasChaoxingSession(): Boolean = initialized && Store.hasCookie()
+
+    suspend fun loginChaoxing(account: String, password: String): AhuResult<Unit> =
+        LegacyDataApi.loginChaoxing(account, password)
+
+    suspend fun assignments(): AhuResult<List<Work>> = LegacyDataApi.assignments()
+
+    /** 空闲教室：先取校区楼栋，再逐楼查询。 */
+    suspend fun freeRooms(campusId: Int, date: String, units: List<String>): AhuResult<List<String>> =
+        runCatching {
+            val buildings = FreeClassroomGateway.buildings(campusId)
+            buildings.flatMap { building ->
+                FreeClassroomGateway.freeRooms(
+                    GetFreeRoomsRequest(
+                        buildingId = building.id.toString(),
+                        campusId = campusId.toString(),
+                        dateTimeSegmentCmd = DateTimeSegmentCmd(
+                            startDateTime = date,
+                            endDateTime = date,
+                            units = units,
+                        ),
+                    ),
+                ).roomList.map { room ->
+                    "${building.nameZh} ${room.nameZh} · ${room.floor} 楼 · ${room.seats} 座"
+                }
+            }.distinct()
+        }.fold(
+            onSuccess = { AhuResult.Success(it) },
+            onFailure = { AhuResult.Failure(AhuError.Unknown(it.message ?: "空闲教室查询失败")) },
+        )
+
+    /** 校官网通知公告（公开页面，不携带登录 Cookie）。 */
+    suspend fun universityNotices(): AhuResult<List<CampusNotice>> = runCatching {
+        UniversityNoticeCrawler(UniversityNoticeHttpFetcher()).fetchPage(null).notices
+    }.fold(
+        onSuccess = { AhuResult.Success(it) },
+        onFailure = { AhuResult.Failure(AhuError.Unknown(it.message ?: "通知查询失败")) },
+    )
 
     suspend fun schedule(days: Int = 7): AhuResult<List<Course>> {
         return AHURepository.getSchedule(isRefresh = false)

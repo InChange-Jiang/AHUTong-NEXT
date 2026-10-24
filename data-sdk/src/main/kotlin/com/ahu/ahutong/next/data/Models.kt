@@ -28,6 +28,8 @@ data class Grade(
     val score: Double,
     val gpa: Double,
     val term: String,
+    /** 百分制以外的成绩原文（优 / 良 / 合格等），为空时显示 [score]。 */
+    val scoreText: String? = null,
 )
 
 @Serializable

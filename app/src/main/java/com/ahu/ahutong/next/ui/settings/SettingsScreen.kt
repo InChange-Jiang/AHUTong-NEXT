@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -38,6 +39,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.BuildConfig
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.app.data.SettingsRepository
@@ -70,6 +72,10 @@ fun SettingsScreen(
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
     var searchEnabled by remember { mutableStateOf(settings.searchEnabled()) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var accountName by remember { mutableStateOf(LegacyCampusApi.currentUserName()) }
+    var showLogin by remember { mutableStateOf(false) }
+    var chaoxingConnected by remember { mutableStateOf(LegacyCampusApi.hasChaoxingSession()) }
+    var showChaoxingLogin by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         SoftBackground {
@@ -81,6 +87,70 @@ fun SettingsScreen(
                     .padding(horizontal = 18.dp),
             ) {
                 SettingsTopBar(onBack)
+
+                SettingsCard {
+                    SectionTitle("安大通账号")
+                    if (accountName.isNullOrBlank()) {
+                        Text(
+                            "未登录时，课程、成绩等查询使用演示数据。登录本科教务账号后切换为真实数据。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftPrimaryButton(
+                            text = "登录",
+                            onClick = { showLogin = true },
+                        )
+                    } else {
+                        Text(
+                            "已登录：$accountName",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = NextPalette.Ink,
+                        )
+                        Text(
+                            "课表、成绩、考试安排来自教务系统；一卡通与电费仍为演示数据，本版不接支付。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftSecondaryButton(
+                            text = "退出登录",
+                            onClick = {
+                                LegacyCampusApi.logout()
+                                accountName = null
+                                scope.launch { snackbar.showSnackbar("已退出登录") }
+                            },
+                        )
+                    }
+
+                    HorizontalDivider(color = NextPalette.Line)
+
+                    Text(
+                        "学习通（作业）",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NextPalette.Ink,
+                    )
+                    Text(
+                        if (chaoxingConnected) {
+                            "已连接学习通，作业查询使用真实数据。"
+                        } else {
+                            "未连接时作业使用演示数据。学习通是独立账号。"
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    if (chaoxingConnected) {
+                        SoftSecondaryButton(
+                            text = "重新登录学习通",
+                            onClick = { showChaoxingLogin = true },
+                        )
+                    } else {
+                        SoftSecondaryButton(
+                            text = "连接学习通",
+                            onClick = { showChaoxingLogin = true },
+                        )
+                    }
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
 
                 SettingsCard {
                     SectionTitle("模型")
@@ -225,6 +295,28 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showLogin) {
+        AccountLoginDialog(
+            onDismiss = { showLogin = false },
+            onSuccess = { name ->
+                accountName = name.ifBlank { "已登录" }
+                showLogin = false
+                scope.launch { snackbar.showSnackbar("登录成功，切换到真实数据") }
+            },
+        )
+    }
+
+    if (showChaoxingLogin) {
+        ChaoxingLoginDialog(
+            onDismiss = { showChaoxingLogin = false },
+            onSuccess = {
+                chaoxingConnected = true
+                showChaoxingLogin = false
+                scope.launch { snackbar.showSnackbar("学习通已连接") }
+            },
+        )
     }
 
     if (showClearDialog) {

@@ -25,6 +25,7 @@ android {
 dependencies {
     implementation(project(":agent-core"))
     implementation(project(":data-sdk"))
+    implementation(project(":legacy-data"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)

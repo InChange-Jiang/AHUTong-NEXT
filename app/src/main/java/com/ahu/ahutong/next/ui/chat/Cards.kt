@@ -114,6 +114,12 @@ fun ToolResultCard(result: ToolResult) {
                     "get_bills" -> BillsBody(result.data)
                     "get_exams" -> ExamBody(result.data)
                     "get_electricity" -> ElectricityBody(result.data)
+                    "get_weather" -> WeatherBody(result.data)
+                    "get_attendance" -> AttendanceBody(result.data)
+                    "get_program_completion" -> CompletionBody(result.data)
+                    "get_lost_found" -> LostFoundBody(result.data)
+                    "get_notices" -> NoticeBody(result.data)
+                    "get_free_rooms" -> FreeRoomsBody(result.data)
                     "add_calendar_event" -> CalendarBody(result.data)
                     "web_search" -> SearchBody(result.data)
                     else -> Text(
@@ -280,7 +286,7 @@ private fun GradeBody(data: JsonObject?) {
             )
             Spacer(Modifier.width(10.dp))
             Text(
-                formatScore(grade.score),
+                grade.scoreText?.takeIf { it.isNotBlank() } ?: formatScore(grade.score),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = NextPalette.Ink,
@@ -409,6 +415,223 @@ private fun ElectricityBody(data: JsonObject?) {
     )
     if (electricity.dailyUsage.isNotEmpty()) {
         UsageBars(electricity.dailyUsage)
+    }
+}
+
+@Composable
+private fun WeatherBody(data: JsonObject?) {
+    if (data == null) {
+        EmptyHint("没有拿到天气数据。")
+        return
+    }
+    val temp = data["temperature"]?.jsonPrimitive?.content.orEmpty()
+    val weather = data["weather"]?.jsonPrimitive?.content.orEmpty()
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            if (temp.isBlank()) weather else "$temp°",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(weather, style = MaterialTheme.typography.bodyMedium, color = NextPalette.Ink)
+    }
+    val felt = data["feelsLike"]?.jsonPrimitive?.content.orEmpty()
+    val range = listOfNotNull(
+        data["tempMin"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { "$it°" },
+        data["tempMax"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { "$it°" },
+    ).joinToString(" ~ ")
+    Text(
+        listOfNotNull(
+            felt.takeIf { it.isNotBlank() }?.let { "体感 $it°" },
+            range.takeIf { it.isNotBlank() }?.let { "全天 $it" },
+            data["humidity"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { "湿度 $it%" },
+            data["aqiCategory"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }?.let { "空气 $it" },
+        ).joinToString(" · "),
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
+}
+
+@Composable
+private fun AttendanceBody(data: JsonObject?) {
+    val records = data?.get("records") as? kotlinx.serialization.json.JsonArray ?: run {
+        EmptyHint("没有考勤记录。")
+        return
+    }
+    if (records.isEmpty()) {
+        EmptyHint("近期没有考勤记录。")
+        return
+    }
+    records.take(8).forEach { element ->
+        val item = element as? JsonObject ?: return@forEach
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    item["course"]?.jsonPrimitive?.content.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = NextPalette.Ink,
+                )
+                Text(
+                    "${item["date"]?.jsonPrimitive?.content.orEmpty()} · ${item["time"]?.jsonPrimitive?.content.orEmpty()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                )
+            }
+            val status = item["status"]?.jsonPrimitive?.content.orEmpty()
+            Text(
+                status,
+                style = MaterialTheme.typography.labelSmall,
+                color = when (status) {
+                    "正常" -> NextPalette.Success
+                    "迟到", "缺勤" -> NextPalette.Danger
+                    else -> NextPalette.InkSecondary
+                },
+            )
+        }
+    }
+    val total = data["totalCount"]?.jsonPrimitive?.content.orEmpty()
+    if (total.isNotBlank()) {
+        Text("共 $total 条记录", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+    }
+}
+
+@Composable
+private fun CompletionBody(data: JsonObject?) {
+    if (data == null) {
+        EmptyHint("没有拿到培养方案数据。")
+        return
+    }
+    val program = data["programName"]?.jsonPrimitive?.content.orEmpty()
+    if (program.isNotBlank()) {
+        Text(program, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            data["progressPercent"]?.jsonPrimitive?.content.orEmpty(),
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "已修 ${data["passedCredits"]?.jsonPrimitive?.content.orEmpty()} / " +
+                "${data["requiredCredits"]?.jsonPrimitive?.content.orEmpty()} 学分",
+            style = MaterialTheme.typography.labelSmall,
+            color = NextPalette.InkSecondary,
+        )
+    }
+    (data["modules"] as? kotlinx.serialization.json.JsonArray)?.take(6)?.forEach { element ->
+        val module = element as? JsonObject ?: return@forEach
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                module["name"]?.jsonPrimitive?.content.orEmpty(),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = NextPalette.Ink,
+            )
+            Text(
+                "${module["passedCredits"]?.jsonPrimitive?.content.orEmpty()} / " +
+                    "${module["requiredCredits"]?.jsonPrimitive?.content.orEmpty()}",
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+        }
+    }
+    val unpassed = (data["unpassedCourses"] as? kotlinx.serialization.json.JsonArray).orEmpty()
+    if (unpassed.isNotEmpty()) {
+        Text(
+            "未通过 ${unpassed.size} 门（最多展示 20 门）",
+            style = MaterialTheme.typography.labelSmall,
+            color = NextPalette.InkSecondary,
+        )
+    }
+}
+
+@Composable
+private fun LostFoundBody(data: JsonObject?) {
+    val items = data?.get("items") as? kotlinx.serialization.json.JsonArray ?: run {
+        EmptyHint("没有失物招领信息。")
+        return
+    }
+    if (items.isEmpty()) {
+        EmptyHint("最近没有失物招领信息。")
+        return
+    }
+    items.take(5).forEach { element ->
+        val item = element as? JsonObject ?: return@forEach
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                item["title"]?.jsonPrimitive?.content.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = NextPalette.Ink,
+            )
+            Text(
+                listOfNotNull(
+                    item["type"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                    item["campus"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                    item["time"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() },
+                ).joinToString(" · "),
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+        }
+    }
+    val total = data["total"]?.jsonPrimitive?.content.orEmpty()
+    if (total.isNotBlank()) {
+        Text("共 $total 条", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+    }
+}
+
+@Composable
+private fun NoticeBody(data: JsonObject?) {
+    val notices = data?.get("notices") as? kotlinx.serialization.json.JsonArray ?: run {
+        EmptyHint("没有拿到通知。")
+        return
+    }
+    if (notices.isEmpty()) {
+        EmptyHint("最近没有新通知。")
+        return
+    }
+    notices.take(6).forEach { element ->
+        val item = element as? JsonObject ?: return@forEach
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                item["title"]?.jsonPrimitive?.content.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = NextPalette.Ink,
+            )
+            Text(
+                item["publishedOn"]?.jsonPrimitive?.content.orEmpty(),
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FreeRoomsBody(data: JsonObject?) {
+    val rooms = data?.get("rooms") as? kotlinx.serialization.json.JsonArray ?: run {
+        EmptyHint("没有空闲教室数据。")
+        return
+    }
+    if (rooms.isEmpty()) {
+        EmptyHint("这个时间段没有空闲教室。")
+        return
+    }
+    Text(
+        "${data["date"]?.jsonPrimitive?.content.orEmpty()} · 共 ${data["count"]?.jsonPrimitive?.content.orEmpty()} 间",
+        style = MaterialTheme.typography.labelMedium,
+        color = NextPalette.Accent,
+    )
+    rooms.take(8).forEach { element ->
+        Text(
+            element.jsonPrimitive.content,
+            style = MaterialTheme.typography.bodySmall,
+            color = NextPalette.Ink,
+        )
+    }
+    if (rooms.size > 8) {
+        Text("还有 ${rooms.size - 8} 间", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
     }
 }
 
@@ -661,6 +884,12 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_bills" -> R.drawable.ic_iconpark_bill
     "get_exams" -> R.drawable.ic_iconpark_exam
     "get_electricity" -> R.drawable.ic_iconpark_electricity
+    "get_weather" -> R.drawable.ic_iconpark_weather
+    "get_attendance" -> R.drawable.ic_iconpark_assignment
+    "get_program_completion" -> R.drawable.ic_iconpark_grades
+    "get_lost_found" -> R.drawable.ic_iconpark_search
+    "get_notices" -> R.drawable.ic_iconpark_assignment
+    "get_free_rooms" -> R.drawable.ic_iconpark_calendar
     "add_calendar_event" -> R.drawable.ic_iconpark_plus
     "web_search" -> R.drawable.ic_iconpark_search
     else -> R.drawable.ic_iconpark_grades
@@ -674,6 +903,12 @@ private fun toolTitle(name: String): String = when (name) {
     "get_bills" -> "一卡通账单"
     "get_exams" -> "考试安排"
     "get_electricity" -> "宿舍电费"
+    "get_weather" -> "天气"
+    "get_attendance" -> "考勤"
+    "get_program_completion" -> "培养方案"
+    "get_lost_found" -> "失物招领"
+    "get_notices" -> "校园通知"
+    "get_free_rooms" -> "空闲教室"
     "add_calendar_event" -> "新建日程"
     "web_search" -> "联网搜索"
     else -> name

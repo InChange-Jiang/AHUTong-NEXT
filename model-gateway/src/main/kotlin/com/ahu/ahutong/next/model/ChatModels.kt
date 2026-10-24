@@ -58,6 +58,15 @@ class FakeChatModel : ChatModel {
             text.contains("成绩") || text.contains("绩点") || text.contains("分数") ->
                 ModelReply("我查一下你的成绩。", listOf(call("get_grades", "{}")))
 
+            text.contains("天气") || text.contains("下雨") || text.contains("气温") ->
+                ModelReply("我查一下合肥的天气。", listOf(call("get_weather", """{"city":"合肥"}""")))
+
+            text.contains("考勤") || text.contains("签到") || text.contains("旷课") ->
+                ModelReply("我查一下最近的考勤记录。", listOf(call("get_attendance", """{"page":1}""")))
+
+            text.contains("培养方案") || text.contains("毕业学分") || text.contains("完成度") ->
+                ModelReply("我查一下培养方案的完成情况。", listOf(call("get_program_completion", "{}")))
+
             text.contains("余额") || text.contains("一卡通") ->
                 ModelReply("我查一下你的一卡通余额。", listOf(call("get_balance", "{}")))
 
@@ -77,7 +86,7 @@ class FakeChatModel : ChatModel {
                 )
 
             else -> ModelReply(
-                "我可以帮你查课表、作业、成绩、考试、一卡通余额与账单、宿舍电费，也可以在确认后添加日程。你可以直接问“这周还有哪些作业”。",
+                "我可以帮你查课表、作业、成绩、考试、考勤、培养方案、天气、一卡通余额与账单、宿舍电费，也可以在确认后添加日程。你可以直接问“这周还有哪些作业”。",
             )
         }
     }
@@ -111,6 +120,9 @@ class FakeChatModel : ChatModel {
             "get_bills" -> "账单查到了，在下面的卡片里。"
             "get_exams" -> "考试安排查到了，在下面的卡片里。"
             "get_electricity" -> "电费查到了，在下面的卡片里。"
+            "get_weather" -> "天气查到了，在下面。"
+            "get_attendance" -> "考勤查到了，在下面。"
+            "get_program_completion" -> "培养方案完成情况在下面。"
             "add_calendar_event" -> "日程已添加，可在本地历史里查看。"
             else -> "结果在下面。"
         }
