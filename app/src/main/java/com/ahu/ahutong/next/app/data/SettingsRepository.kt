@@ -1,0 +1,34 @@
+package com.ahu.ahutong.next.app.data
+
+import android.content.Context
+
+class SettingsRepository(context: Context) {
+    private val prefs = context.getSharedPreferences("next_settings", Context.MODE_PRIVATE)
+    private val secrets = SecretStore(context)
+
+    fun apiKey(): String? = secrets.get()
+
+    fun baseUrl(): String = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+
+    fun model(): String = prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
+
+    /**
+     * apiKey 为 null 表示保留现有 Key；空字符串表示清除。
+     */
+    fun save(baseUrl: String, model: String, apiKey: String?) {
+        prefs.edit()
+            .putString(KEY_BASE_URL, baseUrl.ifBlank { DEFAULT_BASE_URL }.trimEnd('/'))
+            .putString(KEY_MODEL, model.ifBlank { DEFAULT_MODEL })
+            .apply()
+        if (apiKey != null) secrets.put(apiKey)
+    }
+
+    fun clearApiKey() = secrets.put(null)
+
+    companion object {
+        const val DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
+        const val DEFAULT_MODEL = "deepseek-flash"
+        private const val KEY_BASE_URL = "base_url"
+        private const val KEY_MODEL = "model"
+    }
+}
