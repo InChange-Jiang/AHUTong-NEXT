@@ -31,10 +31,10 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -259,10 +259,10 @@ private fun InputPill(
         elevation = 18.dp,
     ) {
         Row(
-            modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.padding(start = 6.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextField(
+            OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
@@ -277,13 +277,13 @@ private fun InputPill(
                 },
                 maxLines = 4,
                 shape = RoundedCornerShape(24.dp),
-                colors = TextFieldDefaults.colors(
+                colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
                     cursorColor = NextPalette.Accent,
                     focusedTextColor = NextPalette.Ink,
                     unfocusedTextColor = NextPalette.Ink,
@@ -295,18 +295,18 @@ private fun InputPill(
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
             )
 
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(8.dp))
 
             FilledIconButton(
                 onClick = onSend,
                 enabled = canSend,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(42.dp),
                 shape = CircleShape,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = NextPalette.Accent,
                     contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFE7E5DF),
-                    disabledContentColor = NextPalette.InkSecondary,
+                    disabledContainerColor = NextPalette.AccentSoft,
+                    disabledContentColor = NextPalette.Accent.copy(alpha = 0.45f),
                 ),
             ) {
                 Icon(
