@@ -40,6 +40,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: CampusRepository = NextCampusRepository()
     private val gate = ApprovalGate()
     private var runJob: Job? = null
+    private var persistJob: Job? = null
+    private var historyGeneration = 0
     private var streamingItemId: String? = null
 
     private val _ui = MutableStateFlow(
@@ -165,7 +167,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearHistory() {
         cancelRun()
+        historyGeneration++
+        persistJob?.cancel()
         historyStore.clear()
+        historyStore.save(emptyList())
         _ui.update { it.copy(items = emptyList(), input = "", status = null) }
     }
 
@@ -315,7 +320,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (settings.apiKey().isNullOrBlank()) "本地演示" else "DeepSeek · ${settings.model()}"
 
     private fun persist() {
+        val generation = historyGeneration
         val snapshot = _ui.value.items
-        viewModelScope.launch(Dispatchers.IO) { historyStore.save(snapshot) }
+        persistJob?.cancel()
+        persistJob = viewModelScope.launch(Dispatchers.IO) {
+            if (generation == historyGeneration) historyStore.save(snapshot)
+        }
     }
 }
