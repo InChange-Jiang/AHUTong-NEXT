@@ -226,6 +226,7 @@ class AgentRuntimeTest {
         assertTrue(system.contains("2026-10-25 16:30"))
         assertTrue(system.contains("Asia/Shanghai"))
         assertTrue(system.contains("不要重新自我介绍"))
+        assertTrue(system.contains("web_search"))
     }
 
     private fun call(name: String): ToolCall = ToolCall(

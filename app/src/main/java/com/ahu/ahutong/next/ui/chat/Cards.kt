@@ -1,6 +1,7 @@
 package com.ahu.ahutong.next.ui.chat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +22,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.agent.AgentJson
@@ -32,6 +35,7 @@ import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CalendarEvent
 import com.ahu.ahutong.next.data.CourseOccurrence
 import com.ahu.ahutong.next.data.Grade
+import com.ahu.ahutong.next.tools.SearchResult
 import com.ahu.ahutong.next.ui.components.AgentAvatar
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -103,6 +107,7 @@ fun ToolResultCard(result: ToolResult) {
                     "get_assignments" -> AssignmentBody(result.data)
                     "get_grades" -> GradeBody(result.data)
                     "add_calendar_event" -> CalendarBody(result.data)
+                    "web_search" -> SearchBody(result.data)
                     else -> Text(
                         prettyJson.encodeToString(JsonElement.serializer(), result.data ?: JsonObject(emptyMap())),
                         style = MaterialTheme.typography.bodySmall,
@@ -308,6 +313,63 @@ private fun CalendarBody(data: JsonObject?) {
 }
 
 @Composable
+private fun SearchBody(data: JsonObject?) {
+    val results = decodeSearchResults(data)
+    if (results.isEmpty()) {
+        EmptyHint("没有搜到结果。")
+        return
+    }
+
+    val uriHandler = LocalUriHandler.current
+    results.take(3).forEach { result ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = result.url.isNotBlank()) {
+                    uriHandler.openUri(result.url)
+                }
+                .padding(vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                result.title.cleanSearchText().ifBlank { result.url },
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = NextPalette.Ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            val excerpt = result.snippet.ifBlank { result.summary }.cleanSearchText()
+            if (excerpt.isNotBlank()) {
+                Text(
+                    excerpt,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (result.url.isNotBlank()) {
+                Text(
+                    result.url,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.Accent,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+    if (results.size > 3) {
+        Text(
+            "还有 ${results.size - 3} 条结果",
+            style = MaterialTheme.typography.labelSmall,
+            color = NextPalette.InkSecondary,
+        )
+    }
+}
+
+@Composable
 fun ApprovalCard(
     item: ChatItem.Approval,
     onApprove: () -> Unit,
@@ -438,6 +500,7 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_assignments" -> R.drawable.ic_iconpark_assignment
     "get_grades" -> R.drawable.ic_iconpark_grades
     "add_calendar_event" -> R.drawable.ic_iconpark_plus
+    "web_search" -> R.drawable.ic_iconpark_search
     else -> R.drawable.ic_iconpark_grades
 }
 
@@ -446,6 +509,7 @@ private fun toolTitle(name: String): String = when (name) {
     "get_assignments" -> "作业"
     "get_grades" -> "成绩"
     "add_calendar_event" -> "新建日程"
+    "web_search" -> "联网搜索"
     else -> name
 }
 
@@ -508,3 +572,24 @@ private fun decodeEvent(data: JsonObject?): CalendarEvent? {
         AgentJson.decodeFromJsonElement(CalendarEvent.serializer(), element)
     }.getOrNull()
 }
+
+private fun decodeSearchResults(data: JsonObject?): List<SearchResult> {
+    val element = data?.get("results") ?: return emptyList()
+    return runCatching {
+        AgentJson.decodeFromJsonElement(
+            ListSerializer(SearchResult.serializer()),
+            element,
+        )
+    }.getOrDefault(emptyList())
+}
+
+private fun String.cleanSearchText(): String = this
+    .replace("&lt;", "<")
+    .replace("&gt;", ">")
+    .replace("&amp;", "&")
+    .replace("&quot;", "\"")
+    .replace("&#39;", "'")
+    .replace("&#10;", " ")
+    .replace("&#9;", " ")
+    .replace(Regex("\\s+"), " ")
+    .trim()

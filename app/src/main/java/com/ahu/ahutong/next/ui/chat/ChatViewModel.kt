@@ -15,6 +15,8 @@ import com.ahu.ahutong.next.data.CampusRepository
 import com.ahu.ahutong.next.data.MockCampusRepository
 import com.ahu.ahutong.next.model.FakeChatModel
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
+import com.ahu.ahutong.next.tools.DeepSeekSearchClient
+import com.ahu.ahutong.next.tools.WebSearchTool
 import com.ahu.ahutong.next.tools.campusTools
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +32,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
     private val historyStore = HistoryStore(application)
     private val repository: CampusRepository = MockCampusRepository()
-    private val registry = ToolRegistry(campusTools(repository))
     private val gate = ApprovalGate()
     private var runJob: Job? = null
     private var streamingItemId: String? = null
@@ -44,7 +45,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     )
     val ui: StateFlow<ChatUiState> = _ui.asStateFlow()
 
-    val toolSpecs = registry.specs
+    private fun buildRegistry(): ToolRegistry {
+        val tools = campusTools(repository).toMutableList()
+        val key = settings.apiKey()
+        if (!key.isNullOrBlank() && settings.searchEnabled()) {
+            tools += WebSearchTool(DeepSeekSearchClient(settings.baseUrl(), key))
+        }
+        return ToolRegistry(tools)
+    }
 
     fun onInputChange(value: String) {
         _ui.update { it.copy(input = value) }
@@ -69,7 +77,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
         persist()
 
-        val runtime = AgentRuntime(buildModel(), registry)
+        val runtime = AgentRuntime(buildModel(), buildRegistry())
         runJob = viewModelScope.launch {
             try {
                 runtime.run(history, trimmed, gate).collect { event -> handle(event) }

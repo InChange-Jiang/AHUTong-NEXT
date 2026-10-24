@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -67,6 +68,7 @@ fun SettingsScreen(
     var baseUrl by rememberSaveable { mutableStateOf(settings.baseUrl()) }
     var model by rememberSaveable { mutableStateOf(settings.model()) }
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
+    var searchEnabled by remember { mutableStateOf(settings.searchEnabled()) }
     var showClearDialog by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -107,6 +109,35 @@ fun SettingsScreen(
                         label = "模型名",
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "联网搜索",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = NextPalette.Ink,
+                            )
+                            Text(
+                                if (hasKey) {
+                                    "通过 DeepSeek 搜索获取实时网页信息"
+                                } else {
+                                    "配置 API Key 后生效"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = searchEnabled,
+                            onCheckedChange = {
+                                searchEnabled = it
+                                settings.setSearchEnabled(it)
+                            },
+                        )
+                    }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         SoftPrimaryButton(

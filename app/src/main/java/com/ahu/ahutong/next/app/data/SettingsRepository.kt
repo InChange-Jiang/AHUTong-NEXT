@@ -12,6 +12,12 @@ class SettingsRepository(context: Context) {
 
     fun model(): String = prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
 
+    fun searchEnabled(): Boolean = prefs.getBoolean(KEY_SEARCH_ENABLED, true)
+
+    fun setSearchEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SEARCH_ENABLED, enabled).apply()
+    }
+
     /**
      * apiKey 为 null 表示保留现有 Key；空字符串表示清除。
      */
@@ -30,5 +36,6 @@ class SettingsRepository(context: Context) {
         const val DEFAULT_MODEL = "deepseek-flash"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_MODEL = "model"
+        private const val KEY_SEARCH_ENABLED = "search_enabled"
     }
 }
