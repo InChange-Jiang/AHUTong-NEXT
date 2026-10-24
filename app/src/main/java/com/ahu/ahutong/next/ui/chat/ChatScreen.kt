@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.components.AgentAvatar
+import com.ahu.ahutong.next.ui.markdown.AppMarkdown
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -383,10 +384,10 @@ private fun AssistantMessage(text: String) {
                 color = NextPalette.Accent,
             )
             Spacer(Modifier.height(3.dp))
-            Text(
-                text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = NextPalette.Ink,
+            AppMarkdown(
+                markdown = text,
+                modifier = Modifier.fillMaxWidth(),
+                lazy = false,
             )
         }
     }
