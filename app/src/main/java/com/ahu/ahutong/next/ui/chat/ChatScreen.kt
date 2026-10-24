@@ -211,7 +211,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "我是 Ahtorus。查课表、看作业、问成绩，或者让我加一条日程。",
+            "我是 Ahtorus，帮你查课表、作业和成绩。",
             style = MaterialTheme.typography.bodyMedium,
             color = NextPalette.InkSecondary,
             textAlign = TextAlign.Center,
