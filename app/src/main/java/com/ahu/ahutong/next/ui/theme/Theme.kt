@@ -20,15 +20,15 @@ object NextPalette {
     val SurfaceSoft = Color(0xFFF2F1ED)
     val Ink = Color(0xFF17191D)
     val InkSecondary = Color(0xFF71767F)
-    val Accent = Color(0xFF2F6BFF)
-    val AccentDeep = Color(0xFF1F55E8)
-    val AccentSoft = Color(0xFFE9EFFF)
+    val Accent = Color(0xFFF07B46)
+    val AccentDeep = Color(0xFFD9662F)
+    val AccentSoft = Color(0xFFFFF0E8)
     val Line = Color(0x1417191D)
     val Success = Color(0xFF2E9E6B)
     val Warning = Color(0xFFB7791F)
     val Danger = Color(0xFFD94A5A)
     val DangerSoft = Color(0xFFFFF1F2)
-    val Glow = Color(0x102F6BFF)
+    val Glow = Color(0x18F07B46)
 }
 
 private val NextColors = lightColorScheme(

@@ -32,7 +32,7 @@ import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CalendarEvent
 import com.ahu.ahutong.next.data.CourseOccurrence
 import com.ahu.ahutong.next.data.Grade
-import com.ahu.ahutong.next.ui.components.AhtorusMark
+import com.ahu.ahutong.next.ui.components.AgentAvatar
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.SoftSurface
@@ -331,7 +331,7 @@ fun ApprovalCard(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AhtorusMark(size = 34.dp)
+                AgentAvatar(size = 34.dp)
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

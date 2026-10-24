@@ -49,7 +49,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
-import com.ahu.ahutong.next.ui.components.AhtorusMark
+import com.ahu.ahutong.next.ui.components.AgentAvatar
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -148,7 +148,7 @@ private fun FloatingTopBar(
             .padding(horizontal = 18.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AhtorusMark(size = 42.dp)
+        AgentAvatar(size = 42.dp)
         Spacer(Modifier.width(12.dp))
 
         SoftSurface(
@@ -160,7 +160,7 @@ private fun FloatingTopBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "NEXT",
+                    "安大通NEXT",
                     style = MaterialTheme.typography.titleSmall,
                     color = NextPalette.Ink,
                 )
@@ -201,7 +201,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
             .padding(top = 26.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        AhtorusMark(size = 104.dp)
+        AgentAvatar(size = 104.dp)
         Spacer(Modifier.height(28.dp))
         Text(
             "嗨，今天想做什么",
@@ -355,7 +355,7 @@ private fun UserBubble(text: String) {
                     spotColor = Color(0x332F6BFF),
                 )
                 .clip(RoundedCornerShape(22.dp, 22.dp, 8.dp, 22.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF4A82FF), NextPalette.Accent)))
+                .background(Brush.linearGradient(listOf(Color(0xFFF6A47A), NextPalette.Accent)))
                 .padding(horizontal = 16.dp, vertical = 11.dp),
         ) {
             Text(
@@ -373,7 +373,7 @@ private fun AssistantMessage(text: String) {
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
     ) {
-        AhtorusMark(size = 30.dp)
+        AgentAvatar(size = 30.dp)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

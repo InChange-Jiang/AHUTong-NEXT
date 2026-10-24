@@ -1,7 +1,7 @@
 package com.ahu.ahutong.next.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -31,19 +31,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.theme.NextPalette
 
 @Composable
@@ -210,53 +211,28 @@ fun SoftChip(
 }
 
 @Composable
-fun AhtorusMark(
+fun AgentAvatar(
     size: Dp = 44.dp,
     modifier: Modifier = Modifier,
 ) {
-    val ringWidth = size * 0.24f
     Box(
         modifier = modifier
             .size(size)
             .shadow(
-                elevation = size * 0.2f,
+                elevation = size * 0.18f,
                 shape = CircleShape,
                 clip = false,
-                ambientColor = Color(0x332F6BFF),
-                spotColor = Color(0x332F6BFF),
+                ambientColor = Color(0x33F07B46),
+                spotColor = Color(0x33F07B46),
             )
-            .border(
-                width = ringWidth,
-                brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFFB7D6FF), Color(0xFF4A82FF), Color(0xFF1F55E8)),
-                ),
-                shape = CircleShape,
-            ),
+            .clip(CircleShape)
+            .border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape),
     ) {
-        Canvas(Modifier.matchParentSize()) {
-            val strokePx = ringWidth.toPx()
-            drawArc(
-                brush = Brush.sweepGradient(
-                    colors = listOf(
-                        Color.Transparent,
-                        Color.White.copy(alpha = 0.70f),
-                        Color.Transparent,
-                    ),
-                ),
-                startAngle = 200f,
-                sweepAngle = 62f,
-                useCenter = false,
-                topLeft = Offset(strokePx / 2f, strokePx / 2f),
-                size = Size(this.size.width - strokePx, this.size.height - strokePx),
-                style = Stroke(width = strokePx * 0.45f, cap = StrokeCap.Round),
-            )
-        }
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = size * 0.14f, bottom = size * 0.10f)
-                .size(size * 0.11f)
-                .background(Color.White.copy(alpha = 0.18f), CircleShape),
+        Image(
+            painter = painterResource(R.drawable.agent_ahtorus),
+            contentDescription = "Ahtorus",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
