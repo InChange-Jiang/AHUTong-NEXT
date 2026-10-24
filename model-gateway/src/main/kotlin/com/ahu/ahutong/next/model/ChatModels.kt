@@ -3,11 +3,16 @@ package com.ahu.ahutong.next.model
 import com.ahu.ahutong.next.agent.ChatModel
 import com.ahu.ahutong.next.agent.LlmMessage
 import com.ahu.ahutong.next.agent.ModelReply
+import com.ahu.ahutong.next.agent.ModelStreamEvent
 import com.ahu.ahutong.next.agent.ToolCall
 import com.ahu.ahutong.next.agent.ToolResult
 import com.ahu.ahutong.next.agent.ToolSpec
 import com.ahu.ahutong.next.agent.AgentJson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -63,6 +68,18 @@ class FakeChatModel : ChatModel {
                 "我可以帮你查课表、作业、成绩，也可以在确认后添加日程。你可以直接问“这周还有哪些作业”。",
             )
         }
+    }
+
+    override fun stream(messages: List<LlmMessage>, tools: List<ToolSpec>): Flow<ModelStreamEvent> = flow {
+        val reply = complete(messages, tools)
+        val text = reply.content.orEmpty()
+        if (text.isNotEmpty()) {
+            text.chunked(10).forEach { chunk ->
+                emit(ModelStreamEvent.Delta(chunk))
+                delay(18)
+            }
+        }
+        emit(ModelStreamEvent.Completed(reply))
     }
 
     private fun summarize(result: ToolResult?): String {
@@ -132,41 +149,7 @@ class OpenAiCompatibleChatModel(
         withContext(Dispatchers.IO) {
             require(apiKey.isNotBlank()) { "API Key 为空" }
 
-            val payload = buildJsonObject {
-                put("model", model)
-                put("messages", AgentJson.encodeToJsonElement(messages))
-                put(
-                    "tools",
-                    buildJsonArray {
-                        tools.forEach { spec ->
-                            add(
-                                buildJsonObject {
-                                    put("type", "function")
-                                    put(
-                                        "function",
-                                        buildJsonObject {
-                                            put("name", spec.name)
-                                            put("description", spec.description)
-                                            put("parameters", spec.parameters)
-                                        },
-                                    )
-                                },
-                            )
-                        }
-                    },
-                )
-                put("tool_choice", "auto")
-                put("temperature", 0.2)
-                put("stream", false)
-            }
-
-            val request = Request.Builder()
-                .url(baseUrl.trimEnd('/') + "/chat/completions")
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(payload.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-
+            val request = buildRequest(messages, tools, stream = false)
             client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
@@ -193,6 +176,111 @@ class OpenAiCompatibleChatModel(
                 )
             }
         }
+
+    override fun stream(
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec>,
+    ): Flow<ModelStreamEvent> = flow {
+        require(apiKey.isNotBlank()) { "API Key 为空" }
+
+        val request = buildRequest(messages, tools, stream = true)
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string().orEmpty()
+                throw IOException("模型接口返回 ${response.code}：${body.take(300)}")
+            }
+
+            val source = response.body?.source() ?: throw IOException("模型流为空")
+            val content = StringBuilder()
+            val toolCalls = sortedMapOf<Int, StreamToolAccumulator>()
+
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                if (line.isBlank() || !line.startsWith("data:")) continue
+                val data = line.removePrefix("data:").trim()
+                if (data == "[DONE]") break
+
+                val chunk = runCatching {
+                    AgentJson.decodeFromString(StreamChunk.serializer(), data)
+                }.getOrNull() ?: continue
+                val delta = chunk.choices.firstOrNull()?.delta ?: continue
+
+                delta.content?.takeIf { it.isNotEmpty() }?.let {
+                    content.append(it)
+                    emit(ModelStreamEvent.Delta(it))
+                }
+
+                delta.toolCalls?.forEach { call ->
+                    val index = call.index ?: 0
+                    val acc = toolCalls.getOrPut(index) { StreamToolAccumulator() }
+                    call.id?.takeIf { it.isNotEmpty() }?.let { acc.id = it }
+                    call.function?.name?.takeIf { it.isNotEmpty() }?.let { acc.name = it }
+                    call.function?.arguments?.let { acc.arguments.append(it) }
+                }
+            }
+
+            val calls = toolCalls.values.mapNotNull { acc ->
+                if (acc.name.isBlank()) return@mapNotNull null
+                ToolCall(
+                    id = acc.id.ifBlank { UUID.randomUUID().toString() },
+                    name = acc.name,
+                    arguments = runCatching {
+                        AgentJson.parseToJsonElement(acc.arguments.toString()).jsonObject
+                    }.getOrElse { buildJsonObject { } },
+                )
+            }
+
+            emit(
+                ModelStreamEvent.Completed(
+                    ModelReply(
+                        content = content.toString().ifBlank { null },
+                        toolCalls = calls,
+                    ),
+                ),
+            )
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private fun buildRequest(
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec>,
+        stream: Boolean,
+    ): Request {
+        val payload = buildJsonObject {
+            put("model", model)
+            put("messages", AgentJson.encodeToJsonElement(messages))
+            put(
+                "tools",
+                buildJsonArray {
+                    tools.forEach { spec ->
+                        add(
+                            buildJsonObject {
+                                put("type", "function")
+                                put(
+                                    "function",
+                                    buildJsonObject {
+                                        put("name", spec.name)
+                                        put("description", spec.description)
+                                        put("parameters", spec.parameters)
+                                    },
+                                )
+                            },
+                        )
+                    }
+                },
+            )
+            put("tool_choice", "auto")
+            put("temperature", 0.2)
+            put("stream", stream)
+        }
+
+        return Request.Builder()
+            .url(baseUrl.trimEnd('/') + "/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(payload.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+    }
 }
 
 @Serializable
@@ -223,3 +311,38 @@ private data class CompletionFunctionCall(
     val name: String = "",
     val arguments: String = "{}",
 )
+
+@Serializable
+private data class StreamChunk(
+    val choices: List<StreamChoice> = emptyList(),
+)
+
+@Serializable
+private data class StreamChoice(
+    val delta: StreamDelta? = null,
+)
+
+@Serializable
+private data class StreamDelta(
+    val content: String? = null,
+    @SerialName("tool_calls") val toolCalls: List<StreamToolCall>? = null,
+)
+
+@Serializable
+private data class StreamToolCall(
+    val index: Int? = null,
+    val id: String? = null,
+    val function: StreamFunctionCall? = null,
+)
+
+@Serializable
+private data class StreamFunctionCall(
+    val name: String? = null,
+    val arguments: String? = null,
+)
+
+private class StreamToolAccumulator {
+    var id: String = ""
+    var name: String = ""
+    val arguments: StringBuilder = StringBuilder()
+}

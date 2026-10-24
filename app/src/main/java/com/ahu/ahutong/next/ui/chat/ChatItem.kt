@@ -14,7 +14,11 @@ sealed interface ChatItem {
 
     data class User(override val id: String, val text: String) : ChatItem
 
-    data class Assistant(override val id: String, val text: String) : ChatItem
+    data class Assistant(
+        override val id: String,
+        val text: String,
+        val streaming: Boolean = false,
+    ) : ChatItem
 
     data class Tool(override val id: String, val result: ToolResult) : ChatItem
 

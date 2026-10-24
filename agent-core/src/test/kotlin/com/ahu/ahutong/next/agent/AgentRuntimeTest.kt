@@ -2,6 +2,7 @@ package com.ahu.ahutong.next.agent
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -171,6 +172,40 @@ class AgentRuntimeTest {
         val result = events.filterIsInstance<AgentEvent.ToolResultEvent>().single().result
         assertFalse(result.ok)
         assertEquals("unknown_tool", result.error?.code)
+    }
+
+    @Test
+    fun streamingDeltasAreForwardedAndFinalized() = runTest {
+        val model = object : ChatModel {
+            override val name = "streaming"
+            override suspend fun complete(messages: List<LlmMessage>, tools: List<ToolSpec>): ModelReply =
+                ModelReply("你好")
+
+            override fun stream(
+                messages: List<LlmMessage>,
+                tools: List<ToolSpec>,
+            ) = flow {
+                emit(ModelStreamEvent.Delta("你"))
+                emit(ModelStreamEvent.Delta("好"))
+                emit(ModelStreamEvent.Completed(ModelReply("你好")))
+            }
+        }
+
+        val events = mutableListOf<AgentEvent>()
+        val job = launch {
+            AgentRuntime(model, ToolRegistry(emptyList()), clock = { 1L })
+                .run(emptyList(), "打招呼", ApprovalGate())
+                .toList(events)
+        }
+        advanceUntilIdle()
+        job.join()
+
+        assertTrue(events.any { it is AgentEvent.AssistantStart })
+        assertEquals(
+            listOf("你", "好"),
+            events.filterIsInstance<AgentEvent.AssistantDelta>().map { it.text },
+        )
+        assertEquals("你好", events.filterIsInstance<AgentEvent.AssistantMessage>().single().text)
     }
 
     @Test

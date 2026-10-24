@@ -3,6 +3,8 @@ package com.ahu.ahutong.next.agent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 @Serializable
 data class WireFunctionCall(
@@ -31,9 +33,22 @@ data class ModelReply(
     val toolCalls: List<ToolCall> = emptyList(),
 )
 
+sealed interface ModelStreamEvent {
+    data class Delta(val text: String) : ModelStreamEvent
+    data class Completed(val reply: ModelReply) : ModelStreamEvent
+}
+
 interface ChatModel {
     val name: String
+
     suspend fun complete(messages: List<LlmMessage>, tools: List<ToolSpec>): ModelReply
+
+    /**
+     * 默认实现退化为整段返回；支持 SSE 的模型覆盖此方法逐段输出。
+     */
+    fun stream(messages: List<LlmMessage>, tools: List<ToolSpec>): Flow<ModelStreamEvent> = flow {
+        emit(ModelStreamEvent.Completed(complete(messages, tools)))
+    }
 }
 
 fun ToolCall.toWire(): WireToolCall = WireToolCall(

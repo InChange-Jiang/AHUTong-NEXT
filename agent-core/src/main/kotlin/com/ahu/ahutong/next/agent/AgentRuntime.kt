@@ -3,6 +3,7 @@ package com.ahu.ahutong.next.agent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
@@ -40,18 +41,29 @@ class AgentRuntime(
             var step = 0
             while (step < maxSteps) {
                 step++
-                val reply = model.complete(messages, registry.specs)
+                val collected = collectModelStream(
+                    model = model,
+                    messages = messages,
+                    tools = registry.specs,
+                    onStart = { emit(AgentEvent.AssistantStart) },
+                    onDelta = { emit(AgentEvent.AssistantDelta(it)) },
+                )
+                val reply = collected.reply
+                val visibleText = collected.text.trim()
 
                 if (reply.toolCalls.isEmpty()) {
-                    val text = reply.content?.trim().orEmpty()
-                    emit(AgentEvent.AssistantMessage(text.ifBlank { "我没有拿到可用结果。" }))
+                    emit(AgentEvent.AssistantMessage(visibleText.ifBlank { "我没有拿到可用结果。" }))
                     emit(AgentEvent.Done)
                     return@flow
                 }
 
+                if (visibleText.isNotEmpty()) {
+                    emit(AgentEvent.AssistantMessage(visibleText))
+                }
+
                 messages += LlmMessage(
                     role = "assistant",
-                    content = reply.content,
+                    content = reply.content ?: visibleText.takeIf { it.isNotBlank() },
                     toolCalls = reply.toolCalls.map { it.toWire() },
                 )
 
@@ -119,6 +131,42 @@ class AgentRuntime(
             emit(AgentEvent.Failed(e.message?.takeIf { it.isNotBlank() } ?: "执行失败，请稍后再试"))
         }
     }
+
+    private suspend fun collectModelStream(
+        model: ChatModel,
+        messages: List<LlmMessage>,
+        tools: List<ToolSpec>,
+        onStart: suspend () -> Unit,
+        onDelta: suspend (String) -> Unit,
+    ): CollectedReply {
+        val text = StringBuilder()
+        var started = false
+        var completed: ModelReply? = null
+
+        model.stream(messages, tools).collect { event ->
+            when (event) {
+                is ModelStreamEvent.Delta -> {
+                    if (!started) {
+                        started = true
+                        onStart()
+                    }
+                    text.append(event.text)
+                    onDelta(event.text)
+                }
+
+                is ModelStreamEvent.Completed -> completed = event.reply
+            }
+        }
+
+        val reply = completed ?: throw IllegalStateException("模型流没有返回完成事件")
+        val finalText = reply.content?.takeIf { it.isNotBlank() } ?: text.toString()
+        return CollectedReply(reply = reply, text = finalText)
+    }
+
+    private data class CollectedReply(
+        val reply: ModelReply,
+        val text: String,
+    )
 
     private suspend fun execute(tool: Tool, call: ToolCall): ToolResult {
         return try {

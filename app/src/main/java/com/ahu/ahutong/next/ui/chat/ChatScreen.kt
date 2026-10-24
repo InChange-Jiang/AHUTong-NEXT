@@ -68,8 +68,9 @@ fun ChatScreen(
     onOpenSettings: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
 
-    LaunchedEffect(state.items.size, state.status) {
+    LaunchedEffect(state.items.size, state.status, streamingTextLength) {
         val target = state.items.lastIndex + if (state.status != null) 1 else 0
         if (target >= 0) listState.animateScrollToItem(target)
     }
@@ -326,7 +327,7 @@ private fun MessageItem(
 ) {
     when (item) {
         is ChatItem.User -> UserBubble(item.text)
-        is ChatItem.Assistant -> AssistantMessage(item.text)
+        is ChatItem.Assistant -> AssistantMessage(item.text, item.streaming)
         is ChatItem.Tool -> ToolResultCard(item.result)
         is ChatItem.Approval -> ApprovalCard(item, onApprove, onReject)
         is ChatItem.Error -> ErrorCard(item.text)
@@ -369,7 +370,7 @@ private fun UserBubble(text: String) {
 }
 
 @Composable
-private fun AssistantMessage(text: String) {
+private fun AssistantMessage(text: String, streaming: Boolean) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -384,11 +385,19 @@ private fun AssistantMessage(text: String) {
                 color = NextPalette.Accent,
             )
             Spacer(Modifier.height(3.dp))
-            AppMarkdown(
-                markdown = text,
-                modifier = Modifier.fillMaxWidth(),
-                lazy = false,
-            )
+            if (streaming) {
+                Text(
+                    text = if (text.isEmpty()) "▍" else "$text▍",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = NextPalette.Ink,
+                )
+            } else {
+                AppMarkdown(
+                    markdown = text,
+                    modifier = Modifier.fillMaxWidth(),
+                    lazy = false,
+                )
+            }
         }
     }
 }

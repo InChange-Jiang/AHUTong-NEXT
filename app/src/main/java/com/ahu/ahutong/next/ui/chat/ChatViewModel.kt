@@ -33,6 +33,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val registry = ToolRegistry(campusTools(repository))
     private val gate = ApprovalGate()
     private var runJob: Job? = null
+    private var streamingItemId: String? = null
 
     private val _ui = MutableStateFlow(
         ChatUiState(
@@ -56,6 +57,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         val history = buildHistory(state.items)
         val userItem = ChatItem.User(UUID.randomUUID().toString(), trimmed)
+        streamingItemId = null
         _ui.update {
             it.copy(
                 items = it.items + userItem,
@@ -76,6 +78,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 handle(AgentEvent.Failed(e.message ?: "执行失败，请稍后再试"))
             } finally {
+                finalizeStreamingItem(removeIfEmpty = true)
                 _ui.update { it.copy(isRunning = false, status = null, pendingApprovalId = null) }
                 persist()
             }
@@ -122,6 +125,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         gate.cancel()
         runJob?.cancel()
         runJob = null
+        finalizeStreamingItem(removeIfEmpty = true)
         _ui.update { state ->
             state.copy(
                 isRunning = false,
@@ -164,19 +168,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         when (event) {
             is AgentEvent.Status -> _ui.update { it.copy(status = event.text) }
 
-            is AgentEvent.AssistantMessage -> {
-                val item = ChatItem.Assistant(UUID.randomUUID().toString(), event.text)
-                _ui.update { it.copy(items = it.items + item, status = null) }
-                persist()
-            }
+            AgentEvent.AssistantStart -> startStreamingItem()
+
+            is AgentEvent.AssistantDelta -> appendStreamingDelta(event.text)
+
+            is AgentEvent.AssistantMessage -> finishStreamingItem(event.text)
 
             is AgentEvent.ToolResultEvent -> {
+                finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Tool(UUID.randomUUID().toString(), event.result)
                 _ui.update { it.copy(items = it.items + item, status = null) }
                 persist()
             }
 
             is AgentEvent.ApprovalRequired -> {
+                finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Approval(UUID.randomUUID().toString(), event.request)
                 _ui.update {
                     it.copy(
@@ -188,12 +194,79 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             is AgentEvent.Failed -> {
+                finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Error(UUID.randomUUID().toString(), event.message)
                 _ui.update { it.copy(items = it.items + item, status = null) }
                 persist()
             }
 
-            AgentEvent.Done -> Unit
+            AgentEvent.Done -> finalizeStreamingItem(removeIfEmpty = true)
+        }
+    }
+
+    private fun startStreamingItem() {
+        if (streamingItemId != null) return
+        val item = ChatItem.Assistant(
+            id = UUID.randomUUID().toString(),
+            text = "",
+            streaming = true,
+        )
+        streamingItemId = item.id
+        _ui.update { it.copy(items = it.items + item, status = null) }
+    }
+
+    private fun appendStreamingDelta(delta: String) {
+        if (streamingItemId == null) startStreamingItem()
+        val id = streamingItemId ?: return
+        _ui.update { state ->
+            state.copy(
+                items = state.items.map {
+                    if (it is ChatItem.Assistant && it.id == id) {
+                        it.copy(text = it.text + delta)
+                    } else {
+                        it
+                    }
+                },
+            )
+        }
+    }
+
+    private fun finishStreamingItem(finalText: String) {
+        val id = streamingItemId
+        if (id == null) {
+            val item = ChatItem.Assistant(UUID.randomUUID().toString(), finalText)
+            _ui.update { it.copy(items = it.items + item, status = null) }
+        } else {
+            _ui.update { state ->
+                state.copy(
+                    items = state.items.map {
+                        if (it is ChatItem.Assistant && it.id == id) {
+                            it.copy(text = finalText, streaming = false)
+                        } else {
+                            it
+                        }
+                    },
+                    status = null,
+                )
+            }
+            streamingItemId = null
+        }
+        persist()
+    }
+
+    private fun finalizeStreamingItem(removeIfEmpty: Boolean) {
+        val id = streamingItemId ?: return
+        streamingItemId = null
+        _ui.update { state ->
+            state.copy(
+                items = state.items.mapNotNull {
+                    if (it is ChatItem.Assistant && it.id == id) {
+                        if (it.text.isBlank() && removeIfEmpty) null else it.copy(streaming = false)
+                    } else {
+                        it
+                    }
+                },
+            )
         }
     }
 

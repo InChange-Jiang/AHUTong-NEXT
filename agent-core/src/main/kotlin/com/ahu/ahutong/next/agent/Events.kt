@@ -15,6 +15,8 @@ data class ApprovalRequest(
 
 sealed interface AgentEvent {
     data class Status(val text: String) : AgentEvent
+    data object AssistantStart : AgentEvent
+    data class AssistantDelta(val text: String) : AgentEvent
     data class AssistantMessage(val text: String) : AgentEvent
     data class ToolResultEvent(val result: ToolResult) : AgentEvent
     data class ApprovalRequired(val request: ApprovalRequest) : AgentEvent
