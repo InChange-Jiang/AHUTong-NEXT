@@ -1,16 +1,13 @@
 package com.ahu.ahutong.next.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,18 +28,14 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -89,42 +85,13 @@ fun SoftSurface(
     content: @Composable () -> Unit,
 ) {
     Surface(
-        modifier = modifier.shadow(
-            elevation = elevation,
-            shape = shape,
-            clip = false,
-            ambientColor = Color(0x1417191D),
-            spotColor = Color(0x1A17191D),
-        ),
+        modifier = modifier,
         shape = shape,
         color = color,
+        shadowElevation = elevation,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
         content = content,
     )
-}
-
-@Composable
-fun Modifier.softClickable(
-    onClick: () -> Unit,
-    enabled: Boolean = true,
-): Modifier {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.97f else 1f,
-        label = "softPress",
-    )
-    return this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .clickable(
-            interactionSource = interaction,
-            indication = null,
-            enabled = enabled,
-            onClick = onClick,
-        )
 }
 
 @Composable
@@ -133,12 +100,13 @@ fun SoftIconButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    SoftSurface(
-        modifier = modifier
-            .size(46.dp)
-            .softClickable(onClick),
+    Surface(
+        onClick = onClick,
+        modifier = modifier.size(46.dp),
         shape = CircleShape,
-        elevation = 8.dp,
+        color = NextPalette.Surface,
+        shadowElevation = 8.dp,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             content()
@@ -153,32 +121,25 @@ fun SoftPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Box(
-        modifier = modifier
-            .shadow(
-                elevation = if (enabled) 12.dp else 0.dp,
-                shape = RoundedCornerShape(50),
-                clip = false,
-                ambientColor = Color(0x332F6BFF),
-                spotColor = Color(0x332F6BFF),
-            )
-            .clip(RoundedCornerShape(50))
-            .background(
-                if (enabled) {
-                    Brush.horizontalGradient(listOf(Color(0xFF4A82FF), NextPalette.Accent))
-                } else {
-                    Brush.horizontalGradient(listOf(Color(0xFFE2E0DA), Color(0xFFE2E0DA)))
-                },
-            )
-            .softClickable(onClick, enabled)
-            .padding(horizontal = 22.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center,
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = RoundedCornerShape(50),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = NextPalette.Accent,
+            contentColor = Color.White,
+            disabledContainerColor = Color(0xFFE2E0DA),
+            disabledContentColor = NextPalette.InkSecondary,
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 8.dp,
+            pressedElevation = 2.dp,
+            disabledElevation = 0.dp,
+        ),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
     ) {
-        Text(
-            text,
-            color = if (enabled) Color.White else NextPalette.InkSecondary,
-            style = MaterialTheme.typography.labelLarge,
-        )
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -188,18 +149,21 @@ fun SoftSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    SoftSurface(
-        modifier = modifier.softClickable(onClick),
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = modifier,
         shape = RoundedCornerShape(50),
-        color = NextPalette.SurfaceSoft,
-        elevation = 2.dp,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = NextPalette.SurfaceSoft,
+            contentColor = NextPalette.Ink,
+        ),
+        elevation = ButtonDefaults.filledTonalButtonElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 0.dp,
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
     ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            style = MaterialTheme.typography.labelLarge,
-            color = NextPalette.Ink,
-        )
+        Text(text, style = MaterialTheme.typography.labelLarge)
     }
 }
 
@@ -211,11 +175,13 @@ fun SoftChip(
     icon: Painter? = null,
     selected: Boolean = false,
 ) {
-    SoftSurface(
-        modifier = modifier.softClickable(onClick),
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
         shape = RoundedCornerShape(50),
         color = if (selected) NextPalette.AccentSoft else NextPalette.Surface,
-        elevation = 8.dp,
+        shadowElevation = if (selected) 2.dp else 8.dp,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

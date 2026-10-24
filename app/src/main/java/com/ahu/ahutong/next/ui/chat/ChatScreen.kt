@@ -24,13 +24,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -39,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -51,7 +54,6 @@ import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.SoftSurface
-import com.ahu.ahutong.next.ui.components.softClickable
 import com.ahu.ahutong.next.ui.theme.NextPalette
 
 @Composable
@@ -255,53 +257,59 @@ private fun InputPill(
         elevation = 18.dp,
     ) {
         Row(
-            modifier = Modifier.padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(start = 6.dp, end = 8.dp, top = 2.dp, bottom = 2.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            BasicTextField(
+            TextField(
                 value = value,
                 onValueChange = onValueChange,
                 enabled = enabled,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(vertical = 12.dp),
+                modifier = Modifier.weight(1f),
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = NextPalette.Ink),
-                maxLines = 4,
-                cursorBrush = SolidColor(NextPalette.Accent),
-                decorationBox = { inner ->
-                    if (value.isEmpty()) {
-                        Text(
-                            "问课表、作业、成绩…",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = NextPalette.InkSecondary,
-                        )
-                    }
-                    inner()
+                placeholder = {
+                    Text(
+                        "问课表、作业、成绩…",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = NextPalette.InkSecondary,
+                    )
                 },
+                maxLines = 4,
+                shape = RoundedCornerShape(24.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    cursorColor = NextPalette.Accent,
+                    focusedTextColor = NextPalette.Ink,
+                    unfocusedTextColor = NextPalette.Ink,
+                    disabledTextColor = NextPalette.InkSecondary,
+                    focusedPlaceholderColor = NextPalette.InkSecondary,
+                    unfocusedPlaceholderColor = NextPalette.InkSecondary,
+                ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { onSend() }),
             )
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(6.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (canSend) {
-                            Brush.linearGradient(listOf(Color(0xFF4A82FF), NextPalette.Accent))
-                        } else {
-                            SolidColor(Color(0xFFE7E5DF))
-                        },
-                    )
-                    .softClickable(onClick = onSend, enabled = canSend),
-                contentAlignment = Alignment.Center,
+            FilledIconButton(
+                onClick = onSend,
+                enabled = canSend,
+                modifier = Modifier.size(44.dp),
+                shape = CircleShape,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = NextPalette.Accent,
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFE7E5DF),
+                    disabledContentColor = NextPalette.InkSecondary,
+                ),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_iconpark_send),
                     contentDescription = "发送",
-                    tint = if (canSend) Color.White else NextPalette.InkSecondary,
                     modifier = Modifier.size(19.dp),
                 )
             }
@@ -409,15 +417,17 @@ private fun StatusPill(text: String, onCancel: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = NextPalette.InkSecondary,
                 )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    "取消",
-                    modifier = Modifier
-                        .softClickable(onClick = onCancel)
-                        .padding(4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NextPalette.Accent,
-                )
+                Spacer(Modifier.width(8.dp))
+                TextButton(
+                    onClick = onCancel,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                ) {
+                    Text(
+                        "取消",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.Accent,
+                    )
+                }
             }
         }
     }
