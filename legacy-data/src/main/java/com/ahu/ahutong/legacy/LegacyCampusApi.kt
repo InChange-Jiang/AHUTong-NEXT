@@ -35,6 +35,7 @@ import com.ahu.ahutong.data.crawler.model.jwxt.StudentInfo
 import com.ahu.ahutong.data.schedule.ScheduleSemester
 import com.ahu.ahutong.data.server.model.SchoolCalendarYearsResponse
 import com.ahu.ahutong.data.model.ElectricityController
+import com.ahu.ahutong.data.model.ElectricityDepositHistoryItem
 import com.ahu.ahutong.data.model.LoginOutcome
 import com.ahu.ahutong.data.model.RoomSelectionInfo
 import com.ahu.ahutong.data.model.User
@@ -368,6 +369,42 @@ object LegacyCampusApi {
         AHUCache.saveRoomSelection(selection)
     }
 
+    fun electricityHistory(): List<ElectricityDepositHistoryItem> =
+        AHUCache.getElectricityDepositHistory()
+            .filter { it.selection.room != null }
+            .sortedByDescending { it.updatedAt }
+
+    private fun recordElectricityCondition(
+        controller: ElectricityController,
+        selection: RoomSelectionInfo,
+    ) {
+        val label = listOfNotNull(
+            controller.displayName,
+            selection.building?.name,
+            selection.floor?.name,
+            selection.room?.name,
+        ).joinToString(" · ")
+        val key = electricityConditionKey(selection)
+        val previous = AHUCache.getElectricityDepositHistory()
+        val item = ElectricityDepositHistoryItem(
+            selection = selection.copy(controller = controller),
+            label = label,
+            updatedAt = System.currentTimeMillis(),
+            confirmedByPayment = true,
+        )
+        AHUCache.saveElectricityDepositHistory(
+            (listOf(item) + previous.filter { electricityConditionKey(it.selection) != key }).take(5),
+        )
+    }
+
+    private fun electricityConditionKey(selection: RoomSelectionInfo): String = listOf(
+        selection.controller?.name,
+        selection.campus?.value,
+        selection.building?.value,
+        selection.floor?.value,
+        selection.room?.value,
+    ).joinToString("|") { it ?: "" }
+
     suspend fun electricityInitialOptions(
         controller: ElectricityController,
     ): AhuResult<List<CampusDataItem>> = electricityDeposit.options(
@@ -423,7 +460,7 @@ object LegacyCampusApi {
             is AhuResult.Failure -> return result
             is AhuResult.Success -> result.value
         }
-        return electricityDeposit.pay(
+        val receipt = electricityDeposit.pay(
             ElectricityPayment(
                 controller = controller,
                 amount = amountYuan,
@@ -431,6 +468,10 @@ object LegacyCampusApi {
                 room = room.details,
             ),
         )
+        if (receipt is AhuResult.Success) {
+            recordElectricityCondition(controller, selection)
+        }
+        return receipt
     }
 
     suspend fun networkRechargeSnapshot(): AhuResult<NetworkRechargeSnapshot> = networkRecharge.load()

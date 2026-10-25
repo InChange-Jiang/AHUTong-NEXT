@@ -38,7 +38,6 @@ import com.ahu.ahutong.next.ui.pages.CanteenPage
 import com.ahu.ahutong.next.ui.pages.CardPage
 import com.ahu.ahutong.next.ui.pages.CompletionPage
 import com.ahu.ahutong.next.ui.pages.CourseTasksPage
-import com.ahu.ahutong.next.ui.pages.ElectricityPage
 import com.ahu.ahutong.next.ui.pages.EvaluationPage
 import com.ahu.ahutong.next.ui.pages.ExamsPage
 import com.ahu.ahutong.next.ui.pages.FreeRoomsPage
@@ -177,9 +176,10 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 AppRoute.Weather -> WeatherPage(back)
                 AppRoute.Card -> CardPage(repository, back) { nav.push(it) }
                 AppRoute.Bills -> BillsPage(repository, back)
-                AppRoute.Electricity -> ElectricityPage(repository, back) { nav.push(it) }
                 AppRoute.RechargeCard -> RechargeCardPage(repository, back)
-                AppRoute.RechargeElectricity -> RechargeElectricityPage(repository, back)
+                AppRoute.RechargeElectricity -> RechargeElectricityPage(repository, back) {
+                    nav.push(AppRoute.Reminders)
+                }
                 AppRoute.RechargeBathroom -> RechargeBathroomPage(repository, back)
                 AppRoute.RechargeNetwork -> RechargeNetworkPage(repository, back)
                 AppRoute.Evaluation -> EvaluationPage(back)

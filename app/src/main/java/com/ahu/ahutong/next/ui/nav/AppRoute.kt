@@ -23,7 +23,6 @@ sealed interface AppRoute {
     data object Weather : AppRoute
     data object Card : AppRoute
     data object Bills : AppRoute
-    data object Electricity : AppRoute
     data object RechargeCard : AppRoute
     data object RechargeElectricity : AppRoute
     data object RechargeBathroom : AppRoute

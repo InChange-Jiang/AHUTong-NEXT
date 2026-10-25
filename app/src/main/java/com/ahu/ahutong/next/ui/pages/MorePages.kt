@@ -34,6 +34,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
@@ -72,9 +73,7 @@ fun CourseTasksPage(onBack: () -> Unit) {
         title = "课程任务",
         onBack = onBack,
         actions = {
-            TextButton(enabled = !syncing, onClick = { scope.launch { sync() } }) {
-                Text(if (syncing) "同步中…" else "同步")
-            }
+            RefreshIconButton { if (!syncing) scope.launch { sync() } }
         },
     ) {
         AsyncContent(state, onRetry = { scope.launch { sync() } }) {

@@ -77,7 +77,6 @@ private val groups = listOf(
     DrawerGroup(
         "生活",
         listOf(
-            DrawerEntry("电费", AppRoute.Electricity, R.drawable.ic_iconpark_electricity),
             DrawerEntry("电费充值", AppRoute.RechargeElectricity, R.drawable.ic_iconpark_electricity),
             DrawerEntry("浴室缴费", AppRoute.RechargeBathroom, R.drawable.ic_iconpark_wallet),
             DrawerEntry("网费充值", AppRoute.RechargeNetwork, R.drawable.ic_iconpark_wallet),

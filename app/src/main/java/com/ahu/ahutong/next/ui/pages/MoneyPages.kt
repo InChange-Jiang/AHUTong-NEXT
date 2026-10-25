@@ -40,6 +40,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.ahu.ahutong.data.model.ElectricityDepositHistoryItem
+import com.ahu.ahutong.data.model.RoomSelectionInfo
+import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.data.Balance
 import com.ahu.ahutong.next.data.BillSummary
@@ -52,6 +55,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -284,104 +288,6 @@ fun BillsPage(repository: NextCampusRepository, onBack: () -> Unit) {
 }
 
 @Composable
-fun ElectricityPage(
-    repository: NextCampusRepository,
-    onBack: () -> Unit,
-    onNavigate: (AppRoute) -> Unit,
-) {
-    var state by remember { mutableStateOf<LoadState<Electricity>>(LoadState.Loading) }
-    var reload by remember { mutableIntStateOf(0) }
-    var showRoom by remember { mutableStateOf(false) }
-    val roomLabel = remember { mutableStateOf(repository.electricityRoomLabel()) }
-
-    LaunchedEffect(reload, roomLabel.value) {
-        state = LoadState.Loading
-        state = runCatching { withContext(Dispatchers.IO) { repository.electricity() } }
-            .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
-    }
-
-    FeatureScaffold(
-        title = "宿舍电费",
-        onBack = onBack,
-        actions = { RefreshIconButton { reload++ } },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 4.dp),
-        ) {
-            PageCard {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("电费房间", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                        Text(
-                            roomLabel.value ?: "尚未设置",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (roomLabel.value == null) NextPalette.Danger else NextPalette.Ink,
-                        )
-                    }
-                    SoftSecondaryButton(
-                        if (roomLabel.value == null) "设置房间" else "修改房间",
-                        onClick = { showRoom = true },
-                    )
-                }
-            }
-        }
-        AsyncContent(state, onRetry = { reload++ }) {
-            val electricity = (state as LoadState.Ready).value
-            FeatureScrollColumn {
-                PageCard {
-                    Text("剩余电量", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            String.format(Locale.CHINA, "%.1f", electricity.balanceKwh),
-                            style = MaterialTheme.typography.displaySmall,
-                            color = NextPalette.AccentDeep,
-                        )
-                        Text(
-                            " 度",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = NextPalette.AccentDeep,
-                        )
-                    }
-                    Text(
-                        "预计可用 ${electricity.estimatedDays} 天 · ${electricity.room}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                }
-                PageCard {
-                    PageTitle("近七日用电")
-                    UsageBars(electricity.dailyUsage)
-                }
-                PageCard {
-                    SoftPrimaryButton(
-                        "充值",
-                        onClick = { onNavigate(AppRoute.RechargeElectricity) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SoftSecondaryButton(
-                        "电费提醒设置",
-                        onClick = { onNavigate(AppRoute.Reminders) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        }
-    }
-    if (showRoom) {
-        ElectricityRoomDialog(
-            onDismiss = { showRoom = false },
-            onSaved = {
-                roomLabel.value = repository.electricityRoomLabel()
-                showRoom = false
-                reload++
-            },
-        )
-    }
-}
-
-@Composable
 private fun UsageBars(values: List<Double>) {
     if (values.isEmpty()) {
         Text("暂无用电记录", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
@@ -471,7 +377,11 @@ fun RechargeCardPage(repository: NextCampusRepository, onBack: () -> Unit) {
 }
 
 @Composable
-fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit) {
+fun RechargeElectricityPage(
+    repository: NextCampusRepository,
+    onBack: () -> Unit,
+    onOpenReminders: () -> Unit,
+) {
     var amount by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<RechargeReceipt?>(null) }
@@ -479,27 +389,153 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
     var submitting by remember { mutableStateOf(false) }
     var roomInfo by remember { mutableStateOf<String?>(null) }
     var showRoom by remember { mutableStateOf(false) }
-    var roomReload by remember { mutableIntStateOf(0) }
+    var reload by remember { mutableIntStateOf(0) }
+    var history by remember {
+        mutableStateOf(
+            LegacyCampusApi.electricityHistory().ifEmpty {
+                LegacyCampusApi.savedElectricityRoom()
+                    ?.takeIf { it.room != null }
+                    ?.let {
+                        listOf(
+                            ElectricityDepositHistoryItem(
+                                selection = it,
+                                label = electricityConditionLabel(it).orEmpty(),
+                                updatedAt = 0L,
+                            ),
+                        )
+                    }
+                    .orEmpty()
+            },
+        )
+    }
+    var selection by remember {
+        mutableStateOf(
+            LegacyCampusApi.savedElectricityRoom()?.takeIf { it.room != null }
+                ?: LegacyCampusApi.electricityHistory().firstOrNull()?.selection,
+        )
+    }
+    var balanceState by remember { mutableStateOf<LoadState<Electricity>?>(null) }
     val scope = rememberCoroutineScope()
-    val room = remember { repository.electricityRoomLabel() }
+    val label = electricityConditionLabel(selection)
+    val lastCondition = history.firstOrNull()
+    val hasRoom = selection?.room != null
+    val roomBalance = remember(roomInfo) { parseRoomBalance(roomInfo) }
 
-    LaunchedEffect(roomReload) {
-        roomInfo = runCatching {
-            withContext(Dispatchers.IO) {
-                com.ahu.ahutong.legacy.LegacyCampusApi.electricityRoomInfo().requireValue().displayInfo
-            }
-        }.getOrNull()
+    fun applySelection(next: RoomSelectionInfo) {
+        selection = next
+        LegacyCampusApi.saveElectricitySelection(
+            next.controller ?: LegacyCampusApi.electricityController(),
+            next,
+        )
+        reload++
     }
 
-    FeatureScaffold("宿舍电费充值", onBack) {
+    LaunchedEffect(reload, selection) {
+        val current = selection
+        if (current == null) {
+            balanceState = null
+            roomInfo = null
+            return@LaunchedEffect
+        }
+        LegacyCampusApi.saveElectricitySelection(
+            current.controller ?: LegacyCampusApi.electricityController(),
+            current,
+        )
+        roomInfo = runCatching {
+            withContext(Dispatchers.IO) { LegacyCampusApi.electricityRoomInfo().requireValue().displayInfo }
+        }.getOrNull()
+        balanceState = LoadState.Loading
+        balanceState = runCatching { withContext(Dispatchers.IO) { repository.electricity() } }
+            .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
+    }
+
+    FeatureScaffold(
+        title = "宿舍电费充值",
+        onBack = onBack,
+        actions = { RefreshIconButton { reload++ } },
+    ) {
         FeatureScrollColumn {
             PageCard {
+                Text("剩余电量", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                val readyBalance = (balanceState as? LoadState.Ready)?.value
+                val shownKwh = readyBalance?.balanceKwh ?: roomBalance
+                if (shownKwh != null) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            String.format(Locale.CHINA, "%.1f", shownKwh),
+                            style = MaterialTheme.typography.displaySmall,
+                            color = NextPalette.AccentDeep,
+                        )
+                        Text(
+                            " 度",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = NextPalette.AccentDeep,
+                        )
+                    }
+                    if (readyBalance != null) {
+                        Text(
+                            "预计可用 ${readyBalance.estimatedDays} 天 · ${readyBalance.room}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        HorizontalDivider(color = NextPalette.Line)
+                        PageTitle("近七日用电")
+                        UsageBars(readyBalance.dailyUsage)
+                    } else {
+                        Text(
+                            "房间实时余额",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        if (balanceState is LoadState.Failed) {
+                            Text(
+                                "近七日用电暂时不可用",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.Warning,
+                            )
+                        }
+                    }
+                } else {
+                    when (val balance = balanceState) {
+                        null -> Text(
+                            if (hasRoom) "正在读取…" else "还没有设置电费房间",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (hasRoom) NextPalette.InkSecondary else NextPalette.Danger,
+                        )
+                        LoadState.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = NextPalette.Accent,
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("正在读取剩余电量…", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                        }
+                        is LoadState.Failed -> Text(
+                            balance.message,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.Danger,
+                        )
+                        is LoadState.Ready -> Unit
+                    }
+                }
+                if (hasRoom) {
+                    SoftSecondaryButton(
+                        "电费提醒设置",
+                        onClick = onOpenReminders,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+
+            PageCard {
+                PageTitle("充值条件")
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            room?.let { "充值房间：$it" } ?: "还没有设置电费房间",
+                            label ?: "还没有设置电费房间",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (room == null) NextPalette.Danger else NextPalette.Ink,
+                            color = if (label == null) NextPalette.Danger else NextPalette.Ink,
                         )
                         roomInfo?.let {
                             Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
@@ -507,7 +543,46 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
                     }
                     SoftSecondaryButton("更换房间", onClick = { showRoom = true })
                 }
+                if (lastCondition != null) {
+                    HorizontalDivider(color = NextPalette.Line)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "上次充值条件",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Text(
+                                lastCondition.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = NextPalette.Ink,
+                            )
+                        }
+                        SoftChip(
+                            "使用上次条件",
+                            onClick = { applySelection(lastCondition.selection) },
+                            selected = selection == lastCondition.selection,
+                        )
+                    }
+                }
+                if (history.size > 1) {
+                    Text(
+                        "最近使用",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    SoftChipStrip {
+                        history.take(5).forEach { item ->
+                            SoftChip(
+                                item.label,
+                                onClick = { applySelection(item.selection) },
+                                selected = selection == item.selection,
+                            )
+                        }
+                    }
+                }
             }
+
             AmountCard(amount, { amount = it })
             PageCard {
                 Text(
@@ -517,7 +592,7 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
                 )
                 SoftPrimaryButton(
                     "确认充值",
-                    enabled = room != null,
+                    enabled = hasRoom,
                     onClick = { confirm = true },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -529,7 +604,7 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
     if (confirm) {
         ConfirmPaymentDialog(
             title = "确认电费充值",
-            summary = "将从校园卡账户扣款 ¥${amount.ifBlank { "--" }}，充值到 $room。",
+            summary = "将从校园卡账户扣款 ¥${amount.ifBlank { "--" }}，充值到 ${label ?: "当前房间"}。",
             needsPassword = true,
             submitting = submitting,
             onDismiss = { confirm = false },
@@ -541,7 +616,13 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
                         withContext(Dispatchers.IO) {
                             repository.rechargeElectricity(amount, password.orEmpty())
                         }
-                    }.fold(onSuccess = { result = it }, onFailure = { error = it.message ?: "电费充值失败" })
+                    }.fold(
+                        onSuccess = {
+                            result = it
+                            history = LegacyCampusApi.electricityHistory()
+                        },
+                        onFailure = { error = it.message ?: "电费充值失败" },
+                    )
                     submitting = false
                     confirm = false
                 }
@@ -551,15 +632,33 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
     error?.let { ErrorDialog(it) { error = null } }
 
     if (showRoom) {
-        com.ahu.ahutong.next.ui.settings.ElectricityRoomDialog(
+        ElectricityRoomDialog(
             onDismiss = { showRoom = false },
             onSaved = {
                 showRoom = false
-                roomReload++
+                selection = LegacyCampusApi.savedElectricityRoom()?.takeIf { it.room != null }
+                history = LegacyCampusApi.electricityHistory()
+                reload++
             },
         )
     }
 }
+
+private fun electricityConditionLabel(selection: RoomSelectionInfo?): String? = selection?.let {
+    val place = it.room?.name?.takeIf(String::isNotBlank)
+        ?: listOfNotNull(it.building?.name, it.floor?.name).joinToString(" · ").takeIf(String::isNotBlank)
+    listOfNotNull(
+        (it.controller ?: LegacyCampusApi.electricityController()).displayName,
+        place,
+    ).joinToString(" · ").takeIf(String::isNotBlank)
+}
+
+private fun parseRoomBalance(info: String?): Double? =
+    Regex("房间当前剩余电量\\s*[:：]?\\s*([+-]?\\d+(?:\\.\\d+)?)")
+        .find(info.orEmpty())
+        ?.groupValues
+        ?.get(1)
+        ?.toDoubleOrNull()
 
 @Composable
 fun RechargeBathroomPage(repository: NextCampusRepository, onBack: () -> Unit) {

@@ -106,30 +106,28 @@ fun EvaluationPage(onBack: () -> Unit) {
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
-        if (semesters.isNotEmpty()) {
-            SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
-                semesters.forEach { semester ->
-                    SoftChip(
-                        semester.nameZh.ifBlank { semester.schoolYear },
-                        onClick = { selectSemester(semester) },
-                        selected = selected?.id == semester.id,
-                    )
-                }
-            }
-        }
         AsyncContent(state, onRetry = { reload++ }) {
-            if (tasks.isEmpty()) {
-                EmptyState("这个学期没有待评教任务。")
-            } else {
-                FeatureScrollColumn {
-                    if (tasks.isNotEmpty()) {
-                        SoftPrimaryButton(
-                            if (bulkRunning) "正在提交…" else "按预设完成全部",
-                            enabled = !bulkRunning,
-                            onClick = { showBulkConfirm = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+            FeatureScrollColumn {
+                if (semesters.isNotEmpty()) {
+                    SoftChipStrip {
+                        semesters.forEach { semester ->
+                            SoftChip(
+                                semester.nameZh.ifBlank { semester.schoolYear },
+                                onClick = { selectSemester(semester) },
+                                selected = selected?.id == semester.id,
+                            )
+                        }
                     }
+                }
+                if (tasks.isEmpty()) {
+                    EmptyState("这个学期没有待评教任务。")
+                } else {
+                    SoftPrimaryButton(
+                        if (bulkRunning) "正在提交…" else "按预设完成全部",
+                        enabled = !bulkRunning,
+                        onClick = { showBulkConfirm = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Text(
                         "共 ${tasks.sumOf { it.teachers.size }} 个待评价教师",
                         style = MaterialTheme.typography.labelSmall,
@@ -345,33 +343,35 @@ fun SchoolCalendarPage(onBack: () -> Unit) {
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
-        if (years.isNotEmpty()) {
-            SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
-                years.forEach { year ->
-                    SoftChip(
-                        year,
-                        onClick = {
-                            selected = year
-                            reload++
-                        },
-                        selected = selected == year,
+        AsyncContent(state, onRetry = { reload++ }) {
+            FeatureScrollColumn {
+                if (years.isNotEmpty()) {
+                    SoftChipStrip {
+                        years.forEach { year ->
+                            SoftChip(
+                                year,
+                                onClick = {
+                                    selected = year
+                                    reload++
+                                },
+                                selected = selected == year,
+                            )
+                        }
+                    }
+                }
+                val image = bitmap
+                if (image == null) {
+                    EmptyState("暂未获取到校历图片。")
+                } else {
+                    Image(
+                        bitmap = image.asImageBitmap(),
+                        contentDescription = "校历",
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(image.width.toFloat() / image.height.toFloat()),
                     )
                 }
-            }
-        }
-        AsyncContent(state, onRetry = { reload++ }) {
-            val image = bitmap
-            if (image == null) {
-                EmptyState("暂未获取到校历图片。")
-            } else {
-                Image(
-                    bitmap = image.asImageBitmap(),
-                    contentDescription = "校历",
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(image.width.toFloat() / image.height.toFloat()),
-                )
             }
         }
     }

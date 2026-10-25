@@ -349,15 +349,31 @@ fun MaterialsPage(onBack: () -> Unit) {
     var downloads by remember { mutableStateOf<List<DownloadedFile>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
+    var refreshRequested by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(path, reload) {
+        val force = refreshRequested
+        refreshRequested = false
         state = LoadState.Loading
         runCatching {
-            withContext(Dispatchers.IO) { RepositoryManager.getContents(path) }
+            withContext(Dispatchers.IO) {
+                RepositoryManager.warmUpAllContentCaches(forceRefresh = force)
+                RepositoryManager.getContents(path)
+            }
         }.fold(
             onSuccess = { items = it; state = LoadState.Ready(Unit) },
-            onFailure = { state = it.toLoadFailure() },
+            onFailure = { failure ->
+                val cached = runCatching {
+                    withContext(Dispatchers.IO) { RepositoryManager.getContents(path) }
+                }.getOrNull()
+                if (cached != null) {
+                    items = cached
+                    state = LoadState.Ready(Unit)
+                } else {
+                    state = failure.toLoadFailure()
+                }
+            },
         )
     }
 
@@ -368,7 +384,7 @@ fun MaterialsPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "学习资料",
         onBack = onBack,
-        actions = { RefreshIconButton { reload++ } },
+        actions = { RefreshIconButton { refreshRequested = true; reload++ } },
     ) {
         if (path.isNotBlank()) {
             TextButton(

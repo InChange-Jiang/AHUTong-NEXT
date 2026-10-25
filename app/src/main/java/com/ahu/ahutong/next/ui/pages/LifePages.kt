@@ -246,78 +246,77 @@ fun LostFoundPage(onBack: () -> Unit) {
             TextButton(onClick = { showPublish = true }) { Text("发布") }
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SoftChip("失物招领", onClick = { filterState = 1 }, selected = filterState == 1)
-            SoftChip("寻物启事", onClick = { filterState = 2 }, selected = filterState == 2)
-        }
         AsyncContent(state, onRetry = { reload++ }) {
             val visible = items.filter { item ->
                 (typeFilter == null || item.typeid == typeFilter) &&
                     (campusFilter == null || item.campusid == campusFilter) &&
                     (!myPostsOnly || item.createuser == LegacyCampusApi.currentUserName())
             }
-            Column {
-                SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
+            FeatureScrollColumn {
+                SoftChipStrip {
+                    SoftChip("失物招领", onClick = { filterState = 1 }, selected = filterState == 1)
+                    SoftChip("寻物启事", onClick = { filterState = 2 }, selected = filterState == 2)
+                }
+                SoftChipStrip {
                     SoftChip("全部校区", onClick = { campusFilter = null }, selected = campusFilter == null)
                     campuses.forEach { campus ->
                         SoftChip(campus.campusName, onClick = { campusFilter = campus.id }, selected = campusFilter == campus.id)
                     }
                 }
-                SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
+                SoftChipStrip {
                     SoftChip("全部类型", onClick = { typeFilter = null }, selected = typeFilter == null)
                     types.forEach { type ->
                         SoftChip(type.typeName, onClick = { typeFilter = type.typeId }, selected = typeFilter == type.typeId)
                     }
                     SoftChip("我的发布", onClick = { myPostsOnly = !myPostsOnly }, selected = myPostsOnly)
                 }
-            }
-            if (visible.isEmpty()) EmptyState("暂无信息。") else FeatureScrollColumn {
-                Text("共 ${visible.size} 条", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                visible.forEach { item ->
-                    PageCard {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                if (visible.isEmpty()) {
+                    EmptyState("暂无信息。")
+                } else {
+                    Text("共 ${visible.size} 条", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                    visible.forEach { item ->
+                        PageCard {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    item.title,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = NextPalette.Ink,
+                                )
+                                Text(
+                                    item.lostType?.typeName ?: "其他",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NextPalette.AccentDeep,
+                                )
+                            }
                             Text(
-                                item.title,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = NextPalette.Ink,
-                            )
-                            Text(
-                                item.lostType?.typeName ?: "其他",
+                                "${item.campusName.orEmpty()} · ${item.createtime.orEmpty()}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = NextPalette.AccentDeep,
+                                color = NextPalette.InkSecondary,
                             )
-                        }
-                        Text(
-                            "${item.campusName.orEmpty()} · ${item.createtime.orEmpty()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        Text(
-                            "联系人 ${item.linkman.orEmpty()} · ${item.phone.orEmpty()}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        Text(
-                            "证件号 ${item.num1 ?: item.num2 ?: "未知"}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        if (item.createuser == LegacyCampusApi.currentUserName()) {
-                            TextButton(onClick = { deleting = item }) { Text("删除这条") }
+                            Text(
+                                "联系人 ${item.linkman.orEmpty()} · ${item.phone.orEmpty()}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Text(
+                                "证件号 ${item.num1 ?: item.num2 ?: "未知"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            if (item.createuser == LegacyCampusApi.currentUserName()) {
+                                TextButton(onClick = { deleting = item }) { Text("删除这条") }
+                            }
                         }
                     }
-                }
-                if (items.size < total) {
-                    TextButton(onClick = {
-                        scope.launch {
-                            state = LoadState.Loading
-                            load(page + 1, true)
-                        }
-                    }) { Text("加载更多") }
+                    if (items.size < total) {
+                        TextButton(onClick = {
+                            scope.launch {
+                                state = LoadState.Loading
+                                load(page + 1, true)
+                            }
+                        }) { Text("加载更多") }
+                    }
                 }
             }
         }
@@ -665,29 +664,23 @@ fun CanteenPage(onBack: () -> Unit) {
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SoftChip("本周", onClick = { period = "week" }, selected = period == "week")
-            SoftChip("本月", onClick = { period = "month" }, selected = period == "month")
-            SoftChip("全部", onClick = { period = "all" }, selected = period == "all")
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            campusFilters.keys.forEach { key ->
-                SoftChip(
-                    if (key == "all") "全部" else key,
-                    onClick = { campus = key },
-                    selected = campus == key,
-                )
-            }
-        }
         AsyncContent(state, onRetry = { reload++ }) {
             val data = (state as LoadState.Ready).value
             FeatureScrollColumn {
+                SoftChipStrip {
+                    SoftChip("本周", onClick = { period = "week" }, selected = period == "week")
+                    SoftChip("本月", onClick = { period = "month" }, selected = period == "month")
+                    SoftChip("全部", onClick = { period = "all" }, selected = period == "all")
+                }
+                SoftChipStrip {
+                    campusFilters.keys.forEach { key ->
+                        SoftChip(
+                            if (key == "all") "全部" else key,
+                            onClick = { campus = key },
+                            selected = campus == key,
+                        )
+                    }
+                }
                 val winner = data.superlatives?.topWindow ?: data.ranking?.firstOrNull()
                 winner?.let { item ->
                     PageCard {

@@ -14,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
@@ -88,28 +86,23 @@ fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SoftChip("周视图", onClick = { weekView = true }, selected = weekView)
-            SoftChip("列表", onClick = { weekView = false }, selected = !weekView)
-            if (weekView) {
-                SoftChip("本周", onClick = { weekPage = 0 }, selected = weekPage == 0)
-                SoftChip("下周", onClick = { weekPage = 1 }, selected = weekPage == 1)
-            }
-        }
         AsyncContent(state, onRetry = { reload++ }) {
             val courses = (state as LoadState.Ready).value
-            if (courses.isEmpty()) {
-                EmptyState("这段时间没有课程。")
-            } else if (weekView) {
-                WeekTimetable(courses, LocalDate.now().plusDays((weekPage * 7).toLong()))
-            } else {
-                val grouped = courses.groupBy { it.date }
-                FeatureScrollColumn {
+            FeatureScrollColumn {
+                SoftChipStrip {
+                    SoftChip("周视图", onClick = { weekView = true }, selected = weekView)
+                    SoftChip("列表", onClick = { weekView = false }, selected = !weekView)
+                    if (weekView) {
+                        SoftChip("本周", onClick = { weekPage = 0 }, selected = weekPage == 0)
+                        SoftChip("下周", onClick = { weekPage = 1 }, selected = weekPage == 1)
+                    }
+                }
+                if (courses.isEmpty()) {
+                    EmptyState("这段时间没有课程。")
+                } else if (weekView) {
+                    WeekTimetable(courses, LocalDate.now().plusDays((weekPage * 7).toLong()))
+                } else {
+                    val grouped = courses.groupBy { it.date }
                     grouped.forEach { (date, list) ->
                         PageCard {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -160,7 +153,7 @@ private fun WeekTimetable(courses: List<CourseOccurrence>, startDate: LocalDate)
     val totalHeight = hourHeight * 14
     val gutter = 38.dp
 
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             val columnWidth = (maxWidth - gutter) / 7
             Column {
@@ -557,35 +550,36 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
             TextButton(onClick = { showPlanConfirm = true }) { Text("智能排期") }
         },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SoftChip("14 天", onClick = { days = 14 }, selected = days == 14)
-            SoftChip("30 天", onClick = { days = 30 }, selected = days == 30)
-        }
         AsyncContent(state, onRetry = { reload++ }) {
             val works = (state as LoadState.Ready).value
-            if (works.isEmpty()) EmptyState("这段时间没有作业。") else FeatureScrollColumn {
-                planMessage?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
+            FeatureScrollColumn {
+                SoftChipStrip {
+                    SoftChip("14 天", onClick = { days = 14 }, selected = days == 14)
+                    SoftChip("30 天", onClick = { days = 30 }, selected = days == 30)
                 }
-                works.forEach { work ->
-                    PageCard {
-                        Text(work.title, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
-                        Text(work.course, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "截止 ${work.dueAt}",
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = NextPalette.AccentDeep,
-                            )
-                            Text(
-                                work.status,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (work.status.contains("已完成")) NextPalette.Success else NextPalette.Warning,
-                            )
+                if (works.isEmpty()) {
+                    EmptyState("这段时间没有作业。")
+                } else {
+                    planMessage?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
+                    }
+                    works.forEach { work ->
+                        PageCard {
+                            Text(work.title, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
+                            Text(work.course, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "截止 ${work.dueAt}",
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = NextPalette.AccentDeep,
+                                )
+                                Text(
+                                    work.status,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (work.status.contains("已完成")) NextPalette.Success else NextPalette.Warning,
+                                )
+                            }
                         }
                     }
                 }
@@ -663,61 +657,62 @@ fun AttendancePage(onBack: () -> Unit) {
         onBack = onBack,
         actions = { RefreshIconButton { load(1, false) } },
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SoftChip("全部", onClick = { statusFilter = null }, selected = statusFilter == null)
-            listOf(1 to "正常", 2 to "迟到", 3 to "缺勤", 5 to "请假").forEach { (code, label) ->
-                SoftChip(label, onClick = { statusFilter = code }, selected = statusFilter == code)
-            }
-        }
         AsyncContent(state, onRetry = { load(1, false) }) {
             val visible = records.filter { statusFilter == null || it.status.code == statusFilter }
-            if (visible.isEmpty()) EmptyState("暂无考勤记录。") else FeatureScrollColumn {
-                Text(
-                    "共 ${if (statusFilter == null) total else visible.size} 条",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NextPalette.InkSecondary,
-                )
-                visible.forEach { record ->
-                    PageCard {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                record.courseName,
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = NextPalette.Ink,
-                            )
-                            Text(
-                                record.status.label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = when (record.status.label) {
-                                    "正常" -> NextPalette.Success
-                                    "迟到" -> NextPalette.Warning
-                                    else -> NextPalette.Danger
-                                },
-                            )
-                        }
-                        Text(
-                            "${record.classDate} ${record.startTime}-${record.endTime} · ${if (record.room.contains(record.building)) record.room else record.building + record.room}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        Text(
-                            "第${record.section}节 · 打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}" +
-                                if (record.canAppeal) " · 可申诉" else "",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
+            FeatureScrollColumn {
+                SoftChipStrip {
+                    SoftChip("全部", onClick = { statusFilter = null }, selected = statusFilter == null)
+                    listOf(1 to "正常", 2 to "迟到", 3 to "缺勤", 5 to "请假").forEach { (code, label) ->
+                        SoftChip(label, onClick = { statusFilter = code }, selected = statusFilter == code)
                     }
                 }
-                if (records.size < total) {
-                    TextButton(
-                        enabled = !loadingMore,
-                        onClick = { load(page + 1, true) },
-                    ) {
-                        Text(if (loadingMore) "加载中…" else "加载更多")
+                if (visible.isEmpty()) {
+                    EmptyState("暂无考勤记录。")
+                } else {
+                    Text(
+                        "共 ${if (statusFilter == null) total else visible.size} 条",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    visible.forEach { record ->
+                        PageCard {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    record.courseName,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = NextPalette.Ink,
+                                )
+                                Text(
+                                    record.status.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = when (record.status.label) {
+                                        "正常" -> NextPalette.Success
+                                        "迟到" -> NextPalette.Warning
+                                        else -> NextPalette.Danger
+                                    },
+                                )
+                            }
+                            Text(
+                                "${record.classDate} ${record.startTime}-${record.endTime} · ${if (record.room.contains(record.building)) record.room else record.building + record.room}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Text(
+                                "第${record.section}节 · 打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}" +
+                                    if (record.canAppeal) " · 可申诉" else "",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
+                    }
+                    if (records.size < total) {
+                        TextButton(
+                            enabled = !loadingMore,
+                            onClick = { load(page + 1, true) },
+                        ) {
+                            Text(if (loadingMore) "加载中…" else "加载更多")
+                        }
                     }
                 }
             }
