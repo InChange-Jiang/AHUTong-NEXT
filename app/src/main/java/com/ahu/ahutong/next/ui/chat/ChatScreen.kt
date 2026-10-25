@@ -80,12 +80,21 @@ fun ChatScreen(
     // 后者在长回复里会被不断重排打断，看起来就是反复跳。
     LaunchedEffect(state.items.size, state.status, lastAssistantStreaming) {
         val target = state.items.lastIndex + if (state.status != null) 1 else 0
-        if (target >= 0) {
-            // 等最终 Markdown 完成一次测量，避免刚滚到底又被重排顶上去。
+        if (target < 0) return@LaunchedEffect
+        withFrameNanos { }
+        listState.scrollToItem(target)
+        // 历史里的超长工具卡是惰性测量的：先跳到末条时列表还没算上它们的高度，
+        // 随后几帧内容会继续变高。这里连续补滚到真正稳定，同时避开用户的拖动。
+        var stableFrames = 0
+        repeat(BOTTOM_SETTLE_MAX_FRAMES) {
+            if (stableFrames >= BOTTOM_SETTLE_STABLE_FRAMES) return@LaunchedEffect
             withFrameNanos { }
-            withFrameNanos { }
-            listState.scrollToItem(target)
-            listState.dispatchRawDelta(BOTTOM_JUMP_PX)
+            if (!listState.isScrollInProgress && listState.canScrollForward) {
+                listState.dispatchRawDelta(BOTTOM_JUMP_PX)
+                stableFrames = 0
+            } else {
+                stableFrames++
+            }
         }
     }
 
@@ -490,6 +499,8 @@ private fun StatusPill(text: String, onCancel: () -> Unit) {
 }
 
 private const val BOTTOM_JUMP_PX = 100_000f
+private const val BOTTOM_SETTLE_MAX_FRAMES = 60
+private const val BOTTOM_SETTLE_STABLE_FRAMES = 5
 
 private data class Suggestion(
     val label: String,
