@@ -100,7 +100,11 @@ fun ElectricityRoomDialog(
         floorOptions = LegacyCampusApi.electricityFloors(c, base).valueOrThrow()
         floor = restore?.floor?.let { target -> floorOptions.firstOrNull { it.value == target.value } }
             ?: floorOptions.firstOrNull()
-        if (floor != null) loadRooms(c, restore)
+        if (floor != null) {
+            loadRooms(c, restore)
+        } else {
+            clearBelow(3)
+        }
     }
 
     suspend fun loadBuildings(c: ElectricityController, restore: RoomSelectionInfo?) {
@@ -108,7 +112,11 @@ fun ElectricityRoomDialog(
         buildingOptions = LegacyCampusApi.electricityBuildings(c, selectedCampus).valueOrThrow()
         building = restore?.building?.let { target -> buildingOptions.firstOrNull { it.value == target.value } }
             ?: buildingOptions.firstOrNull()
-        if (building != null) loadFloors(c, restore)
+        if (building != null) {
+            loadFloors(c, restore)
+        } else {
+            clearBelow(2)
+        }
     }
 
     suspend fun loadInitial(c: ElectricityController, restore: RoomSelectionInfo?) {
@@ -116,11 +124,11 @@ fun ElectricityRoomDialog(
         if (c.requiresCampus) {
             campusOptions = initial
             campus = restore?.campus?.let { target -> initial.firstOrNull { it.value == target.value } }
-            if (campus != null) loadBuildings(c, restore)
+            if (campus != null) loadBuildings(c, restore) else clearBelow(1)
         } else {
             buildingOptions = initial
             building = restore?.building?.let { target -> initial.firstOrNull { it.value == target.value } }
-            if (building != null) loadFloors(c, restore)
+            if (building != null) loadFloors(c, restore) else clearBelow(2)
         }
     }
 
