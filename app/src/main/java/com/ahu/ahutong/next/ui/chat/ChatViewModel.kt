@@ -11,6 +11,7 @@ import com.ahu.ahutong.next.agent.LlmMessage
 import com.ahu.ahutong.next.agent.ToolRegistry
 import com.ahu.ahutong.next.app.data.HistoryStore
 import com.ahu.ahutong.next.app.data.SettingsRepository
+import com.ahu.ahutong.next.app.data.SoulRepository
 import com.ahu.ahutong.next.data.CampusRepository
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.model.FakeChatModel
@@ -31,6 +32,7 @@ import java.util.UUID
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
+    private val soul = SoulRepository(application)
     private val historyStore = HistoryStore(application)
     private val repository: CampusRepository = NextCampusRepository()
     private val gate = ApprovalGate()
@@ -82,7 +84,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
         persist()
 
-        val runtime = AgentRuntime(buildModel(), buildRegistry())
+        val runtime = AgentRuntime(
+            model = buildModel(),
+            registry = buildRegistry(),
+            systemPrompt = buildSystemPrompt(),
+        )
         runJob = viewModelScope.launch {
             try {
                 runtime.run(history, trimmed, gate).collect { event -> handle(event) }
@@ -326,6 +332,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 },
             )
+        }
+    }
+
+    private fun buildSystemPrompt(): String {
+        val personality = soul.soulFor(settings.personality())
+        return buildString {
+            append(AgentRuntime.DEFAULT_SYSTEM_PROMPT.trimEnd())
+            if (personality.isNotBlank()) {
+                append("\n\n")
+                append(personality)
+            }
         }
     }
 

@@ -45,8 +45,11 @@ import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.BuildConfig
 import com.ahu.ahutong.next.R
+import com.ahu.ahutong.next.app.data.AssistantPersonality
 import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.ui.components.SoftBackground
+import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -83,6 +86,7 @@ fun SettingsScreen(
     var model by rememberSaveable { mutableStateOf(settings.model()) }
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
     var searchEnabled by remember { mutableStateOf(settings.searchEnabled()) }
+    var personality by remember { mutableStateOf(settings.personality()) }
     var showClearDialog by remember { mutableStateOf(false) }
     var accountName by remember { mutableStateOf(LegacyCampusApi.currentUserName()) }
     var showLogin by remember { mutableStateOf(false) }
@@ -258,6 +262,35 @@ fun SettingsScreen(
                     Text(
                         "当前模式：$modelLabel",
                         style = MaterialTheme.typography.labelMedium,
+                        color = NextPalette.AccentDeep,
+                    )
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
+                    SectionTitle("安筱桐性格")
+                    Text(
+                        "只影响说话方式和主动程度，不改变工具、数据和金额确认。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    SoftChipStrip {
+                        AssistantPersonality.entries.forEach { item ->
+                            SoftChip(
+                                item.label,
+                                onClick = {
+                                    personality = item
+                                    settings.setPersonality(item)
+                                    scope.launch { snackbar.showSnackbar("已切换为${item.label}") }
+                                },
+                                selected = personality == item,
+                            )
+                        }
+                    }
+                    Text(
+                        personality.description,
+                        style = MaterialTheme.typography.labelSmall,
                         color = NextPalette.AccentDeep,
                     )
                 }

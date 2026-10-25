@@ -47,6 +47,13 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_SUGGESTIONS, enabled).apply()
     }
 
+    fun personality(): AssistantPersonality =
+        AssistantPersonality.fromId(prefs.getString(KEY_PERSONALITY, AssistantPersonality.STANDARD.id))
+
+    fun setPersonality(personality: AssistantPersonality) {
+        prefs.edit().putString(KEY_PERSONALITY, personality.id).apply()
+    }
+
     /**
      * apiKey 为 null 表示保留现有 Key；空字符串表示清除。
      */
@@ -68,6 +75,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_SEARCH_ENABLED = "search_enabled"
         private const val KEY_DISPLAY_SCALE = "display_scale"
         private const val KEY_SUGGESTIONS = "quick_suggestions"
+        private const val KEY_PERSONALITY = "assistant_personality"
         const val MIN_DISPLAY_SCALE = 0.80f
         const val MAX_DISPLAY_SCALE = 1.20f
     }
