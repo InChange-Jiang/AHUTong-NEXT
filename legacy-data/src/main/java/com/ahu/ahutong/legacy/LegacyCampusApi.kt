@@ -46,6 +46,7 @@ import com.ahu.ahutong.data.recharge.ElectricityOptionLevel
 import com.ahu.ahutong.data.recharge.ElectricityOptionQuery
 import com.ahu.ahutong.data.recharge.ElectricityPayment
 import com.ahu.ahutong.data.recharge.ElectricityUsageSnapshot
+import com.ahu.ahutong.data.recharge.NetworkRechargeSnapshot
 import com.ahu.ahutong.data.recharge.RechargeReceipt
 import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.data.xuexiaotong.Work
@@ -401,6 +402,8 @@ object LegacyCampusApi {
             ),
         )
     }
+
+    suspend fun networkRechargeSnapshot(): AhuResult<NetworkRechargeSnapshot> = networkRecharge.load()
 
     /** 网费充值：先加载账户快照，再按金额与校园卡密码支付。 */
     suspend fun rechargeNetwork(amountYuan: String, password: String): AhuResult<RechargeReceipt> {

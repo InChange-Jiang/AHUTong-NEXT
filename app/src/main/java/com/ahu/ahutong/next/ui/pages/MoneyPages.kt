@@ -634,6 +634,20 @@ fun RechargeBathroomPage(repository: NextCampusRepository, onBack: () -> Unit) {
 @Composable
 fun RechargeNetworkPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var amount by remember { mutableStateOf("") }
+    var accountSummary by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                com.ahu.ahutong.legacy.LegacyCampusApi.networkRechargeSnapshot().requireValue()
+            }
+        }.onSuccess { snapshot ->
+            accountSummary = buildString {
+                snapshot.paymentData.account?.takeIf { it.isNotBlank() }?.let { append("充值账号 $it · ") }
+                append("余额 ${snapshot.paymentData.balance ?: "--"} 元")
+                snapshot.feeItem.maxMoney?.takeIf { it.isNotBlank() }?.let { append(" · 单次最高 $it 元") }
+            }
+        }
+    }
     var confirm by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<RechargeReceipt?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -642,14 +656,25 @@ fun RechargeNetworkPage(repository: NextCampusRepository, onBack: () -> Unit) {
 
     FeatureScaffold("网费充值", onBack) {
         FeatureScrollColumn {
-            AmountCard(amount, { amount = it })
+            accountSummary?.let {
+                PageCard {
+                    Text("网费账户", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                    Text(it, style = MaterialTheme.typography.bodyMedium, color = NextPalette.Ink)
+                }
+            }
+            AmountCard(amount, { amount = it }, listOf("5", "15", "25", "50", "100"))
             PageCard {
                 Text(
-                    "支付密码为校园卡 6 位密码，只在确认框里输入，不会保存或发给模型。",
+                    "单次最高 999 元；支付密码为校园卡 6 位密码，只在确认框里输入，不会保存或发给模型。",
                     style = MaterialTheme.typography.labelSmall,
                     color = NextPalette.InkSecondary,
                 )
-                SoftPrimaryButton("确认充值", onClick = { confirm = true }, modifier = Modifier.fillMaxWidth())
+                SoftPrimaryButton(
+                    "确认充值",
+                    enabled = amount.toDoubleOrNull()?.let { it in 0.01..999.0 } == true,
+                    onClick = { confirm = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
             result?.let { ReceiptCard(it) }
         }
@@ -679,7 +704,11 @@ fun RechargeNetworkPage(repository: NextCampusRepository, onBack: () -> Unit) {
 }
 
 @Composable
-private fun AmountCard(amount: String, onAmountChange: (String) -> Unit) {
+private fun AmountCard(
+    amount: String,
+    onAmountChange: (String) -> Unit,
+    quickAmounts: List<String> = listOf("10", "20", "50", "100"),
+) {
     PageCard {
         PageTitle("充值金额")
         OutlinedTextField(
@@ -695,7 +724,7 @@ private fun AmountCard(amount: String, onAmountChange: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("10", "20", "50", "100").forEach { quick ->
+            quickAmounts.forEach { quick ->
                 SoftChip("¥$quick", onClick = { onAmountChange(quick) }, selected = amount == quick)
             }
         }

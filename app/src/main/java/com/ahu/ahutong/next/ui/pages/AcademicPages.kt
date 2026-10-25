@@ -67,6 +67,7 @@ import java.util.Locale
 fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<List<CourseOccurrence>>>(LoadState.Loading) }
     var weekView by remember { mutableStateOf(true) }
+    var weekPage by remember { mutableIntStateOf(0) }
     var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(reload) {
@@ -88,13 +89,17 @@ fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
         ) {
             SoftChip("周视图", onClick = { weekView = true }, selected = weekView)
             SoftChip("列表", onClick = { weekView = false }, selected = !weekView)
+            if (weekView) {
+                SoftChip("本周", onClick = { weekPage = 0 }, selected = weekPage == 0)
+                SoftChip("下周", onClick = { weekPage = 1 }, selected = weekPage == 1)
+            }
         }
         AsyncContent(state, onRetry = { reload++ }) {
             val courses = (state as LoadState.Ready).value
             if (courses.isEmpty()) {
                 EmptyState("这段时间没有课程。")
             } else if (weekView) {
-                WeekTimetable(courses)
+                WeekTimetable(courses, LocalDate.now().plusDays((weekPage * 7).toLong()))
             } else {
                 val grouped = courses.groupBy { it.date }
                 FeatureScrollColumn {
@@ -140,9 +145,10 @@ private val coursePalette = listOf(
 )
 
 @Composable
-private fun WeekTimetable(courses: List<CourseOccurrence>) {
-    val days = (0..6).map { LocalDate.now().plusDays(it.toLong()) }
-    val byDate = courses.groupBy { it.date }
+private fun WeekTimetable(courses: List<CourseOccurrence>, startDate: LocalDate) {
+    val days = (0..6).map { startDate.plusDays(it.toLong()) }
+    val dateSet = days.map { it.toString() }.toSet()
+    val byDate = courses.filter { it.date in dateSet }.groupBy { it.date }
     val horizontal = rememberScrollState()
     val hourHeight = 64.dp
     val dayWidth = 104.dp
@@ -335,12 +341,15 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
                     }
                     rank?.let {
                         HorizontalDivider(color = NextPalette.Line)
+                        LabelValueRow("全程平均绩点", String.format(Locale.CHINA, "%.2f", it.gpa))
                         LabelValueRow(
-                            "专业排名",
+                            "全程专业排名",
                             if (it.majorHeadCount > 0) "${it.majorRank} / ${it.majorHeadCount}" else "暂无",
                         )
-                        LabelValueRow("累计绩点", String.format(Locale.CHINA, "%.2f", it.gpa))
                         LabelValueRow("总学分", it.totalCredits.compact())
+                        if (it.updatedDateTimeStr.isNotBlank()) {
+                            LabelValueRow("更新时间", it.updatedDateTimeStr)
+                        }
                     }
                 }
 
@@ -488,6 +497,7 @@ fun AttendancePage(onBack: () -> Unit) {
     var total by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf<LoadState<Unit>>(LoadState.Loading) }
     var loadingMore by remember { mutableStateOf(false) }
+    var statusFilter by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load(target: Int, append: Boolean) {
@@ -516,14 +526,24 @@ fun AttendancePage(onBack: () -> Unit) {
         onBack = onBack,
         actions = { TextButton(onClick = { load(1, false) }) { Text("刷新") } },
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SoftChip("全部", onClick = { statusFilter = null }, selected = statusFilter == null)
+            listOf(1 to "正常", 2 to "迟到", 3 to "缺勤", 5 to "请假").forEach { (code, label) ->
+                SoftChip(label, onClick = { statusFilter = code }, selected = statusFilter == code)
+            }
+        }
         AsyncContent(state, onRetry = { load(1, false) }) {
-            if (records.isEmpty()) EmptyState("暂无考勤记录。") else FeatureScrollColumn {
+            val visible = records.filter { statusFilter == null || it.status.code == statusFilter }
+            if (visible.isEmpty()) EmptyState("暂无考勤记录。") else FeatureScrollColumn {
                 Text(
-                    "共 $total 条",
+                    "共 ${if (statusFilter == null) total else visible.size} 条",
                     style = MaterialTheme.typography.labelSmall,
                     color = NextPalette.InkSecondary,
                 )
-                records.forEach { record ->
+                visible.forEach { record ->
                     PageCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -548,7 +568,8 @@ fun AttendancePage(onBack: () -> Unit) {
                             color = NextPalette.InkSecondary,
                         )
                         Text(
-                            "打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}",
+                            "打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}" +
+                                if (record.canAppeal) " · 可申诉" else "",
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
                         )
@@ -571,6 +592,7 @@ fun AttendancePage(onBack: () -> Unit) {
 fun CompletionPage(onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<ProgramCompletion>>(LoadState.Loading) }
     var reload by remember { mutableIntStateOf(0) }
+    var onlyUnfinished by remember { mutableStateOf(false) }
     LaunchedEffect(reload) {
         state = LoadState.Loading
         state = runCatching {
@@ -585,6 +607,10 @@ fun CompletionPage(onBack: () -> Unit) {
         AsyncContent(state, onRetry = { reload++ }) {
             val program = (state as LoadState.Ready).value
             FeatureScrollColumn {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftChip("全部模块", onClick = { onlyUnfinished = false }, selected = !onlyUnfinished)
+                    SoftChip("仅看未完成", onClick = { onlyUnfinished = true }, selected = onlyUnfinished)
+                }
                 PageCard {
                     Text(program.programName, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -612,7 +638,7 @@ fun CompletionPage(onBack: () -> Unit) {
                         color = NextPalette.InkSecondary,
                     )
                 }
-                program.modules.forEach { module ->
+                program.modules.filter { !onlyUnfinished || it.result != "PASSED" }.forEach { module ->
                     PageCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(

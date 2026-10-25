@@ -44,6 +44,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,8 @@ fun EvaluationPage(onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<Unit>>(LoadState.Loading) }
     var pending by remember { mutableStateOf<Pair<EvalTask, EvalTeacher>?>(null) }
     var submitting by remember { mutableStateOf(false) }
+    var bulkRunning by remember { mutableStateOf(false) }
+    var showBulkConfirm by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -122,6 +125,14 @@ fun EvaluationPage(onBack: () -> Unit) {
                 EmptyState("这个学期没有待评教任务。")
             } else {
                 FeatureScrollColumn {
+                    if (tasks.isNotEmpty()) {
+                        SoftPrimaryButton(
+                            if (bulkRunning) "正在提交…" else "按预设完成全部",
+                            enabled = !bulkRunning,
+                            onClick = { showBulkConfirm = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     Text(
                         "共 ${tasks.sumOf { it.teachers.size }} 个待评价教师",
                         style = MaterialTheme.typography.labelSmall,
@@ -162,6 +173,36 @@ fun EvaluationPage(onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showBulkConfirm) {
+        val total = tasks.sumOf { it.teachers.size }
+        AlertDialog(
+            onDismissRequest = { showBulkConfirm = false },
+            title = { Text("完成全部评教？") },
+            text = { Text("将按默认选项和通用评语提交 $total 位教师的评教，提交后不可撤回。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBulkConfirm = false
+                    bulkRunning = true
+                    scope.launch {
+                        var done = 0
+                        var failed = 0
+                        for (task in tasks) {
+                            for (teacher in task.teachers) {
+                                runCatching {
+                                    withContext(Dispatchers.IO) { submitDefaultEvaluation(task, teacher) }
+                                }.onSuccess { done++ }.onFailure { failed++ }
+                            }
+                        }
+                        bulkRunning = false
+                        message = "已完成 $done 项" + if (failed > 0) "，$failed 项失败，请稍后重试" else ""
+                        reload++
+                    }
+                }) { Text("确认提交") }
+            },
+            dismissButton = { TextButton(onClick = { showBulkConfirm = false }) { Text("取消") } },
+        )
     }
 
     pending?.let { (task, teacher) ->

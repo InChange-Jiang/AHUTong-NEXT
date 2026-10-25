@@ -542,6 +542,48 @@ fun WeatherPage(onBack: () -> Unit) {
                         color = NextPalette.InkSecondary,
                     )
                 }
+                weather.alerts.orEmpty().forEach { alert ->
+                    PageCard {
+                        Text(
+                            alert.title ?: "天气预警",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = NextPalette.Danger,
+                        )
+                        Text(
+                            alert.text.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                }
+                weather.forecast.orEmpty().take(3).let { forecast ->
+                    if (forecast.isNotEmpty()) {
+                        PageCard {
+                            PageTitle("未来预报")
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                forecast.forEach { day ->
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            day.week ?: day.date.orEmpty(),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = NextPalette.InkSecondary,
+                                        )
+                                        Text(
+                                            day.weatherDay.orEmpty(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = NextPalette.Ink,
+                                        )
+                                        Text(
+                                            "${day.tempMin?.toInt() ?: "--"}° / ${day.tempMax?.toInt() ?: "--"}°",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = NextPalette.InkSecondary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -596,6 +638,22 @@ fun CanteenPage(onBack: () -> Unit) {
         AsyncContent(state, onRetry = { reload++ }) {
             val data = (state as LoadState.Ready).value
             FeatureScrollColumn {
+                val winner = data.superlatives?.topWindow ?: data.ranking?.firstOrNull()
+                winner?.let { item ->
+                    PageCard {
+                        Text("本周冠军", style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
+                        Text(
+                            item.name ?: "未命名窗口",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = NextPalette.Ink,
+                        )
+                        Text(
+                            "${listOfNotNull(item.canteen, item.floor, "${item.txns} 笔").joinToString(" · ")}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                }
                 PageCard {
                     Text(
                         "上榜窗口 ${data.ranking?.size ?: 0} 个 · 样本 ${data.sample?.txns ?: 0} 笔",
@@ -623,8 +681,11 @@ fun CanteenPage(onBack: () -> Unit) {
                                 )
                             }
                             Text(
-                                "${item.txns} 笔",
-                                style = MaterialTheme.typography.labelMedium,
+                                buildString {
+                                    append("${item.txns} 笔")
+                                    item.avgCentsPerTxn?.let { append(" · 人均 ¥%.1f".format(Locale.CHINA, it / 100.0)) }
+                                },
+                                style = MaterialTheme.typography.labelSmall,
                                 color = NextPalette.InkSecondary,
                             )
                         }
