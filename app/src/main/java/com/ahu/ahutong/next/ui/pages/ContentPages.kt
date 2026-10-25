@@ -65,6 +65,7 @@ fun MailPage(onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<Unit>>(LoadState.Loading) }
     var error by remember { mutableStateOf<String?>(null) }
     var showCompose by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
     var reload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
@@ -110,6 +111,13 @@ fun MailPage(onBack: () -> Unit) {
             TextButton(onClick = { showCompose = true }) { Text("写信") }
         },
     ) {
+        androidx.compose.material3.OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            placeholder = { Text("搜索邮件") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
+        )
         if (folders.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
@@ -166,9 +174,17 @@ fun MailPage(onBack: () -> Unit) {
                     }
                 }
                 messages.isEmpty() -> EmptyState("这个文件夹没有邮件。")
-                else -> FeatureScrollColumn {
+                else -> {
+                    val visibleMessages = messages.filter {
+                        query.isBlank() ||
+                            it.subject.contains(query, true) ||
+                            it.from.contains(query, true)
+                    }
+                    if (visibleMessages.isEmpty()) {
+                        EmptyState("没有匹配的邮件。")
+                    } else FeatureScrollColumn {
                     PageCard {
-                        messages.forEachIndexed { index, message ->
+                        visibleMessages.forEachIndexed { index, message ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -201,8 +217,9 @@ fun MailPage(onBack: () -> Unit) {
                                     Text("未读", style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
                                 }
                             }
-                            if (index != messages.lastIndex) HorizontalDivider(color = NextPalette.Line)
+                            if (index != visibleMessages.lastIndex) HorizontalDivider(color = NextPalette.Line)
                         }
+                    }
                     }
                 }
             }

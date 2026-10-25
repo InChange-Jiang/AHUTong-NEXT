@@ -201,6 +201,11 @@ fun LostFoundPage(onBack: () -> Unit) {
     var reload by remember { mutableIntStateOf(0) }
     var deleting by remember { mutableStateOf<LostFoundItem?>(null) }
     var filterState by remember { mutableIntStateOf(1) }
+    var types by remember { mutableStateOf<List<LostFoundTypeItem>>(emptyList()) }
+    var campuses by remember { mutableStateOf<List<CampusItem>>(emptyList()) }
+    var typeFilter by remember { mutableStateOf<String?>(null) }
+    var campusFilter by remember { mutableStateOf<String?>(null) }
+    var myPostsOnly by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     suspend fun load(target: Int, append: Boolean) {
@@ -225,6 +230,18 @@ fun LostFoundPage(onBack: () -> Unit) {
         load(1, false)
     }
 
+    LaunchedEffect(Unit) {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                AHURepository.getAllLostFoundType().requireValue().`object` to
+                    AHURepository.getAllCampus().requireValue().`object`
+            }
+        }.onSuccess { (typeList, campusList) ->
+            types = typeList
+            campuses = campusList
+        }
+    }
+
     FeatureScaffold(
         title = "失物招领",
         onBack = onBack,
@@ -240,9 +257,35 @@ fun LostFoundPage(onBack: () -> Unit) {
             SoftChip("寻物启事", onClick = { filterState = 2 }, selected = filterState == 2)
         }
         AsyncContent(state, onRetry = { reload++ }) {
-            if (items.isEmpty()) EmptyState("暂无信息。") else FeatureScrollColumn {
-                Text("共 $total 条", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                items.forEach { item ->
+            val visible = items.filter { item ->
+                (typeFilter == null || item.typeid == typeFilter) &&
+                    (campusFilter == null || item.campusid == campusFilter) &&
+                    (!myPostsOnly || item.createuser == LegacyCampusApi.currentUserName())
+            }
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SoftChip("全部校区", onClick = { campusFilter = null }, selected = campusFilter == null)
+                    campuses.forEach { campus ->
+                        SoftChip(campus.campusName, onClick = { campusFilter = campus.id }, selected = campusFilter == campus.id)
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SoftChip("全部类型", onClick = { typeFilter = null }, selected = typeFilter == null)
+                    types.forEach { type ->
+                        SoftChip(type.typeName, onClick = { typeFilter = type.typeId }, selected = typeFilter == type.typeId)
+                    }
+                    SoftChip("我的发布", onClick = { myPostsOnly = !myPostsOnly }, selected = myPostsOnly)
+                }
+            }
+            if (visible.isEmpty()) EmptyState("暂无信息。") else FeatureScrollColumn {
+                Text("共 ${visible.size} 条", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                visible.forEach { item ->
                     PageCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -632,7 +675,11 @@ fun CanteenPage(onBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             campusFilters.keys.forEach { key ->
-                SoftChip(key, onClick = { campus = key }, selected = campus == key)
+                SoftChip(
+                    if (key == "all") "全部" else key,
+                    onClick = { campus = key },
+                    selected = campus == key,
+                )
             }
         }
         AsyncContent(state, onRetry = { reload++ }) {
