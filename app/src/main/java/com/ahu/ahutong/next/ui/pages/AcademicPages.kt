@@ -560,6 +560,7 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
         onBack = onBack,
         actions = {
             RefreshIconButton { reload++ }
+            Spacer(Modifier.width(4.dp))
             TextButton(onClick = { showPlanConfirm = true }) { Text("智能排期") }
         },
     ) {
