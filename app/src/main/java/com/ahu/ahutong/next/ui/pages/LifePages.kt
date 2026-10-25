@@ -49,6 +49,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -88,7 +89,7 @@ fun NoticesPage(onBack: () -> Unit) {
         title = "校园通知",
         onBack = onBack,
         actions = {
-            TextButton(onClick = { reload++ }) { Text("刷新") }
+            RefreshIconButton { reload++ }
         },
     ) {
         if (accountId.isNullOrBlank()) {
@@ -550,7 +551,7 @@ fun WeatherPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "天气",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val weather = (state as LoadState.Ready).value
@@ -672,7 +673,7 @@ fun CanteenPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "食堂榜单",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),

@@ -50,6 +50,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -83,7 +84,7 @@ fun CardPage(
     FeatureScaffold(
         title = "校园卡",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val balance = (state as LoadState.Ready).value
@@ -182,7 +183,7 @@ private fun PaymentQrDialog(onDismiss: () -> Unit) {
                     color = NextPalette.InkSecondary,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SoftSecondaryButton("刷新", onClick = { reload++ })
+                    RefreshIconButton(onClick = { reload++ })
                     SoftPrimaryButton("关闭", onClick = onDismiss)
                 }
             }
@@ -228,7 +229,7 @@ fun BillsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "账单与消费",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val bills = (state as LoadState.Ready).value
@@ -302,7 +303,7 @@ fun ElectricityPage(
     FeatureScaffold(
         title = "宿舍电费",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         Column(
             modifier = Modifier

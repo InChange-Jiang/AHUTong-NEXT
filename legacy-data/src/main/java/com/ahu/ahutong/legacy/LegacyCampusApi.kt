@@ -239,7 +239,15 @@ object LegacyCampusApi {
     suspend fun gpaRank(): AhuResult<GpaRankInfo> {
         val user = SessionStore.currentUser()
             ?: return AhuResult.Failure(AhuError.Unauthorized("尚未登录"))
-        return AHURepository.getGpaRankInfo(user.xh.orEmpty())
+        val studentId = user.xh.orEmpty()
+        return when (val result = AHURepository.getGpaRankInfo(studentId)) {
+            is AhuResult.Success -> {
+                AHUCache.saveGpaRankInfo(studentId, result.value)
+                result
+            }
+            is AhuResult.Failure ->
+                AHUCache.getGpaRankInfo(studentId)?.let { AhuResult.Success(it) } ?: result
+        }
     }
 
     suspend fun scheduleSemesters(): AhuResult<List<ScheduleSemester>> =

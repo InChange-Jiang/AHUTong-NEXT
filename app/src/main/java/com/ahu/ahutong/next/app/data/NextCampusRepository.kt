@@ -62,6 +62,7 @@ class NextCampusRepository(
         }
         return terms.flatMap { termBean ->
             val label = "${termBean.schoolYear} 第${termBean.term}学期"
+            val semesterId = termBean.gradeList.orEmpty().firstOrNull()?.semesterId ?: 0
             termBean.gradeList.orEmpty().map { item ->
                 val scoreText = item.grade?.takeIf { it.isNotBlank() }
                 Grade(
@@ -71,6 +72,7 @@ class NextCampusRepository(
                     gpa = item.gradePoint?.toDoubleOrNull() ?: 0.0,
                     term = label,
                     scoreText = scoreText,
+                    semesterId = semesterId,
                 )
             }
         }

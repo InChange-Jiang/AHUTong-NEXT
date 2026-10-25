@@ -46,6 +46,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -370,7 +371,7 @@ fun MaterialsPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "学习资料",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         if (path.isNotBlank()) {
             TextButton(

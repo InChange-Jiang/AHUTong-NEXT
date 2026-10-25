@@ -30,6 +30,8 @@ data class Grade(
     val term: String,
     /** 百分制以外的成绩原文（优 / 良 / 合格等），为空时显示 [score]。 */
     val scoreText: String? = null,
+    /** 教务学期 ID，用于对齐绩点排名接口里的学期汇总。 */
+    val semesterId: Int = 0,
 )
 
 @Serializable

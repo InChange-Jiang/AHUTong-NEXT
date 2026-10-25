@@ -120,6 +120,21 @@ fun SoftIconButton(
 }
 
 @Composable
+fun RefreshIconButton(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    SoftIconButton(onClick = onClick, modifier = modifier) {
+        Icon(
+            painter = painterResource(R.drawable.ic_iconpark_refresh),
+            contentDescription = "刷新",
+            tint = NextPalette.Ink,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
 fun SoftPrimaryButton(
     text: String,
     onClick: () -> Unit,

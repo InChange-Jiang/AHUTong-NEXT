@@ -43,6 +43,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -104,7 +105,7 @@ fun EvaluationPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "评教",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         if (semesters.isNotEmpty()) {
             Row(
@@ -346,7 +347,7 @@ fun SchoolCalendarPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "校历",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         if (years.isNotEmpty()) {
             Row(

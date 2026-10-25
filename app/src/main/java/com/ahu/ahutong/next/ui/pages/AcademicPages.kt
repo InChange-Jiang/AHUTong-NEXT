@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +37,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.data.ProgramCompletionGateway
 import com.ahu.ahutong.data.attendance.AttendanceRecord
@@ -55,6 +58,7 @@ import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
@@ -64,6 +68,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -83,7 +88,7 @@ fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "课表",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         Row(
             modifier = Modifier
@@ -291,6 +296,7 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<List<Grade>>>(LoadState.Loading) }
     var rank by remember { mutableStateOf<GpaRankInfo?>(null) }
     var selectedTerm by remember { mutableStateOf<String?>(null) }
+    var loadedAt by remember { mutableStateOf<String?>(null) }
     var reload by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(reload) {
@@ -299,30 +305,65 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
             .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
         rank = runCatching { withContext(Dispatchers.IO) { LegacyCampusApi.gpaRank().requireValue() } }
             .getOrNull()
+        loadedAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
     }
 
     FeatureScaffold(
         title = "成绩",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val all = (state as LoadState.Ready).value
-            val terms = all.map { it.term }.distinct()
-            val grades = if (selectedTerm == null) all else all.filter { it.term == selectedTerm }
+            val semesterIds = all.groupBy { it.term }.mapValues { (_, list) -> list.maxOf { it.semesterId } }
+            val terms = semesterIds.keys.sortedWith(
+                compareByDescending<String> { semesterOrder(it) }
+                    .thenByDescending { semesterIds[it] ?: 0 },
+            )
+            val activeTerm = selectedTerm?.takeIf { it in terms } ?: terms.firstOrNull()
+            val grades = if (activeTerm == null) all else all.filter { it.term == activeTerm }
             val credits = grades.sumOf { it.credit }
             val weighted = if (credits <= 0.0) 0.0 else grades.sumOf { it.gpa * it.credit } / credits
+            val semesterId = grades.maxOfOrNull { it.semesterId } ?: 0
+            val semesterSummary = rank?.gpaSemesterSubs
+                ?.firstOrNull { semesterId > 0 && it.semesterId == semesterId }
+            val termGpa = semesterSummary?.gpa?.takeIf { it > 0.0 } ?: weighted
+            val allCredits = all.sumOf { it.credit }
+            val overallWeighted =
+                if (allCredits <= 0.0) 0.0 else all.sumOf { it.gpa * it.credit } / allCredits
+            val overallGpa = rank?.gpa?.takeIf { it > 0.0 } ?: overallWeighted
+            val updatedText = rank?.updatedDateTimeStr?.takeIf { it.isNotBlank() }
+                ?: loadedAt
+                ?: "暂无"
+            val headCount = rank?.majorHeadCount ?: 0
+            val termRank = when {
+                semesterSummary == null || semesterSummary.majorRank <= 0 -> "暂无"
+                headCount > 0 -> "${semesterSummary.majorRank} / $headCount"
+                else -> semesterSummary.majorRank.toString()
+            }
+            val overallRank = rank?.let {
+                when {
+                    it.majorRank <= 0 -> "暂无"
+                    it.majorHeadCount > 0 -> "${it.majorRank} / ${it.majorHeadCount}"
+                    else -> it.majorRank.toString()
+                }
+            } ?: "暂无"
+            val isLatest = activeTerm == null || activeTerm == terms.firstOrNull()
+
             FeatureScrollColumn {
-                if (terms.size > 1) {
+                if (terms.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SoftChip("全部", onClick = { selectedTerm = null }, selected = selectedTerm == null)
                         terms.forEach { term ->
-                            SoftChip(term, onClick = { selectedTerm = term }, selected = selectedTerm == term)
+                            SoftChip(
+                                term,
+                                onClick = { selectedTerm = term },
+                                selected = term == activeTerm,
+                            )
                         }
                     }
                 }
@@ -330,30 +371,44 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 PageCard {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("加权绩点", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
                             Text(
-                                String.format(Locale.CHINA, "%.2f", weighted),
+                                if (isLatest) "本学期平均绩点" else "该学期平均绩点",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Text(
+                                String.format(Locale.CHINA, "%.2f", termGpa),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = NextPalette.AccentDeep,
                             )
                         }
                         Text(
-                            "${credits.compact()} 学分 · ${grades.size} 门",
-                            style = MaterialTheme.typography.labelMedium,
+                            buildString {
+                                activeTerm?.let { append(it).append('\n') }
+                                append("${credits.compact()} 学分 · ${grades.size} 门")
+                            },
+                            style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
+                            textAlign = TextAlign.End,
                         )
                     }
-                    rank?.let {
-                        HorizontalDivider(color = NextPalette.Line)
-                        LabelValueRow("全程平均绩点", String.format(Locale.CHINA, "%.2f", it.gpa))
-                        LabelValueRow(
-                            "全程专业排名",
-                            if (it.majorHeadCount > 0) "${it.majorRank} / ${it.majorHeadCount}" else "暂无",
+                    HorizontalDivider(color = NextPalette.Line)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        GradeMetric(
+                            "全程平均绩点",
+                            String.format(Locale.CHINA, "%.2f", overallGpa),
+                            Modifier.weight(1f),
                         )
-                        LabelValueRow("总学分", it.totalCredits.compact())
-                        if (it.updatedDateTimeStr.isNotBlank()) {
-                            LabelValueRow("更新时间", it.updatedDateTimeStr)
-                        }
+                        GradeMetric("全程专业排名", overallRank, Modifier.weight(1f))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        GradeMetric("该学期专业排名", termRank, Modifier.weight(1f))
+                        GradeMetric(
+                            "最后更新时间",
+                            updatedText,
+                            Modifier.weight(1f),
+                            valueStyle = MaterialTheme.typography.labelMedium,
+                        )
                     }
                 }
 
@@ -369,6 +424,40 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+private fun semesterOrder(term: String): Int {
+    val match = Regex("(\\d{4})-(\\d{4}).*?第\\s*([12一二])").find(term) ?: return 0
+    val year = match.groupValues[1].toIntOrNull() ?: return 0
+    val number = when (match.groupValues[3]) {
+        "1", "一" -> 1
+        "2", "二" -> 2
+        else -> 0
+    }
+    return year * 10 + number
+}
+
+@Composable
+private fun GradeMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueStyle: TextStyle = MaterialTheme.typography.titleMedium,
+) {
+    Column(modifier = modifier) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = NextPalette.InkSecondary,
+        )
+        Text(
+            value,
+            style = valueStyle,
+            fontWeight = FontWeight.SemiBold,
+            color = NextPalette.Ink,
+            maxLines = 2,
+        )
     }
 }
 
@@ -404,7 +493,7 @@ fun ExamsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "考试",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val exams = (state as LoadState.Ready).value
@@ -470,7 +559,7 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
         title = "作业",
         onBack = onBack,
         actions = {
-            TextButton(onClick = { reload++ }) { Text("刷新") }
+            RefreshIconButton { reload++ }
             TextButton(onClick = { showPlanConfirm = true }) { Text("智能排期") }
         },
     ) {
@@ -578,7 +667,7 @@ fun AttendancePage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "考勤",
         onBack = onBack,
-        actions = { TextButton(onClick = { load(1, false) }) { Text("刷新") } },
+        actions = { RefreshIconButton { load(1, false) } },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
@@ -656,7 +745,7 @@ fun CompletionPage(onBack: () -> Unit) {
     FeatureScaffold(
         title = "培养方案",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
             val program = (state as LoadState.Ready).value
@@ -734,6 +823,13 @@ fun CompletionPage(onBack: () -> Unit) {
     }
 }
 
+private data class FreeRoomsQuery(
+    val campus: Int,
+    val date: String,
+    val units: List<Int>,
+    val building: String?,
+)
+
 @Composable
 fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var campus by remember { mutableIntStateOf(1) }
@@ -741,15 +837,27 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var selectedUnits by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var buildings by remember { mutableStateOf<List<String>>(emptyList()) }
     var buildingFilter by remember { mutableStateOf<String?>(null) }
-    var state by remember { mutableStateOf<LoadState<List<String>>>(LoadState.Loading) }
+    var applied by remember { mutableStateOf<FreeRoomsQuery?>(null) }
+    var state by remember { mutableStateOf<LoadState<List<String>>?>(null) }
     var reload by remember { mutableIntStateOf(0) }
     val units = if (selectedUnits.isEmpty()) (1..13).toList() else selectedUnits.sorted()
+    val loading = state is LoadState.Loading
 
-    LaunchedEffect(reload, campus, date, selectedUnits) {
+    val confirm = {
+        applied = FreeRoomsQuery(campus, date, units, buildingFilter)
+        reload += 1
+    }
+
+    LaunchedEffect(reload) {
+        val query = applied ?: return@LaunchedEffect
         state = LoadState.Loading
         state = runCatching {
             withContext(Dispatchers.IO) {
-                LegacyCampusApi.freeRooms(campus, date, units.map(Int::toString)).requireValue()
+                LegacyCampusApi.freeRooms(
+                    query.campus,
+                    query.date,
+                    query.units.map(Int::toString),
+                ).requireValue()
             }
         }.fold(
             onSuccess = { rooms ->
@@ -763,7 +871,7 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "空闲教室",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = { RefreshIconButton { if (!loading) confirm() } },
     ) {
         FeatureScrollColumn {
             PageCard {
@@ -779,9 +887,19 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                     SoftChip("明天", onClick = { date = LocalDate.now().plusDays(1).toString() }, selected = date == LocalDate.now().plusDays(1).toString())
                     SoftChip("后天", onClick = { date = LocalDate.now().plusDays(2).toString() }, selected = date == LocalDate.now().plusDays(2).toString())
                 }
-                Text("时段", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "时段",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
                     SoftChip("全天", onClick = { selectedUnits = emptySet() }, selected = selectedUnits.isEmpty())
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     (1..7).forEach { unit ->
                         SoftChip(
                             unit.toString(),
@@ -801,9 +919,9 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 }
                 if (buildings.isNotEmpty()) {
                     Text("教学楼", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                    Row(
-                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         SoftChip("全部", onClick = { buildingFilter = null }, selected = buildingFilter == null)
                         buildings.forEach { building ->
@@ -811,24 +929,42 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                         }
                     }
                 }
+                SoftPrimaryButton(
+                    "确认筛选",
+                    onClick = confirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !loading,
+                )
+                if (state == null) {
+                    Text(
+                        "选好条件后点「确认筛选」再查询。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                }
             }
-            AsyncContent(state, onRetry = { reload++ }) {
-                val rooms = (state as LoadState.Ready).value
-                    .filter { buildingFilter == null || it.startsWith("$buildingFilter ") }
-                if (rooms.isEmpty()) EmptyState("没有查到空闲教室。") else {
-                    PageCard {
-                        Text(
-                            "${units.first()}-${units.last()} 节 · ${rooms.size} 间",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        rooms.forEach { room ->
+            val current = state
+            if (current != null) {
+                AsyncContent(current, onRetry = { confirm() }) {
+                    val query = applied
+                    val rooms = (current as LoadState.Ready).value
+                        .filter { room -> query?.building?.let { room.startsWith("$it ") } ?: true }
+                    if (rooms.isEmpty()) EmptyState("没有查到空闲教室。") else {
+                        val shownUnits = query?.units ?: units
+                        PageCard {
                             Text(
-                                room.replace(Regex("^(\\S+) \\1"), "$1"),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = NextPalette.Ink,
-                                modifier = Modifier.padding(vertical = 4.dp),
+                                "${shownUnits.first()}-${shownUnits.last()} 节 · ${rooms.size} 间",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
                             )
+                            rooms.forEach { room ->
+                                Text(
+                                    room.replace(Regex("^(\\S+) \\1"), "$1"),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NextPalette.Ink,
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                )
+                            }
                         }
                     }
                 }
