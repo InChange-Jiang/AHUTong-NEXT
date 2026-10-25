@@ -255,6 +255,8 @@ class AgentRuntimeTest {
         assertTrue(system.contains("04:00 前仍按前一天 2026-10-25 理解"))
         assertTrue(system.contains("00:00-03:59仍算前一天"))
         assertTrue(!system.contains("校园日"))
+        assertTrue(!system.contains("10月26日"))
+        assertTrue(!system.contains("10月27日"))
     }
 
     @Test
