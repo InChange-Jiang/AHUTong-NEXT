@@ -825,6 +825,8 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var selectedUnits by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var buildings by remember { mutableStateOf<List<String>>(emptyList()) }
+    var buildingsLoading by remember { mutableStateOf(false) }
+    var buildingsError by remember { mutableStateOf<String?>(null) }
     var buildingFilter by remember { mutableStateOf<String?>(null) }
     var applied by remember { mutableStateOf<FreeRoomsQuery?>(null) }
     var state by remember { mutableStateOf<LoadState<List<String>>?>(null) }
@@ -835,6 +837,19 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     val confirm = {
         applied = FreeRoomsQuery(campus, date, units, buildingFilter)
         reload += 1
+    }
+
+    LaunchedEffect(campus) {
+        buildingFilter = null
+        buildingsLoading = true
+        buildingsError = null
+        runCatching {
+            withContext(Dispatchers.IO) { LegacyCampusApi.freeRoomBuildings(campus).requireValue() }
+        }.fold(
+            onSuccess = { buildings = it.map { item -> item.name } },
+            onFailure = { buildingsError = it.message ?: "教学楼列表加载失败" },
+        )
+        buildingsLoading = false
     }
 
     LaunchedEffect(reload) {
@@ -850,7 +865,9 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
             }
         }.fold(
             onSuccess = { rooms ->
-                buildings = rooms.map { it.substringBefore(' ') }.distinct().sorted()
+                if (buildings.isEmpty()) {
+                    buildings = rooms.map { it.substringBefore(' ') }.distinct().sorted()
+                }
                 LoadState.Ready(rooms)
             },
             onFailure = { it.toLoadFailure() },
@@ -906,14 +923,24 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                         )
                     }
                 }
-                if (buildings.isNotEmpty()) {
-                    Text("教学楼", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                    SoftChipStrip {
+                Text("教学楼", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                when {
+                    buildings.isNotEmpty() -> SoftChipStrip {
                         SoftChip("全部", onClick = { buildingFilter = null }, selected = buildingFilter == null)
                         buildings.forEach { building ->
                             SoftChip(building, onClick = { buildingFilter = building }, selected = buildingFilter == building)
                         }
                     }
+                    buildingsLoading -> Text(
+                        "正在读取教学楼…",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    buildingsError != null -> Text(
+                        "教学楼列表加载失败；仍可直接查询全部教室。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.Warning,
+                    )
                 }
                 SoftPrimaryButton(
                     "确认筛选",

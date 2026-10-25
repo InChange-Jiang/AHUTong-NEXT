@@ -189,6 +189,16 @@ object LegacyCampusApi {
     suspend fun assignments(): AhuResult<List<Work>> = LegacyDataApi.assignments()
 
     /** 空闲教室：先取校区楼栋，再逐楼查询。 */
+    suspend fun freeRoomBuildings(campusId: Int): AhuResult<List<CampusDataItem>> =
+        runCatching {
+            FreeClassroomGateway.buildings(campusId)
+                .filter { it.enabled }
+                .map { CampusDataItem(name = it.nameZh, value = it.id.toString()) }
+        }.fold(
+            onSuccess = { AhuResult.Success(it) },
+            onFailure = { AhuResult.Failure(AhuError.Unknown(it.message ?: "教学楼列表加载失败")) },
+        )
+
     suspend fun freeRooms(campusId: Int, date: String, units: List<String>): AhuResult<List<String>> =
         runCatching {
             val buildings = FreeClassroomGateway.buildings(campusId)
