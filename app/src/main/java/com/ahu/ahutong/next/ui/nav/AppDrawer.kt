@@ -88,18 +88,6 @@ private val groups = listOf(
             DrawerEntry("天气", AppRoute.Weather, R.drawable.ic_iconpark_weather),
         ),
     ),
-    DrawerGroup(
-        "系统",
-        listOf(
-            DrawerEntry("偏好设置", AppRoute.Preferences, R.drawable.ic_iconpark_setting),
-            DrawerEntry("提醒", AppRoute.Reminders, R.drawable.ic_iconpark_bell),
-            DrawerEntry("外观与显示", AppRoute.Appearance, R.drawable.ic_iconpark_setting),
-            DrawerEntry("账号与资料", AppRoute.Accounts, R.drawable.ic_iconpark_user),
-            DrawerEntry("应用更新", AppRoute.Updates, R.drawable.ic_iconpark_info),
-            DrawerEntry("设置", AppRoute.Settings, R.drawable.ic_iconpark_setting),
-            DrawerEntry("关于", AppRoute.About, R.drawable.ic_iconpark_info),
-        ),
-    ),
 )
 
 @Composable
@@ -172,15 +160,11 @@ fun AppDrawer(
                 }
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = NextPalette.Line,
-            )
-            Text(
-                "安大通 NEXT · 对话是入口，页面是兜底",
-                modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 12.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = NextPalette.InkSecondary,
+            DrawerRow(
+                label = "设置",
+                icon = R.drawable.ic_iconpark_setting,
+                selected = current == AppRoute.Settings,
+                onClick = { onNavigate(AppRoute.Settings) },
             )
         }
     }

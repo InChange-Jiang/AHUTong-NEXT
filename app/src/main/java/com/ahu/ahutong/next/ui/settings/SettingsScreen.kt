@@ -66,6 +66,12 @@ fun SettingsScreen(
     onSaved: () -> Unit,
     onClearHistory: () -> Unit,
     onOpenLab: () -> Unit,
+    suggestionsEnabled: Boolean,
+    onSuggestionsChange: (Boolean) -> Unit,
+    onOpenAccounts: () -> Unit,
+    onOpenReminders: () -> Unit,
+    onOpenUpdates: () -> Unit,
+    onOpenAbout: () -> Unit,
 ) {
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
@@ -120,6 +126,10 @@ fun SettingsScreen(
                             "课表、成绩、考试安排来自教务系统；一卡通余额、账单、电费、网费与充值来自校园卡系统。电费/浴室/网费充值的密码只在确认卡里输入。",
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
+                        )
+                        SoftSecondaryButton(
+                            text = "账号与切换",
+                            onClick = onOpenAccounts,
                         )
                         SoftSecondaryButton(
                             text = "退出登录",
@@ -306,6 +316,51 @@ fun SettingsScreen(
                             Text("恢复标准")
                         }
                     }
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
+                    SectionTitle("偏好")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "显示快捷建议",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = NextPalette.Ink,
+                            )
+                            Text(
+                                "空会话时展示作业、课表、成绩等推荐问句。",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
+                        Switch(
+                            checked = suggestionsEnabled,
+                            onCheckedChange = onSuggestionsChange,
+                        )
+                    }
+                    SoftSecondaryButton(
+                        text = "提醒设置",
+                        onClick = onOpenReminders,
+                    )
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
+                    SectionTitle("应用")
+                    SoftSecondaryButton(
+                        text = "应用更新",
+                        onClick = onOpenUpdates,
+                    )
+                    SoftSecondaryButton(
+                        text = "关于安大通 NEXT",
+                        onClick = onOpenAbout,
+                    )
                 }
 
                 Spacer(Modifier.padding(top = 14.dp))

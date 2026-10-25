@@ -71,7 +71,6 @@ fun ChatScreen(
     onApprove: (String?) -> Unit,
     onReject: () -> Unit,
     onCancel: () -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenDrawer: () -> Unit,
     showSuggestions: Boolean = true,
 ) {
@@ -117,7 +116,6 @@ fun ChatScreen(
         ) {
             FloatingTopBar(
                 online = state.hasApiKey,
-                onOpenSettings = onOpenSettings,
                 onOpenDrawer = onOpenDrawer,
             )
 
@@ -181,9 +179,7 @@ fun ChatScreen(
 @Composable
 private fun FloatingTopBar(
     online: Boolean,
-    onOpenSettings: () -> Unit,
     onOpenDrawer: () -> Unit,
-    showSuggestions: Boolean = true,
 ) {
     val accountName = com.ahu.ahutong.legacy.LegacyCampusApi.currentUserName()
     Row(
@@ -235,16 +231,6 @@ private fun FloatingTopBar(
             }
         }
 
-        Spacer(Modifier.weight(1f))
-
-        SoftIconButton(onClick = onOpenSettings) {
-            Icon(
-                painter = painterResource(R.drawable.ic_iconpark_setting),
-                contentDescription = "设置",
-                tint = NextPalette.Ink,
-                modifier = Modifier.size(20.dp),
-            )
-        }
     }
 }
 

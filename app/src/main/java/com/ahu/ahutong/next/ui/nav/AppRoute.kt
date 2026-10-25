@@ -35,11 +35,9 @@ sealed interface AppRoute {
     data object Mail : AppRoute
     data object Materials : AppRoute
     data object CalendarEvents : AppRoute
-    data object Preferences : AppRoute
     data object Reminders : AppRoute
     data object Updates : AppRoute
     data object About : AppRoute
-    data object Appearance : AppRoute
 }
 
 class AppNavState(initial: AppRoute = AppRoute.Chat) {
