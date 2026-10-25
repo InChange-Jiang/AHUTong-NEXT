@@ -7,15 +7,25 @@ import com.ahu.ahutong.core.common.AppEnvironment
 import com.ahu.ahutong.core.common.AppEnvironmentHolder
 import com.ahu.ahutong.data.AHURepository
 import com.ahu.ahutong.data.FreeClassroomGateway
+import com.ahu.ahutong.data.adapter.RepositoryElectricityDepositSource
+import com.ahu.ahutong.data.adapter.RepositoryElectricityUsageSource
 import com.ahu.ahutong.data.crawler.model.jwxt.DateTimeSegmentCmd
 import com.ahu.ahutong.data.crawler.model.jwxt.GetFreeRoomsRequest
+import com.ahu.ahutong.data.crawler.model.ycard.TurnoverCount
+import com.ahu.ahutong.data.crawler.model.ycard.TurnoverPage
 import com.ahu.ahutong.data.dao.AHUCache
+import com.ahu.ahutong.data.model.CampusDataItem
 import com.ahu.ahutong.data.model.Course
+import com.ahu.ahutong.data.model.ElectricityController
 import com.ahu.ahutong.data.model.LoginOutcome
+import com.ahu.ahutong.data.model.RoomSelectionInfo
 import com.ahu.ahutong.data.model.User
 import com.ahu.ahutong.data.notice.CampusNotice
 import com.ahu.ahutong.data.notice.UniversityNoticeCrawler
 import com.ahu.ahutong.data.notice.UniversityNoticeHttpFetcher
+import com.ahu.ahutong.data.recharge.ElectricityOptionLevel
+import com.ahu.ahutong.data.recharge.ElectricityOptionQuery
+import com.ahu.ahutong.data.recharge.ElectricityUsageSnapshot
 import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.data.xuexiaotong.Work
 import com.ahu.ahutong.data.schedule.CurrentWeekResolver
@@ -26,6 +36,8 @@ import com.ahu.ahutong.data.session.SecureCredentialVault
 import com.ahu.ahutong.data.session.SessionStore
 import com.tencent.mmkv.MMKV
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 旧数据层对 NEXT 的唯一入口。旧工程的包名、模型与协议实现保持原样，
@@ -168,6 +180,112 @@ object LegacyCampusApi {
             studentName = user.name.orEmpty(),
         )
     }
+
+    // ---- 校园卡余额与账单（只读，不涉及支付） ----
+
+    private val electricityDeposit = RepositoryElectricityDepositSource()
+    private val electricityUsage = RepositoryElectricityUsageSource()
+
+    /** 一卡通余额，优先走实时 queryCard。 */
+    suspend fun cardMoney(): AhuResult<com.ahu.ahutong.data.model.Card> =
+        withContext(Dispatchers.IO) {
+            AHURepository.useCrawlerDataSource()
+            AHURepository.getCardMoney(preferRealtime = true)
+        }
+
+    suspend fun cardNumber(): AhuResult<String> = withContext(Dispatchers.IO) {
+        AHURepository.useCrawlerDataSource()
+        when (val result = AHURepository.getCardInfo()) {
+            is AhuResult.Failure -> result
+            is AhuResult.Success -> {
+                val card = result.value.data.card.firstOrNull()
+                val number = card?.sno?.takeIf { it.isNotBlank() } ?: card?.account.orEmpty()
+                if (number.isBlank()) {
+                    AhuResult.Failure(AhuError.ProtocolChanged("校园卡信息里没有卡号"))
+                } else {
+                    AhuResult.Success(number)
+                }
+            }
+        }
+    }
+
+    suspend fun billSummary(timeFrom: String, timeTo: String): AhuResult<TurnoverCount> =
+        withContext(Dispatchers.IO) {
+            AHURepository.useCrawlerDataSource()
+            AHURepository.getBillSummary(timeFrom, timeTo)
+        }
+
+    suspend fun billPage(
+        page: Int,
+        size: Int,
+        timeFrom: String,
+        timeTo: String,
+    ): AhuResult<TurnoverPage> = withContext(Dispatchers.IO) {
+        AHURepository.useCrawlerDataSource()
+        AHURepository.getBillPage(
+            page = page,
+            size = size,
+            timeFrom = timeFrom,
+            timeTo = timeTo,
+            type = null,
+        )
+    }
+
+    // ---- 宿舍电费：房间选择 + 用电快照（只读，不涉及缴费） ----
+
+    fun savedElectricityRoom(): RoomSelectionInfo? = AHUCache.getRoomSelection()
+
+    fun electricityController(): ElectricityController = AHUCache.getElectricityController()
+
+    fun saveElectricitySelection(controller: ElectricityController, selection: RoomSelectionInfo) {
+        AHUCache.setElectricityController(controller)
+        AHUCache.saveRoomSelection(selection)
+    }
+
+    suspend fun electricityInitialOptions(
+        controller: ElectricityController,
+    ): AhuResult<List<CampusDataItem>> = electricityDeposit.options(
+        ElectricityOptionQuery(controller, emptyElectricitySelection(controller), ElectricityOptionLevel.Initial),
+    )
+
+    suspend fun electricityBuildings(
+        controller: ElectricityController,
+        campus: CampusDataItem,
+    ): AhuResult<List<CampusDataItem>> = electricityDeposit.options(
+        ElectricityOptionQuery(
+            controller,
+            RoomSelectionInfo(campus = campus, building = null, floor = null, room = null, controller = controller),
+            ElectricityOptionLevel.Buildings,
+        ),
+    )
+
+    suspend fun electricityFloors(
+        controller: ElectricityController,
+        selection: RoomSelectionInfo,
+    ): AhuResult<List<CampusDataItem>> = electricityDeposit.options(
+        ElectricityOptionQuery(controller, selection, ElectricityOptionLevel.Floors),
+    )
+
+    suspend fun electricityRooms(
+        controller: ElectricityController,
+        selection: RoomSelectionInfo,
+    ): AhuResult<List<CampusDataItem>> = electricityDeposit.options(
+        ElectricityOptionQuery(controller, selection, ElectricityOptionLevel.Rooms),
+    )
+
+    suspend fun electricitySnapshot(
+        controller: ElectricityController,
+        selection: RoomSelectionInfo,
+        asOf: LocalDate,
+    ): AhuResult<ElectricityUsageSnapshot> = electricityUsage.snapshot(controller, selection, asOf)
+
+    private fun emptyElectricitySelection(controller: ElectricityController) = RoomSelectionInfo(
+        campus = null,
+        building = null,
+        floor = null,
+        room = null,
+        controller = controller,
+    )
 
     /**
      * 把旧工程的「周次 + 星期」课表展开成未来若干天的具体日期。

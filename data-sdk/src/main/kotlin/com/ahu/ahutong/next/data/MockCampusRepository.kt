@@ -133,7 +133,7 @@ class MockCampusRepository : CampusRepository {
 
     override suspend fun electricity(): Electricity = Electricity(
         room = "磬苑校区 梅园 3 栋 412",
-        balanceYuan = 42.6,
+        balanceKwh = 42.6,
         dailyUsage = listOf(3.1, 2.8, 4.2, 3.6, 5.1, 4.4, 3.9),
         estimatedDays = 9,
     )

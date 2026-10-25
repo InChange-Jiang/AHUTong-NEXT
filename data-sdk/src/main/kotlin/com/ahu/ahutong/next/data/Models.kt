@@ -75,7 +75,7 @@ data class Exam(
 @Serializable
 data class Electricity(
     val room: String,
-    val balanceYuan: Double,
+    val balanceKwh: Double,
     val dailyUsage: List<Double>,
     val estimatedDays: Int,
 )

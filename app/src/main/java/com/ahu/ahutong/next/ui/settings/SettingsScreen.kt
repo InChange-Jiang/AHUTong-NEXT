@@ -82,6 +82,10 @@ fun SettingsScreen(
     var showLogin by remember { mutableStateOf(false) }
     var chaoxingConnected by remember { mutableStateOf(LegacyCampusApi.hasChaoxingSession()) }
     var showChaoxingLogin by remember { mutableStateOf(false) }
+    var showElectricityRoom by remember { mutableStateOf(false) }
+    var electricityRoomLabel by remember {
+        mutableStateOf(LegacyCampusApi.savedElectricityRoom()?.displayLabel())
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         SoftBackground {
@@ -113,7 +117,7 @@ fun SettingsScreen(
                             color = NextPalette.Ink,
                         )
                         Text(
-                            "课表、成绩、考试安排来自教务系统；一卡通与电费仍为演示数据，本版不接支付。",
+                            "课表、成绩、考试安排来自教务系统；一卡通余额、账单与电费来自校园卡系统。本版不含充值/支付。",
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
                         )
@@ -307,6 +311,22 @@ fun SettingsScreen(
                 Spacer(Modifier.padding(top = 14.dp))
 
                 SettingsCard {
+                    SectionTitle("宿舍电费")
+                    Text(
+                        electricityRoomLabel?.let { "当前房间：$it" }
+                            ?: "还没有设置房间。查询电费前先选一次，之后会一直记住。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    SoftSecondaryButton(
+                        text = if (electricityRoomLabel == null) "选择房间" else "修改房间",
+                        onClick = { showElectricityRoom = true },
+                    )
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
                     SectionTitle("数据")
                     Text(
                         "单会话本地历史，共 $historyCount 条。",
@@ -377,6 +397,16 @@ fun SettingsScreen(
                 chaoxingConnected = true
                 showChaoxingLogin = false
                 scope.launch { snackbar.showSnackbar("学习通已连接") }
+            },
+        )
+    }
+
+    if (showElectricityRoom) {
+        ElectricityRoomDialog(
+            onDismiss = { showElectricityRoom = false },
+            onSaved = { label ->
+                electricityRoomLabel = label
+                scope.launch { snackbar.showSnackbar("电费房间已保存") }
             },
         )
     }

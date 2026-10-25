@@ -110,7 +110,7 @@ class GetBalanceTool(private val repository: CampusRepository) : Tool {
         parameters = schema(buildJsonObject { }),
         timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "一卡通系统（演示）",
+        source = "一卡通系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -132,7 +132,7 @@ class GetBillsTool(private val repository: CampusRepository) : Tool {
         parameters = schema(buildJsonObject { }),
         timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "一卡通系统（演示）",
+        source = "一卡通系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
@@ -173,11 +173,11 @@ class GetElectricityTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
         name = "get_electricity",
         displayName = "查询宿舍电费",
-        description = "查询宿舍剩余电费、近七日用电量和预计可用天数。",
+        description = "查询宿舍剩余电量、近七日用电量和预计可用天数。",
         parameters = schema(buildJsonObject { }),
         timeoutMs = 120_000,
         kind = ToolKind.READ,
-        source = "电费系统（演示）",
+        source = "电费系统",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {

@@ -397,8 +397,14 @@ private fun ElectricityBody(data: JsonObject?) {
     }
     Row(verticalAlignment = Alignment.Bottom) {
         Text(
-            "¥${formatScore(electricity.balanceYuan)}",
+            formatScore(electricity.balanceKwh),
             style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.AccentDeep,
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            "度",
+            style = MaterialTheme.typography.titleMedium,
             color = NextPalette.AccentDeep,
         )
         Spacer(Modifier.width(8.dp))
