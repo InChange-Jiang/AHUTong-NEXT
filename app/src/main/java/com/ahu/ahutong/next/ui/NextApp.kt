@@ -9,6 +9,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -37,6 +38,7 @@ import com.ahu.ahutong.next.ui.pages.CalendarEventsPage
 import com.ahu.ahutong.next.ui.pages.CanteenPage
 import com.ahu.ahutong.next.ui.pages.CardPage
 import com.ahu.ahutong.next.ui.pages.CompletionPage
+import com.ahu.ahutong.next.ui.pages.CourseTasksPage
 import com.ahu.ahutong.next.ui.pages.ElectricityPage
 import com.ahu.ahutong.next.ui.pages.EvaluationPage
 import com.ahu.ahutong.next.ui.pages.ExamsPage
@@ -45,6 +47,8 @@ import com.ahu.ahutong.next.ui.pages.GradesPage
 import com.ahu.ahutong.next.ui.pages.LostFoundPage
 import com.ahu.ahutong.next.ui.pages.MailPage
 import com.ahu.ahutong.next.ui.pages.MaterialsPage
+import com.ahu.ahutong.next.ui.pages.PhoneBookPage
+import com.ahu.ahutong.next.ui.pages.PreferencesPage
 import com.ahu.ahutong.next.ui.pages.NoticesPage
 import com.ahu.ahutong.next.ui.pages.ProfilePage
 import com.ahu.ahutong.next.ui.pages.RechargeBathroomPage
@@ -70,6 +74,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
     var displayScale by remember { mutableFloatStateOf(settings.displayScale()) }
+    var suggestionsEnabled by remember { mutableStateOf(settings.suggestionsEnabled()) }
     val baseDensity = LocalDensity.current
 
     LaunchedEffect(Unit) {
@@ -119,6 +124,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                     onCancel = viewModel::cancelRun,
                     onOpenSettings = { nav.push(AppRoute.Settings) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                    showSuggestions = suggestionsEnabled,
                 )
 
                 AppRoute.Settings -> SettingsScreen(
@@ -155,6 +161,19 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 AppRoute.Grades -> GradesPage(repository, back)
                 AppRoute.Exams -> ExamsPage(repository, back)
                 AppRoute.Assignments -> AssignmentsPage(repository, back)
+                AppRoute.CourseTasks -> CourseTasksPage(back)
+                AppRoute.PhoneBook -> PhoneBookPage(back)
+                AppRoute.Preferences -> PreferencesPage(
+                    suggestionsEnabled = suggestionsEnabled,
+                    onSuggestionsChange = {
+                        suggestionsEnabled = it
+                        settings.setSuggestionsEnabled(it)
+                    },
+                    remindersEnabled = com.ahu.ahutong.next.reminder.CourseReminders.isEnabled(context),
+                    onOpenReminders = { nav.push(AppRoute.Reminders) },
+                    onOpenAppearance = { nav.push(AppRoute.Appearance) },
+                    onBack = back,
+                )
                 AppRoute.Attendance -> AttendancePage(back)
                 AppRoute.Completion -> CompletionPage(back)
                 AppRoute.FreeRooms -> FreeRoomsPage(repository, back)

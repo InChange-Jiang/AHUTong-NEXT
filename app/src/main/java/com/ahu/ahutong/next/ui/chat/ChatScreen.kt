@@ -73,6 +73,7 @@ fun ChatScreen(
     onCancel: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDrawer: () -> Unit,
+    showSuggestions: Boolean = true,
 ) {
     val listState = rememberLazyListState()
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
@@ -138,7 +139,7 @@ fun ChatScreen(
                 ) {
                     if (state.items.isEmpty()) {
                         item {
-                            EmptyHero(onSend = onSend)
+                            EmptyHero(onSend = onSend, showSuggestions = showSuggestions)
                         }
                     } else {
                         items(state.items, key = { it.id }) { item ->
@@ -182,6 +183,7 @@ private fun FloatingTopBar(
     online: Boolean,
     onOpenSettings: () -> Unit,
     onOpenDrawer: () -> Unit,
+    showSuggestions: Boolean = true,
 ) {
     val accountName = com.ahu.ahutong.legacy.LegacyCampusApi.currentUserName()
     Row(
@@ -247,7 +249,7 @@ private fun FloatingTopBar(
 }
 
 @Composable
-private fun EmptyHero(onSend: (String) -> Unit) {
+private fun EmptyHero(onSend: (String) -> Unit, showSuggestions: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -270,7 +272,8 @@ private fun EmptyHero(onSend: (String) -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 24.dp),
         )
-        Spacer(Modifier.height(26.dp))
+        if (showSuggestions) {
+            Spacer(Modifier.height(26.dp))
 
         val suggestions = listOf(
             Suggestion("作业", "这周还有哪些作业？", R.drawable.ic_iconpark_assignment),
@@ -292,6 +295,7 @@ private fun EmptyHero(onSend: (String) -> Unit) {
                     onClick = { onSend(suggestion.query) },
                 )
             }
+        }
         }
     }
 }

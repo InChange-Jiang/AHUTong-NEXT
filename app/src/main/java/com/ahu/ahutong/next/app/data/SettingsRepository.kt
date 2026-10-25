@@ -41,6 +41,12 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_SEARCH_ENABLED, enabled).apply()
     }
 
+    fun suggestionsEnabled(): Boolean = prefs.getBoolean(KEY_SUGGESTIONS, true)
+
+    fun setSuggestionsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SUGGESTIONS, enabled).apply()
+    }
+
     /**
      * apiKey 为 null 表示保留现有 Key；空字符串表示清除。
      */
@@ -61,6 +67,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_MODEL = "model"
         private const val KEY_SEARCH_ENABLED = "search_enabled"
         private const val KEY_DISPLAY_SCALE = "display_scale"
+        private const val KEY_SUGGESTIONS = "quick_suggestions"
         const val MIN_DISPLAY_SCALE = 0.80f
         const val MAX_DISPLAY_SCALE = 1.20f
     }

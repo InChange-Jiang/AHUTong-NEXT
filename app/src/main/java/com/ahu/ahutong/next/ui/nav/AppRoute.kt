@@ -14,6 +14,7 @@ sealed interface AppRoute {
     data object Grades : AppRoute
     data object Exams : AppRoute
     data object Assignments : AppRoute
+    data object CourseTasks : AppRoute
     data object Attendance : AppRoute
     data object Completion : AppRoute
     data object FreeRooms : AppRoute
@@ -30,9 +31,11 @@ sealed interface AppRoute {
     data object Evaluation : AppRoute
     data object SchoolCalendar : AppRoute
     data object Canteen : AppRoute
+    data object PhoneBook : AppRoute
     data object Mail : AppRoute
     data object Materials : AppRoute
     data object CalendarEvents : AppRoute
+    data object Preferences : AppRoute
     data object Reminders : AppRoute
     data object Updates : AppRoute
     data object About : AppRoute

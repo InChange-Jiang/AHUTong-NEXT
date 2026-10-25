@@ -310,6 +310,11 @@ fun LostFoundPage(onBack: () -> Unit) {
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
                         )
+                        Text(
+                            "证件号 ${item.num1 ?: item.num2 ?: "未知"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
                         if (item.createuser == LegacyCampusApi.currentUserName()) {
                             TextButton(onClick = { deleting = item }) { Text("删除这条") }
                         }
@@ -575,7 +580,14 @@ fun WeatherPage(onBack: () -> Unit) {
                         color = NextPalette.InkSecondary,
                     )
                     Text(
-                        "AQI ${weather.aqi?.toString() ?: "--"} ${weather.aqiCategory.orEmpty()} · ${weather.tempMin?.let { "%.0f".format(Locale.CHINA, it) } ?: "--"}~${weather.tempMax?.let { "%.0f".format(Locale.CHINA, it) } ?: "--"}°",
+                        "AQI ${weather.aqi?.toString() ?: "--"} ${weather.aqiCategory.orEmpty()}" +
+                            weather.aqiPrimary?.takeIf { it.isNotBlank() }?.let { " · 首要污染物 $it" }.orEmpty(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    Text(
+                        "能见度 ${weather.visibility?.let { "%.1f".format(Locale.CHINA, it) } ?: "--"} km · " +
+                            "${weather.tempMin?.let { "%.0f".format(Locale.CHINA, it) } ?: "--"}~${weather.tempMax?.let { "%.0f".format(Locale.CHINA, it) } ?: "--"}°",
                         style = MaterialTheme.typography.labelSmall,
                         color = NextPalette.InkSecondary,
                     )

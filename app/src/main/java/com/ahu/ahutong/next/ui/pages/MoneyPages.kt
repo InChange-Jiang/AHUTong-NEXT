@@ -476,17 +476,36 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
     var result by remember { mutableStateOf<RechargeReceipt?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
+    var roomInfo by remember { mutableStateOf<String?>(null) }
+    var showRoom by remember { mutableStateOf(false) }
+    var roomReload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
     val room = remember { repository.electricityRoomLabel() }
+
+    LaunchedEffect(roomReload) {
+        roomInfo = runCatching {
+            withContext(Dispatchers.IO) {
+                com.ahu.ahutong.legacy.LegacyCampusApi.electricityRoomInfo().requireValue().displayInfo
+            }
+        }.getOrNull()
+    }
 
     FeatureScaffold("宿舍电费充值", onBack) {
         FeatureScrollColumn {
             PageCard {
-                Text(
-                    room?.let { "充值房间：$it" } ?: "还没有设置电费房间，请先到电费页选择。",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (room == null) NextPalette.Danger else NextPalette.InkSecondary,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            room?.let { "充值房间：$it" } ?: "还没有设置电费房间",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (room == null) NextPalette.Danger else NextPalette.Ink,
+                        )
+                        roomInfo?.let {
+                            Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                        }
+                    }
+                    SoftSecondaryButton("更换房间", onClick = { showRoom = true })
+                }
             }
             AmountCard(amount, { amount = it })
             PageCard {
@@ -529,6 +548,16 @@ fun RechargeElectricityPage(repository: NextCampusRepository, onBack: () -> Unit
         )
     }
     error?.let { ErrorDialog(it) { error = null } }
+
+    if (showRoom) {
+        com.ahu.ahutong.next.ui.settings.ElectricityRoomDialog(
+            onDismiss = { showRoom = false },
+            onSaved = {
+                showRoom = false
+                roomReload++
+            },
+        )
+    }
 }
 
 @Composable

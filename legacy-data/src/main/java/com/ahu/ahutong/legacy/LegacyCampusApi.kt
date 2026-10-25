@@ -43,11 +43,14 @@ import com.ahu.ahutong.data.notice.UniversityNoticeCrawler
 import com.ahu.ahutong.data.notice.UniversityNoticeHttpFetcher
 import com.ahu.ahutong.data.recharge.BathroomPayment
 import com.ahu.ahutong.data.recharge.ElectricityOptionLevel
+import com.ahu.ahutong.data.recharge.ElectricityRoom
 import com.ahu.ahutong.data.recharge.ElectricityOptionQuery
 import com.ahu.ahutong.data.recharge.ElectricityPayment
 import com.ahu.ahutong.data.recharge.ElectricityUsageSnapshot
 import com.ahu.ahutong.data.recharge.NetworkRechargeSnapshot
 import com.ahu.ahutong.data.recharge.RechargeReceipt
+import com.ahu.ahutong.data.xuexiaotong.ChaoxingApi
+import com.ahu.ahutong.data.xuexiaotong.CourseProgress
 import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.data.xuexiaotong.Work
 import com.ahu.ahutong.data.schedule.CurrentWeekResolver
@@ -153,6 +156,19 @@ object LegacyCampusApi {
     }
 
     fun hasChaoxingSession(): Boolean = initialized && Store.hasCookie()
+
+    fun cachedCourseProgress(): List<CourseProgress> = Store.getCourseProgress()
+
+    suspend fun syncCourseProgress(): AhuResult<List<CourseProgress>> = withContext(Dispatchers.IO) {
+        if (!hasChaoxingSession()) {
+            return@withContext AhuResult.Failure(AhuError.Unauthorized("学习通未连接，请先登录"))
+        }
+        runCatching { ChaoxingApi(AppEnvironmentHolder.context()).syncCourseProgress() }
+            .fold(
+                onSuccess = { AhuResult.Success(it) },
+                onFailure = { AhuResult.Failure(AhuError.Unknown(it.message ?: "课程任务同步失败")) },
+            )
+    }
 
     /** 把当前已登录账号补进“保存的账号”，用于旧版本升级后的首次打开。 */
     fun rememberCurrentAccount() {
@@ -380,6 +396,12 @@ object LegacyCampusApi {
         selection: RoomSelectionInfo,
         asOf: LocalDate,
     ): AhuResult<ElectricityUsageSnapshot> = electricityUsage.snapshot(controller, selection, asOf)
+
+    suspend fun electricityRoomInfo(): AhuResult<ElectricityRoom> {
+        val selection = savedElectricityRoom()?.takeIf { it.room != null }
+            ?: return AhuResult.Failure(AhuError.Unknown("还没有设置宿舍电费房间，请先在设置里选一次"))
+        return electricityDeposit.room(electricityController(), selection)
+    }
 
     /** 电费缴费需要当前房间的支付参数；房间来自设置里保存的选择。 */
     suspend fun rechargeElectricity(

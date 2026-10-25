@@ -5,18 +5,30 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,8 +41,12 @@ import com.ahu.ahutong.next.reminder.CourseReminders
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun RemindersPage(
@@ -151,40 +167,180 @@ fun CalendarEventsPage(
     onBack: () -> Unit,
 ) {
     var events by remember { mutableStateOf(repository.calendarEvents()) }
+    var assignments by remember { mutableStateOf<List<com.ahu.ahutong.next.data.Assignment>>(emptyList()) }
+    var month by remember { mutableStateOf(java.time.YearMonth.now()) }
+    var selected by remember { mutableStateOf(java.time.LocalDate.now()) }
     var deleting by remember { mutableStateOf<String?>(null) }
-    FeatureScaffold("我的日程", onBack) {
+    var planning by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun reload() {
+        events = repository.calendarEvents()
+        assignments = runCatching { repository.assignments(60) }.getOrDefault(emptyList())
+    }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { reload() }
+    }
+
+    val eventsByDate = events.groupBy { it.start.take(10) }
+    val dueByDate = assignments.filter { !it.status.contains("已完成") }.groupBy { it.dueAt.take(10) }
+
+    FeatureScaffold(
+        "日程",
+        onBack,
+        actions = {
+            TextButton(onClick = { month = month.minusMonths(1) }) { Text("上月") }
+            TextButton(onClick = { month = month.plusMonths(1) }) { Text("下月") }
+        },
+    ) {
         FeatureScrollColumn {
-            if (events.isEmpty()) {
-                PageCard {
+            PageCard {
+                Text(
+                    "${month.year} 年 ${month.monthValue} 月",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = NextPalette.Ink,
+                )
+                Row(Modifier.fillMaxWidth()) {
+                    listOf("一", "二", "三", "四", "五", "六", "日").forEach { label ->
+                        Text(
+                            label,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                }
+                val first = month.atDay(1)
+                val offset = first.dayOfWeek.value - 1
+                val total = ((offset + month.lengthOfMonth() + 6) / 7) * 7
+                repeat(total / 7) { week ->
+                    Row(Modifier.fillMaxWidth()) {
+                        repeat(7) { dayIndex ->
+                            val index = week * 7 + dayIndex
+                            val day = first.minusDays(offset.toLong()).plusDays(index.toLong())
+                            if (day.month != month.month) {
+                                Spacer(Modifier.weight(1f).height(46.dp))
+                            } else {
+                                val isSelected = day == selected
+                                val isToday = day == java.time.LocalDate.now()
+                                val count = eventsByDate[day.toString()].orEmpty().size +
+                                    dueByDate[day.toString()].orEmpty().size
+                                Column(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(46.dp)
+                                        .padding(2.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (isSelected) NextPalette.AccentSoft else androidx.compose.ui.graphics.Color.Transparent,
+                                        )
+                                        .clickable { selected = day },
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    Text(
+                                        day.dayOfMonth.toString(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = when {
+                                            isSelected -> NextPalette.AccentDeep
+                                            isToday -> NextPalette.AccentDeep
+                                            else -> NextPalette.Ink
+                                        },
+                                    )
+                                    if (count > 0) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            repeat(count.coerceAtMost(3)) {
+                                                Box(
+                                                    Modifier
+                                                        .size(4.dp)
+                                                        .clip(RoundedCornerShape(50))
+                                                        .background(NextPalette.Accent),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            PageCard {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "还没有本地日程。可以在对话里说「明天 9 点提醒我交作业」，确认后会写到这里。",
+                        "${selected.monthValue} 月 ${selected.dayOfMonth} 日",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = NextPalette.Ink,
+                    )
+                    SoftPrimaryButton(
+                        if (planning) "排期中…" else "智能排作业",
+                        enabled = !planning,
+                        onClick = {
+                            planning = true
+                            message = null
+                            scope.launch {
+                                runCatching {
+                                    withContext(Dispatchers.IO) {
+                                        com.ahu.ahutong.next.app.data.AssignmentPlanner.plan(repository, assignments)
+                                    }
+                                }.fold(
+                                    onSuccess = { result ->
+                                        message = "已排入 ${result.scheduled.size} 条作业" +
+                                            if (result.skipped > 0) "，${result.skipped} 条找不到空档" else ""
+                                        reload()
+                                    },
+                                    onFailure = { message = it.message ?: "排期失败" },
+                                )
+                                planning = false
+                            }
+                        },
+                    )
+                }
+                message?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
+                }
+                val dayEvents = eventsByDate[selected.toString()].orEmpty()
+                val dayDue = dueByDate[selected.toString()].orEmpty()
+                if (dayEvents.isEmpty() && dayDue.isEmpty()) {
+                    Text(
+                        "这一天没有安排。",
                         style = MaterialTheme.typography.bodySmall,
                         color = NextPalette.InkSecondary,
                     )
                 }
-            } else {
-                events.forEach { event ->
-                    PageCard {
-                        Text(event.title, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
-                        Text(
-                            "${event.start} — ${event.end}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = NextPalette.AccentDeep,
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                dayEvents.forEach { event ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(event.title, style = MaterialTheme.typography.bodyMedium, color = NextPalette.Ink)
                             Text(
-                                "提前 ${event.reminderMinutes} 分钟提醒",
-                                modifier = Modifier.weight(1f),
+                                "${event.start.substringAfter(' ')} — ${event.end.substringAfter(' ')}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NextPalette.InkSecondary,
                             )
-                            TextButton(onClick = { deleting = event.id }) { Text("删除") }
+                        }
+                        TextButton(onClick = { deleting = event.id }) { Text("删除") }
+                    }
+                }
+                dayDue.forEach { work ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("作业：${work.title}", style = MaterialTheme.typography.bodyMedium, color = NextPalette.Ink)
+                            Text(
+                                "${work.course} · 截止 ${work.dueAt}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.Warning,
+                            )
                         }
                     }
                 }
             }
         }
     }
+
     deleting?.let { id ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { deleting = null },

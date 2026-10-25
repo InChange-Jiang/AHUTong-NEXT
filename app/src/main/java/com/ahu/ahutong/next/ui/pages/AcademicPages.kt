@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +44,7 @@ import com.ahu.ahutong.data.attendance.KqcardAttendanceRepository
 import com.ahu.ahutong.data.crawler.model.jwxt.ProgramCompletion
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.legacy.LegacyCampusApi
+import com.ahu.ahutong.next.app.data.AssignmentPlanner
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CourseOccurrence
@@ -54,6 +56,8 @@ import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
+import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.Dispatchers
@@ -149,19 +153,20 @@ private fun WeekTimetable(courses: List<CourseOccurrence>, startDate: LocalDate)
     val days = (0..6).map { startDate.plusDays(it.toLong()) }
     val dateSet = days.map { it.toString() }.toSet()
     val byDate = courses.filter { it.date in dateSet }.groupBy { it.date }
-    val horizontal = rememberScrollState()
     val hourHeight = 64.dp
-    val dayWidth = 104.dp
     val totalHeight = hourHeight * 14
+    val gutter = 38.dp
 
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-            Spacer(Modifier.width(40.dp))
-            Row(Modifier.horizontalScroll(horizontal)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+            val columnWidth = (maxWidth - gutter) / 7
+            Column {
+            Row(Modifier.fillMaxWidth()) {
+                Spacer(Modifier.width(gutter))
                 days.forEach { day ->
                     val isToday = day == LocalDate.now()
                     Column(
-                        modifier = Modifier.width(dayWidth).padding(bottom = 8.dp),
+                        modifier = Modifier.width(columnWidth).padding(bottom = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Text(
@@ -177,26 +182,25 @@ private fun WeekTimetable(courses: List<CourseOccurrence>, startDate: LocalDate)
                     }
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
-            Box(Modifier.width(40.dp).height(totalHeight)) {
-                (8..21).forEach { hour ->
-                    Text(
-                        "%02d:00".format(hour),
-                        modifier = Modifier.offset(y = hourHeight * (hour - 8)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                    )
+            Row(Modifier.fillMaxWidth()) {
+                Box(Modifier.width(gutter).height(totalHeight)) {
+                    (8..21).forEach { hour ->
+                        Text(
+                            "%02d".format(hour),
+                            modifier = Modifier.offset(y = hourHeight * (hour - 8)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
                 }
-            }
-            Row(Modifier.horizontalScroll(horizontal)) {
                 days.forEach { day ->
-                    Box(Modifier.width(dayWidth).height(totalHeight)) {
+                    Box(Modifier.width(columnWidth).height(totalHeight)) {
                         byDate[day.toString()].orEmpty().forEach { course ->
                             CourseBlock(course, hourHeight)
                         }
                     }
                 }
+            }
             }
         }
         Spacer(Modifier.height(80.dp))
@@ -390,6 +394,7 @@ private fun GradeRow(grade: Grade) {
 @Composable
 fun ExamsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<List<Exam>>>(LoadState.Loading) }
+    var showFinished by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
     LaunchedEffect(reload) {
         state = LoadState.Loading
@@ -410,13 +415,19 @@ fun ExamsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 val upcoming = exams.filter { examDate(it.time) == null || examDate(it.time)!! >= today }
                 val finished = exams.filter { examDate(it.time) != null && examDate(it.time)!! < today }
                 FeatureScrollColumn {
-                    if (upcoming.isNotEmpty()) {
-                        Text("待考", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                        upcoming.forEach { ExamCard(it) }
-                    }
+                    Text(
+                        "待考 ${upcoming.size} 场 · 已结束 ${finished.size} 场",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    upcoming.forEach { ExamCard(it) }
                     if (finished.isNotEmpty()) {
-                        Text("已结束", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                        finished.forEach { ExamCard(it, past = true) }
+                        TextButton(onClick = { showFinished = !showFinished }) {
+                            Text(if (showFinished) "收起已结束 (${finished.size})" else "展开已结束 (${finished.size})")
+                        }
+                        if (showFinished) {
+                            finished.forEach { ExamCard(it, past = true) }
+                        }
                     }
                 }
             }
@@ -446,6 +457,10 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var days by remember { mutableIntStateOf(14) }
     var state by remember { mutableStateOf<LoadState<List<Assignment>>>(LoadState.Loading) }
     var reload by remember { mutableIntStateOf(0) }
+    var planning by remember { mutableStateOf(false) }
+    var planMessage by remember { mutableStateOf<String?>(null) }
+    var showPlanConfirm by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(reload, days) {
         state = LoadState.Loading
         state = runCatching { withContext(Dispatchers.IO) { repository.assignments(days) } }
@@ -454,7 +469,10 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "作业",
         onBack = onBack,
-        actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
+        actions = {
+            TextButton(onClick = { reload++ }) { Text("刷新") }
+            TextButton(onClick = { showPlanConfirm = true }) { Text("智能排期") }
+        },
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
@@ -466,6 +484,9 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
         AsyncContent(state, onRetry = { reload++ }) {
             val works = (state as LoadState.Ready).value
             if (works.isEmpty()) EmptyState("这段时间没有作业。") else FeatureScrollColumn {
+                planMessage?.let {
+                    Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
+                }
                 works.forEach { work ->
                     PageCard {
                         Text(work.title, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
@@ -487,6 +508,39 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 }
             }
         }
+    }
+
+    if (showPlanConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showPlanConfirm = false },
+            title = { Text("把作业排进日历？") },
+            text = {
+                Text("按截止时间从早到晚，避开课程和已有日程，为每条未完成作业找 1 小时空闲时段写入本地日历。")
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    showPlanConfirm = false
+                    planning = true
+                    planMessage = null
+                    scope.launch {
+                        runCatching {
+                            val works = (state as? LoadState.Ready<List<Assignment>>)?.value.orEmpty()
+                            withContext(Dispatchers.IO) { AssignmentPlanner.plan(repository, works) }
+                        }.fold(
+                            onSuccess = { result ->
+                                planMessage = "已排入 ${result.scheduled.size} 条作业" +
+                                    if (result.skipped > 0) "；${result.skipped} 条在截止前找不到空档" else ""
+                            },
+                            onFailure = { planMessage = it.message ?: "排期失败" },
+                        )
+                        planning = false
+                    }
+                }) { Text("开始排期") }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showPlanConfirm = false }) { Text("取消") }
+            },
+        )
     }
 }
 
@@ -568,7 +622,7 @@ fun AttendancePage(onBack: () -> Unit) {
                             color = NextPalette.InkSecondary,
                         )
                         Text(
-                            "打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}" +
+                            "第${record.section}节 · 打卡 ${record.punchTime.ifBlank { "—" }} · ${record.teacher}" +
                                 if (record.canAppeal) " · 可申诉" else "",
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
@@ -684,59 +738,107 @@ fun CompletionPage(onBack: () -> Unit) {
 fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var campus by remember { mutableIntStateOf(1) }
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
+    var selectedUnits by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var buildings by remember { mutableStateOf<List<String>>(emptyList()) }
+    var buildingFilter by remember { mutableStateOf<String?>(null) }
     var state by remember { mutableStateOf<LoadState<List<String>>>(LoadState.Loading) }
     var reload by remember { mutableIntStateOf(0) }
-    LaunchedEffect(reload, campus, date) {
+    val units = if (selectedUnits.isEmpty()) (1..13).toList() else selectedUnits.sorted()
+
+    LaunchedEffect(reload, campus, date, selectedUnits) {
         state = LoadState.Loading
         state = runCatching {
             withContext(Dispatchers.IO) {
-                LegacyCampusApi.freeRooms(campus, date, (1..13).map(Int::toString)).requireValue()
+                LegacyCampusApi.freeRooms(campus, date, units.map(Int::toString)).requireValue()
             }
-        }.fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
+        }.fold(
+            onSuccess = { rooms ->
+                buildings = rooms.map { it.substringBefore(' ') }.distinct().sorted()
+                LoadState.Ready(rooms)
+            },
+            onFailure = { it.toLoadFailure() },
+        )
     }
+
     FeatureScaffold(
         title = "空闲教室",
         onBack = onBack,
         actions = { TextButton(onClick = { reload++ }) { Text("刷新") } },
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftChip("磬苑", onClick = { campus = 1 }, selected = campus == 1)
-                SoftChip("龙河", onClick = { campus = 2 }, selected = campus == 2)
+        FeatureScrollColumn {
+            PageCard {
+                PageTitle("查询条件")
+                Text("校区", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftChip("磬苑", onClick = { campus = 1 }, selected = campus == 1)
+                    SoftChip("龙河", onClick = { campus = 2 }, selected = campus == 2)
+                }
+                Text("日期", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SoftChip("今天", onClick = { date = LocalDate.now().toString() }, selected = date == LocalDate.now().toString())
+                    SoftChip("明天", onClick = { date = LocalDate.now().plusDays(1).toString() }, selected = date == LocalDate.now().plusDays(1).toString())
+                    SoftChip("后天", onClick = { date = LocalDate.now().plusDays(2).toString() }, selected = date == LocalDate.now().plusDays(2).toString())
+                }
+                Text("时段", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SoftChip("全天", onClick = { selectedUnits = emptySet() }, selected = selectedUnits.isEmpty())
+                    (1..7).forEach { unit ->
+                        SoftChip(
+                            unit.toString(),
+                            onClick = { selectedUnits = selectedUnits.toggle(unit) },
+                            selected = unit in selectedUnits,
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (8..13).forEach { unit ->
+                        SoftChip(
+                            unit.toString(),
+                            onClick = { selectedUnits = selectedUnits.toggle(unit) },
+                            selected = unit in selectedUnits,
+                        )
+                    }
+                }
+                if (buildings.isNotEmpty()) {
+                    Text("教学楼", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SoftChip("全部", onClick = { buildingFilter = null }, selected = buildingFilter == null)
+                        buildings.forEach { building ->
+                            SoftChip(building, onClick = { buildingFilter = building }, selected = buildingFilter == building)
+                        }
+                    }
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SoftChip("今天", onClick = { date = LocalDate.now().toString() }, selected = date == LocalDate.now().toString())
-                SoftChip(
-                    "明天",
-                    onClick = { date = LocalDate.now().plusDays(1).toString() },
-                    selected = date == LocalDate.now().plusDays(1).toString(),
-                )
-            }
-        }
-        AsyncContent(state, onRetry = { reload++ }) {
-            val rooms = (state as LoadState.Ready).value
-            if (rooms.isEmpty()) EmptyState("没有查到空闲教室。") else FeatureScrollColumn {
-                Text(
-                    "全天 1-13 节 · ${rooms.size} 间",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NextPalette.InkSecondary,
-                )
-                rooms.forEach { room ->
+            AsyncContent(state, onRetry = { reload++ }) {
+                val rooms = (state as LoadState.Ready).value
+                    .filter { buildingFilter == null || it.startsWith("$buildingFilter ") }
+                if (rooms.isEmpty()) EmptyState("没有查到空闲教室。") else {
                     PageCard {
                         Text(
-                            room.replace(Regex("^(\\S+) \\1"), "$1"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = NextPalette.Ink,
+                            "${units.first()}-${units.last()} 节 · ${rooms.size} 间",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
                         )
+                        rooms.forEach { room ->
+                            Text(
+                                room.replace(Regex("^(\\S+) \\1"), "$1"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = NextPalette.Ink,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private fun Set<Int>.toggle(value: Int): Set<Int> =
+    if (contains(value)) this - value else this + value
 
 
 private fun courseStatus(status: String): String = when (status) {

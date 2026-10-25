@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -65,6 +67,8 @@ fun MailPage(onBack: () -> Unit) {
     var state by remember { mutableStateOf<LoadState<Unit>>(LoadState.Loading) }
     var error by remember { mutableStateOf<String?>(null) }
     var showCompose by remember { mutableStateOf(false) }
+    var showContacts by remember { mutableStateOf(false) }
+    var contacts by remember { mutableStateOf<List<com.ahu.ahutong.data.mail.MailContact>>(emptyList()) }
     var query by remember { mutableStateOf("") }
     var reload by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -108,6 +112,14 @@ fun MailPage(onBack: () -> Unit) {
         title = "学生邮箱",
         onBack = onBack,
         actions = {
+            TextButton(onClick = {
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.IO) { mail.contacts() }
+                    }.onSuccess { contacts = it; showContacts = true }
+                        .onFailure { error = it.message ?: "联系人加载失败" }
+                }
+            }) { Text("联系人") }
             TextButton(onClick = { showCompose = true }) { Text("写信") }
         },
     ) {
@@ -245,6 +257,33 @@ fun MailPage(onBack: () -> Unit) {
         )
     }
 
+    if (showContacts) {
+        AlertDialog(
+            onDismissRequest = { showContacts = false },
+            title = { Text("联系人") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (contacts.isEmpty()) {
+                        Text("暂无联系人", color = NextPalette.InkSecondary)
+                    }
+                    contacts.forEach { contact ->
+                        Text(
+                            "${contact.name}  ${contact.email}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.Ink,
+                        )
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showContacts = false }) { Text("关闭") } },
+        )
+    }
+
     error?.let {
         AlertDialog(
             onDismissRequest = { error = null },
@@ -358,6 +397,7 @@ fun MaterialsPage(onBack: () -> Unit) {
                 } else {
                     FeatureScrollColumn {
                         PageCard {
+                            val summaries = RepositoryManager.getDirectorySummaries(items)
                             items.forEachIndexed { index, item ->
                                 Row(
                                     modifier = Modifier
@@ -385,7 +425,12 @@ fun MaterialsPage(onBack: () -> Unit) {
                                             color = NextPalette.Ink,
                                         )
                                         Text(
-                                            if (item.type == "dir") "文件夹" else "${item.size / 1024} KB",
+                                            if (item.type == "dir") {
+                                                val summary = summaries[item.path]
+                                                "${summary?.directoryCount ?: 0} 个目录 · ${summary?.fileCount ?: 0} 个文件"
+                                            } else {
+                                                "${item.size / 1024} KB"
+                                            },
                                             style = MaterialTheme.typography.labelSmall,
                                             color = NextPalette.InkSecondary,
                                         )

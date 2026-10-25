@@ -60,6 +60,7 @@ private val groups = listOf(
         "学习",
         listOf(
             DrawerEntry("作业", AppRoute.Assignments, R.drawable.ic_iconpark_assignment),
+            DrawerEntry("课程任务", AppRoute.CourseTasks, R.drawable.ic_iconpark_assignment),
             DrawerEntry("学习资料", AppRoute.Materials, R.drawable.ic_iconpark_book),
             DrawerEntry("学生邮箱", AppRoute.Mail, R.drawable.ic_iconpark_mail),
             DrawerEntry("我的日程", AppRoute.CalendarEvents, R.drawable.ic_iconpark_calendar),
@@ -82,6 +83,7 @@ private val groups = listOf(
             DrawerEntry("网费充值", AppRoute.RechargeNetwork, R.drawable.ic_iconpark_wallet),
             DrawerEntry("食堂", AppRoute.Canteen, R.drawable.ic_iconpark_grades),
             DrawerEntry("失物招领", AppRoute.LostFound, R.drawable.ic_iconpark_search),
+            DrawerEntry("电话本", AppRoute.PhoneBook, R.drawable.ic_iconpark_user),
             DrawerEntry("校园通知", AppRoute.Notices, R.drawable.ic_iconpark_bell),
             DrawerEntry("天气", AppRoute.Weather, R.drawable.ic_iconpark_weather),
         ),
@@ -89,6 +91,7 @@ private val groups = listOf(
     DrawerGroup(
         "系统",
         listOf(
+            DrawerEntry("偏好设置", AppRoute.Preferences, R.drawable.ic_iconpark_setting),
             DrawerEntry("提醒", AppRoute.Reminders, R.drawable.ic_iconpark_bell),
             DrawerEntry("外观与显示", AppRoute.Appearance, R.drawable.ic_iconpark_setting),
             DrawerEntry("账号与资料", AppRoute.Accounts, R.drawable.ic_iconpark_user),
