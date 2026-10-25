@@ -252,8 +252,9 @@ class AgentRuntimeTest {
 
         val system = model.messages.first { it.role == "system" }.content.orEmpty()
         assertTrue(system.contains("2026-10-26 03:30"))
-        assertTrue(system.contains("04:00 前仍按前一天 2026-10-25 理解"))
-        assertTrue(system.contains("00:00-03:59仍算前一天"))
+        assertTrue(system.contains("这是准确时间"))
+        assertTrue(system.contains("凌晨时段用户说"))
+        assertTrue(system.contains("不得把凌晨说成前一天"))
         assertTrue(!system.contains("校园日"))
         assertTrue(!system.contains("10月26日"))
         assertTrue(!system.contains("10月27日"))
