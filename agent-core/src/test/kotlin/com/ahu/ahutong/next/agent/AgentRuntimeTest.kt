@@ -228,6 +228,10 @@ class AgentRuntimeTest {
         assertTrue(system.contains("2026-10-25 16:30"))
         assertTrue(system.contains("Asia/Shanghai"))
         assertTrue(system.contains("不要重新自我介绍"))
+        assertTrue(system.contains("互联大楼"))
+        assertTrue(system.contains("龙河"))
+        assertTrue(system.contains("每天13节"))
+        assertTrue(system.contains("08:00-08:45"))
         assertTrue(system.contains("web_search"))
         assertTrue(system.contains("\\("))
     }
