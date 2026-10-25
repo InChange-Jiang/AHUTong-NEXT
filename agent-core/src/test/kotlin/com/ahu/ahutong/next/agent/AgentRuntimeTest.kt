@@ -12,10 +12,12 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AgentRuntimeTest {
@@ -267,6 +269,45 @@ class AgentRuntimeTest {
         gate.reject()
         advanceUntilIdle()
         job.join()
+    }
+
+    @Test
+    fun paymentPasswordIsPassedOnlyAfterApproval() = runTest {
+        val received = AtomicReference<String?>(null)
+        val tool = object : Tool {
+            override val spec = writeSpec("recharge_electricity").copy(requiresPaymentPassword = true)
+            override suspend fun execute(arguments: JsonObject): ToolOutput = ToolOutput(ok = false)
+            override suspend fun executeWithSecret(arguments: JsonObject, secret: String?): ToolOutput {
+                received.set(secret)
+                return ToolOutput(ok = true)
+            }
+            override suspend fun describe(arguments: JsonObject): String = "房间：测试房间"
+        }
+        val model = ScriptedModel(
+            listOf(
+                ModelReply(toolCalls = listOf(call("recharge_electricity"))),
+                ModelReply(content = "已充值"),
+            ),
+        )
+        val gate = ApprovalGate()
+        val events = mutableListOf<AgentEvent>()
+        val job = launch {
+            AgentRuntime(model, ToolRegistry(listOf(tool)), clock = { 1L })
+                .run(emptyList(), "给电费充11块", gate)
+                .toList(events)
+        }
+        advanceUntilIdle()
+
+        assertNull(received.get())
+        val request = events.filterIsInstance<AgentEvent.ApprovalRequired>().single().request
+        assertTrue(request.requiresPaymentPassword)
+        assertTrue(request.summary.contains("测试房间"))
+
+        gate.approve("123456")
+        advanceUntilIdle()
+        job.join()
+
+        assertEquals("123456", received.get())
     }
 
     private fun call(name: String): ToolCall = ToolCall(

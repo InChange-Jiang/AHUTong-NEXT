@@ -110,7 +110,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun approve() {
+    fun approve(paymentPassword: String? = null) {
         val pending = _ui.value.pendingApprovalId ?: return
         _ui.update { state ->
             state.copy(
@@ -125,7 +125,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 status = "正在执行…",
             )
         }
-        gate.approve()
+        gate.approve(paymentPassword)
     }
 
     fun reject() {

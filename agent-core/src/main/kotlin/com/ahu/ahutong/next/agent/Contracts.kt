@@ -27,6 +27,11 @@ data class ToolSpec(
     val source: String,
     val timeoutMs: Long = 15_000,
     val requiresConfirmation: Boolean = kind == ToolKind.WRITE,
+    /**
+     * 校园卡支付密码由确认卡在本机采集，直接交给工具，不进入模型上下文、不写历史。
+     * 模型永远看不到这个字段对应的值。
+     */
+    val requiresPaymentPassword: Boolean = false,
 )
 
 @Serializable
@@ -69,6 +74,11 @@ data class ToolResult(
 interface Tool {
     val spec: ToolSpec
     suspend fun execute(arguments: JsonObject): ToolOutput
+    /** 需要本机支付密码的工具覆盖它；密码只在本次调用内使用。 */
+    suspend fun executeWithSecret(arguments: JsonObject, secret: String?): ToolOutput =
+        execute(arguments)
+    /** 确认卡里补充展示的业务信息，例如电费房间；不要在这里发起网络请求。 */
+    suspend fun describe(arguments: JsonObject): String? = null
 }
 
 class ToolRegistry(tools: List<Tool>) {

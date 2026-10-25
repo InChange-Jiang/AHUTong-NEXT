@@ -7,10 +7,12 @@ import com.ahu.ahutong.core.common.AppEnvironment
 import com.ahu.ahutong.core.common.AppEnvironmentHolder
 import com.ahu.ahutong.data.AHURepository
 import com.ahu.ahutong.data.FreeClassroomGateway
+import com.ahu.ahutong.data.adapter.CardRechargeOutcome
+import com.ahu.ahutong.data.adapter.RepositoryBathroomDepositSource
 import com.ahu.ahutong.data.adapter.RepositoryCardRechargeSource
 import com.ahu.ahutong.data.adapter.RepositoryElectricityDepositSource
 import com.ahu.ahutong.data.adapter.RepositoryElectricityUsageSource
-import com.ahu.ahutong.data.adapter.CardRechargeOutcome
+import com.ahu.ahutong.data.adapter.RepositoryNetworkRechargeSource
 import com.ahu.ahutong.data.crawler.model.jwxt.DateTimeSegmentCmd
 import com.ahu.ahutong.data.crawler.model.jwxt.GetFreeRoomsRequest
 import com.ahu.ahutong.data.crawler.model.ycard.TurnoverCount
@@ -18,6 +20,7 @@ import com.ahu.ahutong.data.crawler.model.ycard.TurnoverPage
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.model.CampusDataItem
 import com.ahu.ahutong.data.model.CardRechargeBank
+import com.ahu.ahutong.data.model.BathroomTelInfo
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.ElectricityController
 import com.ahu.ahutong.data.model.LoginOutcome
@@ -26,9 +29,12 @@ import com.ahu.ahutong.data.model.User
 import com.ahu.ahutong.data.notice.CampusNotice
 import com.ahu.ahutong.data.notice.UniversityNoticeCrawler
 import com.ahu.ahutong.data.notice.UniversityNoticeHttpFetcher
+import com.ahu.ahutong.data.recharge.BathroomPayment
 import com.ahu.ahutong.data.recharge.ElectricityOptionLevel
 import com.ahu.ahutong.data.recharge.ElectricityOptionQuery
+import com.ahu.ahutong.data.recharge.ElectricityPayment
 import com.ahu.ahutong.data.recharge.ElectricityUsageSnapshot
+import com.ahu.ahutong.data.recharge.RechargeReceipt
 import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.data.xuexiaotong.Work
 import com.ahu.ahutong.data.schedule.CurrentWeekResolver
@@ -189,6 +195,8 @@ object LegacyCampusApi {
     private val electricityDeposit = RepositoryElectricityDepositSource()
     private val electricityUsage = RepositoryElectricityUsageSource()
     private val cardRecharge = RepositoryCardRechargeSource()
+    private val bathroomDeposit = RepositoryBathroomDepositSource()
+    private val networkRecharge = RepositoryNetworkRechargeSource()
 
     /** 一卡通余额，优先走实时 queryCard。 */
     suspend fun cardMoney(): AhuResult<com.ahu.ahutong.data.model.Card> =
@@ -294,6 +302,55 @@ object LegacyCampusApi {
         selection: RoomSelectionInfo,
         asOf: LocalDate,
     ): AhuResult<ElectricityUsageSnapshot> = electricityUsage.snapshot(controller, selection, asOf)
+
+    /** 电费缴费需要当前房间的支付参数；房间来自设置里保存的选择。 */
+    suspend fun rechargeElectricity(
+        amountYuan: String,
+        password: String,
+    ): AhuResult<RechargeReceipt> {
+        val selection = savedElectricityRoom()?.takeIf { it.room != null }
+            ?: return AhuResult.Failure(AhuError.Unknown("还没有设置宿舍电费房间，请先在设置里选一次"))
+        val controller = electricityController()
+        val room = when (val result = electricityDeposit.room(controller, selection)) {
+            is AhuResult.Failure -> return result
+            is AhuResult.Success -> result.value
+        }
+        return electricityDeposit.pay(
+            ElectricityPayment(
+                controller = controller,
+                amount = amountYuan,
+                password = password,
+                room = room.details,
+            ),
+        )
+    }
+
+    /** 网费充值：先加载账户快照，再按金额与校园卡密码支付。 */
+    suspend fun rechargeNetwork(amountYuan: String, password: String): AhuResult<RechargeReceipt> {
+        val snapshot = when (val result = networkRecharge.load()) {
+            is AhuResult.Failure -> return result
+            is AhuResult.Success -> result.value
+        }
+        return networkRecharge.pay(snapshot, amountYuan, password)
+    }
+
+    suspend fun bathroomAccount(bathroom: String, tel: String): AhuResult<BathroomTelInfo> =
+        bathroomDeposit.bathroomInfo(bathroom, tel)
+
+    /** 浴室缴费：账号信息由 [bathroomAccount] 取得，密码只在本次调用内使用。 */
+    suspend fun rechargeBathroom(
+        bathroom: String,
+        amountYuan: String,
+        password: String,
+        account: com.ahu.ahutong.data.model.Data,
+    ): AhuResult<RechargeReceipt> = bathroomDeposit.pay(
+        BathroomPayment(
+            bathroom = bathroom,
+            amount = amountYuan,
+            password = password,
+            account = account,
+        ),
+    )
 
     private fun emptyElectricitySelection(controller: ElectricityController) = RoomSelectionInfo(
         campus = null,

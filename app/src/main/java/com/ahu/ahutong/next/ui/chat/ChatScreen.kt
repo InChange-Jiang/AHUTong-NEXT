@@ -67,7 +67,7 @@ fun ChatScreen(
     state: ChatUiState,
     onInputChange: (String) -> Unit,
     onSend: (String) -> Unit,
-    onApprove: () -> Unit,
+    onApprove: (String?) -> Unit,
     onReject: () -> Unit,
     onCancel: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -359,7 +359,7 @@ private fun InputPill(
 @Composable
 private fun MessageItem(
     item: ChatItem,
-    onApprove: () -> Unit,
+    onApprove: (String?) -> Unit,
     onReject: () -> Unit,
 ) {
     when (item) {

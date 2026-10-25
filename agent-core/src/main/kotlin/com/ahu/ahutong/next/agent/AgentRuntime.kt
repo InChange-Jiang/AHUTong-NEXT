@@ -84,25 +84,34 @@ class AgentRuntime(
                         continue
                     }
 
+                    var paymentPassword: String? = null
                     if (tool.spec.requiresConfirmation) {
+                        val detail = runCatching { tool.describe(call.arguments) }.getOrNull()
                         val request = ApprovalRequest(
                             id = UUID.randomUUID().toString(),
                             toolName = tool.spec.name,
                             displayName = tool.spec.displayName,
-                            summary = approvalSummary(tool.spec, call.arguments),
+                            summary = buildString {
+                                append(approvalSummary(tool.spec, call.arguments))
+                                detail?.takeIf { it.isNotBlank() }?.let {
+                                    append("\n")
+                                    append(it)
+                                }
+                            },
                             arguments = call.arguments,
                             risk = riskText(tool.spec),
+                            requiresPaymentPassword = tool.spec.requiresPaymentPassword,
                         )
                         val decision = gate.prepare()
                         emit(AgentEvent.ApprovalRequired(request))
 
-                        val approved = try {
+                        val approval = try {
                             decision.await()
                         } catch (e: CancellationException) {
                             throw e
                         }
 
-                        if (!approved) {
+                        if (!approval.approved) {
                             val result = ToolResult(
                                 callId = call.id,
                                 toolName = call.name,
@@ -115,10 +124,11 @@ class AgentRuntime(
                             messages += result.toToolMessage()
                             continue
                         }
+                        paymentPassword = approval.paymentPassword
                     }
 
                     emit(AgentEvent.Status("正在执行：${tool.spec.displayName}…"))
-                    val result = execute(tool, call)
+                    val result = execute(tool, call, paymentPassword)
                     emit(AgentEvent.ToolResultEvent(result))
                     messages += result.toToolMessage()
                 }
@@ -169,9 +179,11 @@ class AgentRuntime(
         val text: String,
     )
 
-    private suspend fun execute(tool: Tool, call: ToolCall): ToolResult {
+    private suspend fun execute(tool: Tool, call: ToolCall, paymentPassword: String?): ToolResult {
         return try {
-            val output = withTimeout(tool.spec.timeoutMs) { tool.execute(call.arguments) }
+            val output = withTimeout(tool.spec.timeoutMs) {
+                tool.executeWithSecret(call.arguments, paymentPassword)
+            }
             ToolResult(
                 callId = call.id,
                 toolName = tool.spec.name,
@@ -216,6 +228,20 @@ class AgentRuntime(
             }
             "将从$bank 扣款 ¥$amount，充值到你的校园卡。"
         }
+        "recharge_electricity" -> {
+            val amount = arguments["amount"]?.jsonPrimitive?.content ?: "未知"
+            "将从校园卡账户扣款 ¥$amount，充值到已设置的宿舍电费房间。"
+        }
+        "recharge_bathroom" -> {
+            val amount = arguments["amount"]?.jsonPrimitive?.content ?: "未知"
+            val bathroom = arguments["bathroom"]?.jsonPrimitive?.content ?: "浴室"
+            val phone = arguments["phone"]?.jsonPrimitive?.content ?: "手机号"
+            "将从校园卡账户扣款 ¥$amount，充值到「$bathroom」的浴室账户（$phone）。"
+        }
+        "recharge_network" -> {
+            val amount = arguments["amount"]?.jsonPrimitive?.content ?: "未知"
+            "将从校园卡账户扣款 ¥$amount，充值到你的校园网账户。"
+        }
         else -> "将执行「${spec.displayName}」，这个操作会产生实际变更。"
     }
 
@@ -234,6 +260,8 @@ class AgentRuntime(
     private fun riskText(spec: ToolSpec): String = when {
         spec.name == "recharge_card" ->
             "资金操作：确认后会立即从银行卡发起真实扣款，请核对金额和银行卡。"
+        spec.requiresPaymentPassword ->
+            "资金操作：确认后会立即从校园卡账户发起真实扣款，请核对金额和收款对象。"
         spec.kind == ToolKind.WRITE -> "写入操作：确认后才会执行，执行前不会产生任何变更。"
         else -> "只读操作"
     }
@@ -254,8 +282,9 @@ class AgentRuntime(
 5. 工具返回结果后，直接基于结果回答用户；不要重新自我介绍，也不要忽略工具结果。
 6. 需要实时信息（新闻、政策、赛事、天气、校外资料等）时调用 web_search；引用搜索结果时说明来源。
 7. 数学公式必须使用 \( ... \) 行内、\[ ... \] 块级；不要用 $ 作为公式分隔符，避免与货币符号冲突。
-8. 充值只有在用户本轮明确说出金额和银行卡时才能调用；金额或银行卡不清楚就先追问，不要猜，也不要替用户选。
-9. 充值会真实扣款。失败后不要自动重试，先让用户核对余额和账单，确认没到账再征得同意重新发起。
+8. 充值/缴费只有在用户本轮明确说出金额和收款对象时才能调用；金额或对象不清楚就先追问，不要猜，也不要替用户选。
+9. 充值/缴费会真实扣款。失败后不要自动重试，先让用户核对余额和账单，确认没到账再征得同意重新发起。
+10. 需要校园卡支付密码时，让用户在确认卡里直接输入；绝不要在聊天里索要、复述或记录密码。
 """
     }
 }

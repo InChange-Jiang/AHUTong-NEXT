@@ -138,7 +138,22 @@ class MockCampusRepository : CampusRepository {
         estimatedDays = 9,
     )
 
+    override fun electricityRoomLabel(): String? = "磬苑校区 梅园 3 栋 412"
+
     override suspend fun rechargeCard(amountYuan: String, bank: String): RechargeReceipt =
+        throw IllegalStateException("请先登录安大通账号再充值")
+
+    override suspend fun rechargeElectricity(amountYuan: String, password: String): RechargeReceipt =
+        throw IllegalStateException("请先登录安大通账号再充值")
+
+    override suspend fun rechargeBathroom(
+        bathroom: String,
+        phone: String,
+        amountYuan: String,
+        password: String,
+    ): RechargeReceipt = throw IllegalStateException("请先登录安大通账号再缴费")
+
+    override suspend fun rechargeNetwork(amountYuan: String, password: String): RechargeReceipt =
         throw IllegalStateException("请先登录安大通账号再充值")
 
     override suspend fun addCalendarEvent(

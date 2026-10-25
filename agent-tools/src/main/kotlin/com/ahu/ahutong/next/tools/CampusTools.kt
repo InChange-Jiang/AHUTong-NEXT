@@ -223,7 +223,7 @@ class RechargeCardTool(private val repository: CampusRepository) : Tool {
         if (bank != "agricultural" && bank != "cmb") {
             return invalid("只支持 agricultural（中国农业银行）或 cmb（招商银行）")
         }
-        val amountText = BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString()
+        val amountText = formatAmount(amount)
         val receipt = try {
             repository.rechargeCard(amountText, bank)
         } catch (failure: Exception) {
@@ -249,6 +249,168 @@ class RechargeCardTool(private val repository: CampusRepository) : Tool {
         error = ToolError("invalid_arguments", message),
     )
 }
+
+class RechargeElectricityTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "recharge_electricity",
+        displayName = "宿舍电费充值",
+        description = "从校园卡账户真实扣款，给设置里选定的宿舍房间充电费。只有用户本轮明确说出金额时才能调用；" +
+            "金额单位为元（0.01-2000）。校园卡 6 位支付密码由用户在确认卡里输入，模型不要索要或传递密码。" +
+            "失败后不要自动重试，先查电费确认是否已到账。",
+        parameters = schema(
+            properties = buildJsonObject {
+                put("amount", numberProp("充值金额，单位元", minimum = 0.01, maximum = 2000.0))
+            },
+            required = listOf("amount"),
+        ),
+        timeoutMs = 180_000,
+        kind = ToolKind.WRITE,
+        source = "电费系统",
+        requiresConfirmation = true,
+        requiresPaymentPassword = true,
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput =
+        invalid("需要用户在确认卡里输入校园卡支付密码")
+
+    override suspend fun describe(arguments: JsonObject): String? =
+        repository.electricityRoomLabel()?.let { "房间：$it" }
+
+    override suspend fun executeWithSecret(arguments: JsonObject, secret: String?): ToolOutput {
+        val amount = arguments.doubleOrNull("amount") ?: return invalid("缺少充值金额")
+        if (!amount.isFinite() || amount < 0.01 || amount > 2000.0) {
+            return invalid("充值金额需在 0.01 - 2000 元之间")
+        }
+        val password = secret?.takeIf { it.length == 6 && it.all(Char::isDigit) }
+            ?: return invalid("请输入 6 位校园卡支付密码")
+        val receipt = try {
+            repository.rechargeElectricity(formatAmount(amount), password)
+        } catch (failure: Exception) {
+            return paymentFailure(failure.message ?: "电费充值失败，请先在电费里确认是否已到账")
+        }
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject { put("receipt", AgentJson.encodeToJsonElement(receipt)) },
+        )
+    }
+
+    private fun invalid(message: String): ToolOutput = ToolOutput(
+        ok = false,
+        error = ToolError("invalid_arguments", message),
+    )
+}
+
+class RechargeBathroomTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "recharge_bathroom",
+        displayName = "浴室缴费",
+        description = "从校园卡账户真实扣款，给浴室账户充值。只有用户本轮明确说出浴室、手机号和金额时才能调用；" +
+            "bathroom 只能是「竹园/龙河」或「桔园/蕙园」，phone 是 11 位手机号，金额单位为元（0.01-2000）。" +
+            "校园卡 6 位支付密码由用户在确认卡里输入，模型不要索要或传递密码。" +
+            "失败后不要自动重试，先核对余额是否已到账。",
+        parameters = schema(
+            properties = buildJsonObject {
+                put("bathroom", stringProp("浴室：「竹园/龙河」或「桔园/蕙园」"))
+                put("phone", stringProp("浴室账户绑定的 11 位手机号"))
+                put("amount", numberProp("缴费金额，单位元", minimum = 0.01, maximum = 2000.0))
+            },
+            required = listOf("bathroom", "phone", "amount"),
+        ),
+        timeoutMs = 180_000,
+        kind = ToolKind.WRITE,
+        source = "浴室缴费系统",
+        requiresConfirmation = true,
+        requiresPaymentPassword = true,
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput =
+        invalid("需要用户在确认卡里输入校园卡支付密码")
+
+    override suspend fun executeWithSecret(arguments: JsonObject, secret: String?): ToolOutput {
+        val bathroom = arguments.stringOrNull("bathroom")
+            ?: return invalid("缺少浴室")
+        if (bathroom != "竹园/龙河" && bathroom != "桔园/蕙园") {
+            return invalid("浴室只能是「竹园/龙河」或「桔园/蕙园」")
+        }
+        val phone = arguments.stringOrNull("phone") ?: return invalid("缺少手机号")
+        if (!phone.matches(Regex("\\d{11}"))) return invalid("请输入 11 位手机号")
+        val amount = arguments.doubleOrNull("amount") ?: return invalid("缺少缴费金额")
+        if (!amount.isFinite() || amount < 0.01 || amount > 2000.0) {
+            return invalid("缴费金额需在 0.01 - 2000 元之间")
+        }
+        val password = secret?.takeIf { it.length == 6 && it.all(Char::isDigit) }
+            ?: return invalid("请输入 6 位校园卡支付密码")
+        val receipt = try {
+            repository.rechargeBathroom(bathroom, phone, formatAmount(amount), password)
+        } catch (failure: Exception) {
+            return paymentFailure(failure.message ?: "浴室缴费失败，请先核对余额是否已到账")
+        }
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject { put("receipt", AgentJson.encodeToJsonElement(receipt)) },
+        )
+    }
+
+    private fun invalid(message: String): ToolOutput = ToolOutput(
+        ok = false,
+        error = ToolError("invalid_arguments", message),
+    )
+}
+
+class RechargeNetworkTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "recharge_network",
+        displayName = "网费充值",
+        description = "从校园卡账户真实扣款，给校园网账户充值。只有用户本轮明确说出金额时才能调用；" +
+            "金额单位为元（0.01-2000）。校园卡 6 位支付密码由用户在确认卡里输入，模型不要索要或传递密码。" +
+            "失败后不要自动重试，先确认是否已到账。",
+        parameters = schema(
+            properties = buildJsonObject {
+                put("amount", numberProp("充值金额，单位元", minimum = 0.01, maximum = 2000.0))
+            },
+            required = listOf("amount"),
+        ),
+        timeoutMs = 180_000,
+        kind = ToolKind.WRITE,
+        source = "网费系统",
+        requiresConfirmation = true,
+        requiresPaymentPassword = true,
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput =
+        invalid("需要用户在确认卡里输入校园卡支付密码")
+
+    override suspend fun executeWithSecret(arguments: JsonObject, secret: String?): ToolOutput {
+        val amount = arguments.doubleOrNull("amount") ?: return invalid("缺少充值金额")
+        if (!amount.isFinite() || amount < 0.01 || amount > 2000.0) {
+            return invalid("充值金额需在 0.01 - 2000 元之间")
+        }
+        val password = secret?.takeIf { it.length == 6 && it.all(Char::isDigit) }
+            ?: return invalid("请输入 6 位校园卡支付密码")
+        val receipt = try {
+            repository.rechargeNetwork(formatAmount(amount), password)
+        } catch (failure: Exception) {
+            return paymentFailure(failure.message ?: "网费充值失败，请先确认是否已到账")
+        }
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject { put("receipt", AgentJson.encodeToJsonElement(receipt)) },
+        )
+    }
+
+    private fun invalid(message: String): ToolOutput = ToolOutput(
+        ok = false,
+        error = ToolError("invalid_arguments", message),
+    )
+}
+
+private fun formatAmount(amount: Double): String =
+    BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString()
+
+private fun paymentFailure(message: String): ToolOutput = ToolOutput(
+    ok = false,
+    error = ToolError("recharge_failed", message, retryable = false),
+)
 
 class AddCalendarEventTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
@@ -307,5 +469,8 @@ fun campusTools(repository: CampusRepository): List<Tool> = listOf(
     GetExamsTool(repository),
     GetElectricityTool(repository),
     RechargeCardTool(repository),
+    RechargeElectricityTool(repository),
+    RechargeBathroomTool(repository),
+    RechargeNetworkTool(repository),
     AddCalendarEventTool(repository),
 )

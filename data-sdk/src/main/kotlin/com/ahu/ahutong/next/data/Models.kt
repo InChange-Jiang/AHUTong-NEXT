@@ -68,7 +68,8 @@ data class BillSummary(
 data class RechargeReceipt(
     val orderId: String,
     val amountYuan: Double,
-    val bank: String,
+    val channel: String,
+    val target: String,
     val message: String,
 )
 

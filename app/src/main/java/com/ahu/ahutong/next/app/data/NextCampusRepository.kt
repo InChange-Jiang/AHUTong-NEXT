@@ -4,6 +4,7 @@ import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.legacy.toChinese
 import com.ahu.ahutong.data.crawler.model.ycard.TurnoverRecord
 import com.ahu.ahutong.data.model.CardRechargeBank
+import com.ahu.ahutong.data.model.RoomSelectionInfo
 import com.ahu.ahutong.data.recharge.ElectricityUsagePredictor
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.Balance
@@ -151,12 +152,7 @@ class NextCampusRepository(
             .fold(0.0) { total, reading -> total + reading.kwh }
         val lastSevenDays = (7 downTo 1).map { byDate[asOf.minusDays(it.toLong())] ?: 0.0 }
         return Electricity(
-            room = listOfNotNull(
-                selection.campus?.name,
-                selection.building?.name,
-                selection.floor?.name,
-                selection.room?.name,
-            ).joinToString(" "),
+            room = roomLabel(selection),
             balanceKwh = snapshot.remainingKwh,
             dailyUsage = lastSevenDays,
             estimatedDays = estimatedDays,
@@ -179,6 +175,11 @@ class NextCampusRepository(
         }
     }
 
+    override fun electricityRoomLabel(): String? =
+        LegacyCampusApi.savedElectricityRoom()
+            ?.takeIf { it.room != null }
+            ?.let(::roomLabel)
+
     override suspend fun rechargeCard(amountYuan: String, bank: String): RechargeReceipt {
         if (!real) throw IllegalStateException("请先登录安大通账号再充值")
         val bankType = when (bank.lowercase()) {
@@ -186,20 +187,87 @@ class NextCampusRepository(
             "cmb" -> CardRechargeBank.CHINA_MERCHANTS_BANK
             else -> throw IllegalArgumentException("不支持的银行卡：$bank")
         }
-        val amount = amountYuan.toDoubleOrNull()?.takeIf { it > 0.0 }
-            ?: throw IllegalArgumentException("充值金额无效")
+        val amount = amountOf(amountYuan)
         val outcome = LegacyCampusApi.rechargeCard(amountYuan, bankType).orThrow()
         return RechargeReceipt(
             orderId = outcome.orderId,
             amountYuan = amount,
-            bank = when (bankType) {
+            channel = when (bankType) {
                 CardRechargeBank.AGRICULTURAL_BANK -> "中国农业银行"
                 CardRechargeBank.CHINA_MERCHANTS_BANK -> "招商银行"
                 CardRechargeBank.ALIPAY -> "支付宝"
             },
+            target = "校园卡",
             message = outcome.message,
         )
     }
+
+    override suspend fun rechargeElectricity(amountYuan: String, password: String): RechargeReceipt {
+        if (!real) throw IllegalStateException("请先登录安大通账号再充值")
+        if (password.length != 6 || password.any { !it.isDigit() }) {
+            throw IllegalArgumentException("请输入 6 位校园卡支付密码")
+        }
+        val amount = amountOf(amountYuan)
+        val selection = LegacyCampusApi.savedElectricityRoom()?.takeIf { it.room != null }
+            ?: throw IllegalStateException("还没有设置宿舍电费房间，请先到「设置 → 宿舍电费」里选一次")
+        val receipt = LegacyCampusApi.rechargeElectricity(amountYuan, password).orThrow()
+        return RechargeReceipt(
+            orderId = receipt.reference,
+            amountYuan = amount,
+            channel = "校园卡账户",
+            target = roomLabel(selection),
+            message = "电费充值成功",
+        )
+    }
+
+    override suspend fun rechargeBathroom(
+        bathroom: String,
+        phone: String,
+        amountYuan: String,
+        password: String,
+    ): RechargeReceipt {
+        if (!real) throw IllegalStateException("请先登录安大通账号再缴费")
+        if (bathroom !in BATHROOMS) throw IllegalArgumentException("不支持的浴室：$bathroom")
+        if (!phone.matches(Regex("\\d{11}"))) throw IllegalArgumentException("请输入 11 位手机号")
+        if (password.length != 6 || password.any { !it.isDigit() }) {
+            throw IllegalArgumentException("请输入 6 位校园卡支付密码")
+        }
+        val amount = amountOf(amountYuan)
+        val account = LegacyCampusApi.bathroomAccount(bathroom, phone).orThrow()
+            .map?.data ?: throw IllegalStateException("未查询到浴室账户，请核对手机号")
+        val receipt = LegacyCampusApi.rechargeBathroom(
+            bathroom = bathroom,
+            amountYuan = amountYuan,
+            password = password,
+            account = account,
+        ).orThrow()
+        return RechargeReceipt(
+            orderId = receipt.reference,
+            amountYuan = amount,
+            channel = "校园卡账户",
+            target = "$bathroom · $phone",
+            message = "浴室缴费成功",
+        )
+    }
+
+    override suspend fun rechargeNetwork(amountYuan: String, password: String): RechargeReceipt {
+        if (!real) throw IllegalStateException("请先登录安大通账号再充值")
+        if (password.length != 6 || password.any { !it.isDigit() }) {
+            throw IllegalArgumentException("请输入 6 位校园卡支付密码")
+        }
+        val amount = amountOf(amountYuan)
+        val receipt = LegacyCampusApi.rechargeNetwork(amountYuan, password).orThrow()
+        return RechargeReceipt(
+            orderId = receipt.reference,
+            amountYuan = amount,
+            channel = "校园卡账户",
+            target = "网费账户",
+            message = "网费充值成功",
+        )
+    }
+
+    private fun amountOf(text: String): Double =
+        text.toDoubleOrNull()?.takeIf { it > 0.0 } ?: throw IllegalArgumentException("充值金额无效")
 
     override suspend fun addCalendarEvent(
         title: String,
@@ -216,8 +284,17 @@ class NextCampusRepository(
     private companion object {
         const val BILL_PAGE_SIZE = 50
         val TIME_FORMAT: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val BATHROOMS = setOf("竹园/龙河", "桔园/蕙园")
     }
 }
+
+private fun roomLabel(selection: RoomSelectionInfo): String =
+    listOfNotNull(
+        selection.campus?.name,
+        selection.building?.name,
+        selection.floor?.name,
+        selection.room?.name,
+    ).joinToString(" ")
 
 private fun TurnoverRecord.displayPlace(): String =
     toMerchant?.takeIf { it.isNotBlank() }

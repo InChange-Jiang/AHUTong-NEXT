@@ -46,7 +46,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
             state = state,
             onInputChange = viewModel::onInputChange,
             onSend = viewModel::send,
-            onApprove = viewModel::approve,
+            onApprove = { viewModel.approve(it) },
             onReject = viewModel::reject,
             onCancel = viewModel::cancelRun,
             onOpenSettings = { screen = Screen.SETTINGS },

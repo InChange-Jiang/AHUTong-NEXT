@@ -14,11 +14,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,6 +32,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
@@ -441,13 +449,13 @@ private fun RechargeBody(data: JsonObject?) {
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            "已充值到校园卡",
+            "已充值到${receipt.target}",
             style = MaterialTheme.typography.bodyMedium,
             color = NextPalette.Ink,
         )
     }
     Text(
-        "${receipt.bank} · ${receipt.message}",
+        "${receipt.channel} · ${receipt.message}",
         style = MaterialTheme.typography.labelSmall,
         color = NextPalette.InkSecondary,
     )
@@ -793,10 +801,12 @@ private fun SearchBody(data: JsonObject?) {
 @Composable
 fun ApprovalCard(
     item: ChatItem.Approval,
-    onApprove: () -> Unit,
+    onApprove: (String?) -> Unit,
     onReject: () -> Unit,
 ) {
     val pending = item.decision == ApprovalDecision.PENDING
+    val needsPassword = item.request.requiresPaymentPassword
+    var password by remember(item.id) { mutableStateOf("") }
     val statusText = when (item.decision) {
         ApprovalDecision.PENDING -> "等待确认"
         ApprovalDecision.APPROVED -> "已确认"
@@ -864,6 +874,25 @@ fun ApprovalCard(
                 }
             }
 
+            if (pending && needsPassword) {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { input -> password = input.filter(Char::isDigit).take(6) },
+                    label = { Text("校园卡支付密码（6 位）") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    singleLine = true,
+                    supportingText = {
+                        Text(
+                            "只在本机确认时使用，不保存、不发给模型。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
             Text(
                 item.request.risk,
                 modifier = Modifier
@@ -883,7 +912,15 @@ fun ApprovalCard(
                 ) {
                     SoftSecondaryButton(text = "取消", onClick = onReject)
                     Spacer(Modifier.width(10.dp))
-                    SoftPrimaryButton(text = "确认执行", onClick = onApprove)
+                    SoftPrimaryButton(
+                        text = "确认执行",
+                        enabled = !needsPassword || password.length == 6,
+                        onClick = {
+                            val secret = password.takeIf { needsPassword && it.length == 6 }
+                            password = ""
+                            onApprove(secret)
+                        },
+                    )
                 }
             }
         }
@@ -925,6 +962,9 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_exams" -> R.drawable.ic_iconpark_exam
     "get_electricity" -> R.drawable.ic_iconpark_electricity
     "recharge_card" -> R.drawable.ic_iconpark_wallet
+    "recharge_electricity" -> R.drawable.ic_iconpark_electricity
+    "recharge_bathroom" -> R.drawable.ic_iconpark_wallet
+    "recharge_network" -> R.drawable.ic_iconpark_wallet
     "get_weather" -> R.drawable.ic_iconpark_weather
     "get_attendance" -> R.drawable.ic_iconpark_assignment
     "get_program_completion" -> R.drawable.ic_iconpark_grades
@@ -945,6 +985,9 @@ private fun toolTitle(name: String): String = when (name) {
     "get_exams" -> "考试安排"
     "get_electricity" -> "宿舍电费"
     "recharge_card" -> "校园卡充值"
+    "recharge_electricity" -> "宿舍电费充值"
+    "recharge_bathroom" -> "浴室缴费"
+    "recharge_network" -> "网费充值"
     "get_weather" -> "天气"
     "get_attendance" -> "考勤"
     "get_program_completion" -> "培养方案"
@@ -962,6 +1005,8 @@ private fun labelFor(key: String): String = when (key) {
     "end" -> "结束"
     "amount" -> "充值金额"
     "bank" -> "银行卡"
+    "bathroom" -> "浴室"
+    "phone" -> "手机号"
     else -> key
 }
 

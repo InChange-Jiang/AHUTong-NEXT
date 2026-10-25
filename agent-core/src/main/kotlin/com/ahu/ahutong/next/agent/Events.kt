@@ -11,6 +11,7 @@ data class ApprovalRequest(
     val summary: String,
     val arguments: JsonObject,
     val risk: String,
+    val requiresPaymentPassword: Boolean = false,
 )
 
 sealed interface AgentEvent {
