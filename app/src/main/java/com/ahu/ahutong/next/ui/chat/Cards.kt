@@ -39,6 +39,7 @@ import com.ahu.ahutong.next.data.CourseOccurrence
 import com.ahu.ahutong.next.data.Electricity
 import com.ahu.ahutong.next.data.Exam
 import com.ahu.ahutong.next.data.Grade
+import com.ahu.ahutong.next.data.RechargeReceipt
 import com.ahu.ahutong.next.tools.SearchResult
 import com.ahu.ahutong.next.ui.components.AgentAvatar
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
@@ -114,6 +115,7 @@ fun ToolResultCard(result: ToolResult) {
                     "get_bills" -> BillsBody(result.data)
                     "get_exams" -> ExamBody(result.data)
                     "get_electricity" -> ElectricityBody(result.data)
+                    "recharge_card" -> RechargeBody(result.data)
                     "get_weather" -> WeatherBody(result.data)
                     "get_attendance" -> AttendanceBody(result.data)
                     "get_program_completion" -> CompletionBody(result.data)
@@ -422,6 +424,38 @@ private fun ElectricityBody(data: JsonObject?) {
     if (electricity.dailyUsage.isNotEmpty()) {
         UsageBars(electricity.dailyUsage)
     }
+}
+
+@Composable
+private fun RechargeBody(data: JsonObject?) {
+    val receipt = decodeRecharge(data)
+    if (receipt == null) {
+        EmptyHint("没有拿到充值结果。")
+        return
+    }
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            "¥${formatScore(receipt.amountYuan)}",
+            style = MaterialTheme.typography.headlineMedium,
+            color = NextPalette.Success,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "已充值到校园卡",
+            style = MaterialTheme.typography.bodyMedium,
+            color = NextPalette.Ink,
+        )
+    }
+    Text(
+        "${receipt.bank} · ${receipt.message}",
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
+    Text(
+        "订单号 ${receipt.orderId}",
+        style = MaterialTheme.typography.labelSmall,
+        color = NextPalette.InkSecondary,
+    )
 }
 
 @Composable
@@ -813,7 +847,7 @@ fun ApprovalCard(
                                 color = NextPalette.InkSecondary,
                             )
                             Text(
-                                value.display(),
+                                value.display().let { if (key == "bank") bankDisplay(it) else it },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = NextPalette.Ink,
                             )
@@ -890,6 +924,7 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_bills" -> R.drawable.ic_iconpark_bill
     "get_exams" -> R.drawable.ic_iconpark_exam
     "get_electricity" -> R.drawable.ic_iconpark_electricity
+    "recharge_card" -> R.drawable.ic_iconpark_wallet
     "get_weather" -> R.drawable.ic_iconpark_weather
     "get_attendance" -> R.drawable.ic_iconpark_assignment
     "get_program_completion" -> R.drawable.ic_iconpark_grades
@@ -909,6 +944,7 @@ private fun toolTitle(name: String): String = when (name) {
     "get_bills" -> "一卡通账单"
     "get_exams" -> "考试安排"
     "get_electricity" -> "宿舍电费"
+    "recharge_card" -> "校园卡充值"
     "get_weather" -> "天气"
     "get_attendance" -> "考勤"
     "get_program_completion" -> "培养方案"
@@ -924,7 +960,15 @@ private fun labelFor(key: String): String = when (key) {
     "title" -> "标题"
     "start" -> "开始"
     "end" -> "结束"
+    "amount" -> "充值金额"
+    "bank" -> "银行卡"
     else -> key
+}
+
+private fun bankDisplay(code: String): String = when (code) {
+    "agricultural" -> "中国农业银行"
+    "cmb" -> "招商银行"
+    else -> code
 }
 
 private fun JsonElement.display(): String =
@@ -998,6 +1042,13 @@ private fun decodeElectricity(data: JsonObject?): Electricity? {
     val element = data?.get("electricity") ?: return null
     return runCatching {
         AgentJson.decodeFromJsonElement(Electricity.serializer(), element)
+    }.getOrNull()
+}
+
+private fun decodeRecharge(data: JsonObject?): RechargeReceipt? {
+    val element = data?.get("receipt") ?: return null
+    return runCatching {
+        AgentJson.decodeFromJsonElement(RechargeReceipt.serializer(), element)
     }.getOrNull()
 }
 

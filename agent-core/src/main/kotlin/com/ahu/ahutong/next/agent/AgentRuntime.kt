@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -88,7 +89,7 @@ class AgentRuntime(
                             id = UUID.randomUUID().toString(),
                             toolName = tool.spec.name,
                             displayName = tool.spec.displayName,
-                            summary = approvalSummary(tool.spec),
+                            summary = approvalSummary(tool.spec, call.arguments),
                             arguments = call.arguments,
                             risk = riskText(tool.spec),
                         )
@@ -204,8 +205,17 @@ class AgentRuntime(
         }
     }
 
-    private fun approvalSummary(spec: ToolSpec): String = when (spec.name) {
+    private fun approvalSummary(spec: ToolSpec, arguments: JsonObject): String = when (spec.name) {
         "add_calendar_event" -> "将在本地日历中新建一条日程。"
+        "recharge_card" -> {
+            val amount = arguments["amount"]?.jsonPrimitive?.content ?: "未知"
+            val bank = when (arguments["bank"]?.jsonPrimitive?.content) {
+                "agricultural" -> "中国农业银行"
+                "cmb" -> "招商银行"
+                else -> "指定银行卡"
+            }
+            "将从$bank 扣款 ¥$amount，充值到你的校园卡。"
+        }
         else -> "将执行「${spec.displayName}」，这个操作会产生实际变更。"
     }
 
@@ -221,9 +231,11 @@ class AgentRuntime(
         }
     }
 
-    private fun riskText(spec: ToolSpec): String = when (spec.kind) {
-        ToolKind.WRITE -> "写入操作：确认后才会执行，执行前不会产生任何变更。"
-        ToolKind.READ -> "只读操作"
+    private fun riskText(spec: ToolSpec): String = when {
+        spec.name == "recharge_card" ->
+            "资金操作：确认后会立即从银行卡发起真实扣款，请核对金额和银行卡。"
+        spec.kind == ToolKind.WRITE -> "写入操作：确认后才会执行，执行前不会产生任何变更。"
+        else -> "只读操作"
     }
 
     companion object {
@@ -232,7 +244,7 @@ class AgentRuntime(
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm EEEE", Locale.CHINA)
 
         const val DEFAULT_SYSTEM_PROMPT = """
-你的名字叫安筱桐，是安大通 NEXT 的校园助手。你可以调用工具查询学生的课表、作业、成绩，或在用户确认后添加日程。
+你的名字叫安筱桐，是安大通 NEXT 的校园助手。你可以调用工具查询学生的课表、作业、成绩、余额、账单、电费，或在用户确认后添加日程、给校园卡充值。
 
 规则：
 1. 涉及个人数据时必须调用工具，不要凭空编造课程、作业、成绩或日期。
@@ -242,6 +254,8 @@ class AgentRuntime(
 5. 工具返回结果后，直接基于结果回答用户；不要重新自我介绍，也不要忽略工具结果。
 6. 需要实时信息（新闻、政策、赛事、天气、校外资料等）时调用 web_search；引用搜索结果时说明来源。
 7. 数学公式必须使用 \( ... \) 行内、\[ ... \] 块级；不要用 $ 作为公式分隔符，避免与货币符号冲突。
+8. 充值只有在用户本轮明确说出金额和银行卡时才能调用；金额或银行卡不清楚就先追问，不要猜，也不要替用户选。
+9. 充值会真实扣款。失败后不要自动重试，先让用户核对余额和账单，确认没到账再征得同意重新发起。
 """
     }
 }

@@ -65,6 +65,14 @@ data class BillSummary(
 )
 
 @Serializable
+data class RechargeReceipt(
+    val orderId: String,
+    val amountYuan: Double,
+    val bank: String,
+    val message: String,
+)
+
+@Serializable
 data class Exam(
     val course: String,
     val time: String,

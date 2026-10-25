@@ -7,14 +7,17 @@ import com.ahu.ahutong.core.common.AppEnvironment
 import com.ahu.ahutong.core.common.AppEnvironmentHolder
 import com.ahu.ahutong.data.AHURepository
 import com.ahu.ahutong.data.FreeClassroomGateway
+import com.ahu.ahutong.data.adapter.RepositoryCardRechargeSource
 import com.ahu.ahutong.data.adapter.RepositoryElectricityDepositSource
 import com.ahu.ahutong.data.adapter.RepositoryElectricityUsageSource
+import com.ahu.ahutong.data.adapter.CardRechargeOutcome
 import com.ahu.ahutong.data.crawler.model.jwxt.DateTimeSegmentCmd
 import com.ahu.ahutong.data.crawler.model.jwxt.GetFreeRoomsRequest
 import com.ahu.ahutong.data.crawler.model.ycard.TurnoverCount
 import com.ahu.ahutong.data.crawler.model.ycard.TurnoverPage
 import com.ahu.ahutong.data.dao.AHUCache
 import com.ahu.ahutong.data.model.CampusDataItem
+import com.ahu.ahutong.data.model.CardRechargeBank
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.ElectricityController
 import com.ahu.ahutong.data.model.LoginOutcome
@@ -185,6 +188,7 @@ object LegacyCampusApi {
 
     private val electricityDeposit = RepositoryElectricityDepositSource()
     private val electricityUsage = RepositoryElectricityUsageSource()
+    private val cardRecharge = RepositoryCardRechargeSource()
 
     /** 一卡通余额，优先走实时 queryCard。 */
     suspend fun cardMoney(): AhuResult<com.ahu.ahutong.data.model.Card> =
@@ -229,6 +233,18 @@ object LegacyCampusApi {
             timeTo = timeTo,
             type = null,
         )
+    }
+
+    /**
+     * 校园卡充值：查卡 → 开单 → 扣款。真实资金操作，调用方必须先取得用户确认。
+     * 金额单位为元，成功时返回订单号与上游消息。
+     */
+    suspend fun rechargeCard(
+        amountYuan: String,
+        bank: CardRechargeBank,
+    ): AhuResult<CardRechargeOutcome> {
+        AHURepository.useCrawlerDataSource()
+        return cardRecharge.recharge(amountYuan, bank)
     }
 
     // ---- 宿舍电费：房间选择 + 用电快照（只读，不涉及缴费） ----

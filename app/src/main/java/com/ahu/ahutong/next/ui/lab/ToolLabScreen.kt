@@ -72,7 +72,8 @@ fun ToolLabScreen(onBack: () -> Unit) {
     val repository = remember { NextCampusRepository() }
     val registry = remember {
         ToolRegistry(
-            campusTools(repository) + listOf(
+            // 工作台绕过确认卡，不能放真实扣款的工具进来。
+            campusTools(repository).filterNot { it.spec.name == "recharge_card" } + listOf(
                 GetWeatherTool(),
                 GetAttendanceTool(),
                 GetProgramCompletionTool(),

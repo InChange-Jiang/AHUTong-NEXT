@@ -138,6 +138,9 @@ class MockCampusRepository : CampusRepository {
         estimatedDays = 9,
     )
 
+    override suspend fun rechargeCard(amountYuan: String, bank: String): RechargeReceipt =
+        throw IllegalStateException("请先登录安大通账号再充值")
+
     override suspend fun addCalendarEvent(
         title: String,
         start: String,

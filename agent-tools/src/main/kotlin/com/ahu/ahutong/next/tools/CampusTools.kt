@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
+import java.math.BigDecimal
 
 class GetScheduleTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
@@ -191,6 +192,64 @@ class GetElectricityTool(private val repository: CampusRepository) : Tool {
     }
 }
 
+class RechargeCardTool(private val repository: CampusRepository) : Tool {
+    override val spec = ToolSpec(
+        name = "recharge_card",
+        displayName = "校园卡充值",
+        description = "从用户指定的银行卡真实扣款，给校园一卡通充值。只有用户在本轮明确给出金额和银行卡时才能调用；" +
+            "金额单位为元（0.01-2000），bank 只能是 agricultural（中国农业银行）或 cmb（招商银行）。" +
+            "失败后不要自动重试，先查余额确认是否已到账。",
+        parameters = schema(
+            properties = buildJsonObject {
+                put("amount", numberProp("充值金额，单位元", minimum = 0.01, maximum = 2000.0))
+                put("bank", stringProp("扣款银行卡：agricultural=中国农业银行；cmb=招商银行"))
+            },
+            required = listOf("amount", "bank"),
+        ),
+        timeoutMs = 180_000,
+        kind = ToolKind.WRITE,
+        source = "一卡通系统",
+        requiresConfirmation = true,
+    )
+
+    override suspend fun execute(arguments: JsonObject): ToolOutput {
+        val amount = arguments.doubleOrNull("amount")
+            ?: return invalid("缺少充值金额")
+        if (!amount.isFinite() || amount < 0.01 || amount > 2000.0) {
+            return invalid("充值金额需在 0.01 - 2000 元之间")
+        }
+        val bank = arguments.stringOrNull("bank")?.lowercase()
+            ?: return invalid("缺少扣款银行卡")
+        if (bank != "agricultural" && bank != "cmb") {
+            return invalid("只支持 agricultural（中国农业银行）或 cmb（招商银行）")
+        }
+        val amountText = BigDecimal.valueOf(amount).stripTrailingZeros().toPlainString()
+        val receipt = try {
+            repository.rechargeCard(amountText, bank)
+        } catch (failure: Exception) {
+            return ToolOutput(
+                ok = false,
+                error = ToolError(
+                    code = "recharge_failed",
+                    message = failure.message ?: "充值失败，请先在余额里确认是否已到账",
+                    retryable = false,
+                ),
+            )
+        }
+        return ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("receipt", AgentJson.encodeToJsonElement(receipt))
+            },
+        )
+    }
+
+    private fun invalid(message: String): ToolOutput = ToolOutput(
+        ok = false,
+        error = ToolError("invalid_arguments", message),
+    )
+}
+
 class AddCalendarEventTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
         name = "add_calendar_event",
@@ -247,5 +306,6 @@ fun campusTools(repository: CampusRepository): List<Tool> = listOf(
     GetBillsTool(repository),
     GetExamsTool(repository),
     GetElectricityTool(repository),
+    RechargeCardTool(repository),
     AddCalendarEventTool(repository),
 )

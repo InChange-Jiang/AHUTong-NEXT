@@ -117,7 +117,7 @@ fun SettingsScreen(
                             color = NextPalette.Ink,
                         )
                         Text(
-                            "课表、成绩、考试安排来自教务系统；一卡通余额、账单与电费来自校园卡系统。本版不含充值/支付。",
+                            "课表、成绩、考试安排来自教务系统；一卡通余额、账单与电费来自校园卡系统。充值会在确认卡中确认后才真实扣款。",
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
                         )

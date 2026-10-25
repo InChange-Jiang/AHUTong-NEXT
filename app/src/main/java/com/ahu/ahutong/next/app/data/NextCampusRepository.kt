@@ -3,6 +3,7 @@ package com.ahu.ahutong.next.app.data
 import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.legacy.toChinese
 import com.ahu.ahutong.data.crawler.model.ycard.TurnoverRecord
+import com.ahu.ahutong.data.model.CardRechargeBank
 import com.ahu.ahutong.data.recharge.ElectricityUsagePredictor
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.Balance
@@ -15,6 +16,7 @@ import com.ahu.ahutong.next.data.Electricity
 import com.ahu.ahutong.next.data.Exam
 import com.ahu.ahutong.next.data.Grade
 import com.ahu.ahutong.next.data.MockCampusRepository
+import com.ahu.ahutong.next.data.RechargeReceipt
 import com.ahu.ahutong.core.common.AhuResult
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -175,6 +177,28 @@ class NextCampusRepository(
                 status = if (work.isDone) "已完成" else "未提交",
             )
         }
+    }
+
+    override suspend fun rechargeCard(amountYuan: String, bank: String): RechargeReceipt {
+        if (!real) throw IllegalStateException("请先登录安大通账号再充值")
+        val bankType = when (bank.lowercase()) {
+            "agricultural" -> CardRechargeBank.AGRICULTURAL_BANK
+            "cmb" -> CardRechargeBank.CHINA_MERCHANTS_BANK
+            else -> throw IllegalArgumentException("不支持的银行卡：$bank")
+        }
+        val amount = amountYuan.toDoubleOrNull()?.takeIf { it > 0.0 }
+            ?: throw IllegalArgumentException("充值金额无效")
+        val outcome = LegacyCampusApi.rechargeCard(amountYuan, bankType).orThrow()
+        return RechargeReceipt(
+            orderId = outcome.orderId,
+            amountYuan = amount,
+            bank = when (bankType) {
+                CardRechargeBank.AGRICULTURAL_BANK -> "中国农业银行"
+                CardRechargeBank.CHINA_MERCHANTS_BANK -> "招商银行"
+                CardRechargeBank.ALIPAY -> "支付宝"
+            },
+            message = outcome.message,
+        )
     }
 
     override suspend fun addCalendarEvent(

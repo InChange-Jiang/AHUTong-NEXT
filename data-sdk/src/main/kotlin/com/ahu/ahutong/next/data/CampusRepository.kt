@@ -8,6 +8,13 @@ interface CampusRepository {
     suspend fun bills(): BillSummary
     suspend fun exams(): List<Exam>
     suspend fun electricity(): Electricity
+
+    /**
+     * 校园卡充值。bank 只接受 "agricultural" 或 "cmb"。
+     * 这是真实扣款操作，调用方必须先取得用户确认。
+     */
+    suspend fun rechargeCard(amountYuan: String, bank: String): RechargeReceipt
+
     suspend fun addCalendarEvent(
         title: String,
         start: String,

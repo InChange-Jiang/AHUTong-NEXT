@@ -230,6 +230,45 @@ class AgentRuntimeTest {
         assertTrue(system.contains("\\("))
     }
 
+    @Test
+    fun rechargeApprovalShowsAmountAndBank() = runTest {
+        val tool = fakeTool(spec = writeSpec("recharge_card")) { ToolOutput(ok = true) }
+        val model = ScriptedModel(
+            listOf(
+                ModelReply(
+                    toolCalls = listOf(
+                        ToolCall(
+                            id = "call-1",
+                            name = "recharge_card",
+                            arguments = buildJsonObject {
+                                put("amount", 11)
+                                put("bank", "agricultural")
+                            },
+                        ),
+                    ),
+                ),
+                ModelReply(content = "已充值"),
+            ),
+        )
+        val gate = ApprovalGate()
+        val events = mutableListOf<AgentEvent>()
+        val job = launch {
+            AgentRuntime(model, ToolRegistry(listOf(tool)), clock = { 1L })
+                .run(emptyList(), "帮我充11块钱进去，用农行的卡", gate)
+                .toList(events)
+        }
+        advanceUntilIdle()
+
+        val request = events.filterIsInstance<AgentEvent.ApprovalRequired>().single().request
+        assertTrue(request.summary.contains("¥11"))
+        assertTrue(request.summary.contains("中国农业银行"))
+        assertTrue(request.risk.contains("真实扣款"))
+
+        gate.reject()
+        advanceUntilIdle()
+        job.join()
+    }
+
     private fun call(name: String): ToolCall = ToolCall(
         id = "call-1",
         name = name,
