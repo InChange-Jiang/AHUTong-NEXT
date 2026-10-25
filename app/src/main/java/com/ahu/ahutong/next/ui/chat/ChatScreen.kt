@@ -389,32 +389,45 @@ private fun UserBubble(text: String) {
 
 @Composable
 private fun AssistantMessage(text: String, streaming: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        AgentAvatar(size = 30.dp)
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AgentAvatar(size = 24.dp)
+            Spacer(Modifier.width(8.dp))
             Text(
                 "安筱桐",
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = NextPalette.Accent,
             )
-            Spacer(Modifier.height(3.dp))
-            if (streaming) {
-                StreamingMarkdown(text)
-            } else if (text.containsMath()) {
-                KatexMarkdown(
-                    markdown = text,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                AppMarkdown(
-                    markdown = text,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        }
+        Spacer(Modifier.height(7.dp))
+        SoftSurface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(
+                topStart = 8.dp,
+                topEnd = 22.dp,
+                bottomEnd = 22.dp,
+                bottomStart = 22.dp,
+            ),
+            color = NextPalette.Surface,
+            elevation = 5.dp,
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+            ) {
+                if (streaming) {
+                    StreamingMarkdown(text)
+                } else if (text.containsMath()) {
+                    KatexMarkdown(
+                        markdown = text,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    AppMarkdown(
+                        markdown = text,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
     }

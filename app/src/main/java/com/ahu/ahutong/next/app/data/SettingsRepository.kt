@@ -3,8 +3,9 @@ package com.ahu.ahutong.next.app.data
 import android.content.Context
 
 class SettingsRepository(context: Context) {
-    private val prefs = context.getSharedPreferences("next_settings", Context.MODE_PRIVATE)
-    private val secrets = SecretStore(context)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("next_settings", Context.MODE_PRIVATE)
+    private val secrets = SecretStore(appContext)
 
     fun apiKey(): String? = secrets.get()
 
@@ -13,6 +14,28 @@ class SettingsRepository(context: Context) {
     fun model(): String = prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
 
     fun searchEnabled(): Boolean = prefs.getBoolean(KEY_SEARCH_ENABLED, true)
+
+    /**
+     * 全局显示大小。默认按屏幕宽度给一个底：小屏更紧凑，大屏略放大。
+     * 1.0 为标准；范围限制在 0.80 - 1.20，避免极端值把布局打散。
+     */
+    fun displayScale(): Float {
+        val saved = prefs.getFloat(KEY_DISPLAY_SCALE, -1f)
+        if (saved > 0f) return saved.coerceIn(MIN_DISPLAY_SCALE, MAX_DISPLAY_SCALE)
+        val widthDp = appContext.resources.configuration.screenWidthDp
+        return when {
+            widthDp in 1..360 -> 0.88f
+            widthDp in 361..399 -> 0.92f
+            widthDp >= 600 -> 1.06f
+            else -> 1f
+        }
+    }
+
+    fun setDisplayScale(scale: Float) {
+        prefs.edit()
+            .putFloat(KEY_DISPLAY_SCALE, scale.coerceIn(MIN_DISPLAY_SCALE, MAX_DISPLAY_SCALE))
+            .apply()
+    }
 
     fun setSearchEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SEARCH_ENABLED, enabled).apply()
@@ -37,5 +60,8 @@ class SettingsRepository(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_MODEL = "model"
         private const val KEY_SEARCH_ENABLED = "search_enabled"
+        private const val KEY_DISPLAY_SCALE = "display_scale"
+        const val MIN_DISPLAY_SCALE = 0.80f
+        const val MAX_DISPLAY_SCALE = 1.20f
     }
 }

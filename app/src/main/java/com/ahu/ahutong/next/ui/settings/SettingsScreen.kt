@@ -22,6 +22,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,6 +35,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -51,11 +54,14 @@ import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.components.SoftTextField
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
     modelLabel: String,
     historyCount: Int,
+    displayScale: Float,
+    onDisplayScaleChange: (Float) -> Unit,
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onClearHistory: () -> Unit,
@@ -240,6 +246,62 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = NextPalette.AccentDeep,
                     )
+                }
+
+                Spacer(Modifier.padding(top = 14.dp))
+
+                SettingsCard {
+                    SectionTitle("显示")
+                    Text(
+                        "调整聊天、卡片与设置页的整体大小。小屏手机建议 88% - 95%，大屏可以适当放大。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "小",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        Slider(
+                            value = displayScale,
+                            onValueChange = { onDisplayScaleChange((it * 100).roundToInt() / 100f) },
+                            valueRange = SettingsRepository.MIN_DISPLAY_SCALE..
+                                SettingsRepository.MAX_DISPLAY_SCALE,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 10.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = NextPalette.Accent,
+                                activeTrackColor = NextPalette.Accent,
+                                inactiveTrackColor = NextPalette.AccentSoft,
+                                activeTickColor = Color.Transparent,
+                                inactiveTickColor = Color.Transparent,
+                            ),
+                        )
+                        Text(
+                            "大",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "当前：${(displayScale * 100).roundToInt()}%",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = NextPalette.AccentDeep,
+                        )
+                        TextButton(onClick = { onDisplayScaleChange(1f) }) {
+                            Text("恢复标准")
+                        }
+                    }
                 }
 
                 Spacer(Modifier.padding(top = 14.dp))
