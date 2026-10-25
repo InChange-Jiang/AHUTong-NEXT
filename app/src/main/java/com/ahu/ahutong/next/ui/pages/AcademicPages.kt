@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,7 +57,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
-import com.ahu.ahutong.next.ui.components.SoftChipFlow
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -351,7 +350,7 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
 
             FeatureScrollColumn {
                 if (terms.isNotEmpty()) {
-                    SoftChipFlow {
+                    SoftChipStrip {
                         terms.forEach { term ->
                             SoftChip(
                                 term,
@@ -914,10 +913,7 @@ fun FreeRoomsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 }
                 if (buildings.isNotEmpty()) {
                     Text("教学楼", style = MaterialTheme.typography.labelSmall, color = NextPalette.InkSecondary)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    SoftChipStrip {
                         SoftChip("全部", onClick = { buildingFilter = null }, selected = buildingFilter == null)
                         buildings.forEach { building ->
                             SoftChip(building, onClick = { buildingFilter = building }, selected = buildingFilter == building)

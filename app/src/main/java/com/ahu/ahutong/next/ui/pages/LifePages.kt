@@ -49,7 +49,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
-import com.ahu.ahutong.next.ui.components.SoftChipFlow
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -136,7 +136,7 @@ fun NoticesPage(onBack: () -> Unit) {
                     }
                 }
             }
-            SoftChipFlow {
+            SoftChipStrip {
                 SoftChip("全部", onClick = { sourceFilter = null }, selected = sourceFilter == null)
                 sources.forEach { source ->
                     SoftChip(
@@ -260,13 +260,13 @@ fun LostFoundPage(onBack: () -> Unit) {
                     (!myPostsOnly || item.createuser == LegacyCampusApi.currentUserName())
             }
             Column {
-                SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
+                SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
                     SoftChip("全部校区", onClick = { campusFilter = null }, selected = campusFilter == null)
                     campuses.forEach { campus ->
                         SoftChip(campus.campusName, onClick = { campusFilter = campus.id }, selected = campusFilter == campus.id)
                     }
                 }
-                SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
+                SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
                     SoftChip("全部类型", onClick = { typeFilter = null }, selected = typeFilter == null)
                     types.forEach { type ->
                         SoftChip(type.typeName, onClick = { typeFilter = type.typeId }, selected = typeFilter == type.typeId)

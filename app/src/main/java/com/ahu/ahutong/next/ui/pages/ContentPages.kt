@@ -47,7 +47,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
-import com.ahu.ahutong.next.ui.components.SoftChipFlow
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -132,7 +132,7 @@ fun MailPage(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
         )
         if (folders.isNotEmpty()) {
-            SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
+            SoftChipStrip(modifier = Modifier.padding(horizontal = 18.dp)) {
                 folders.forEach { folder ->
                     SoftChip(
                         "${folder.name}${if (folder.unread > 0) " (${folder.unread})" else ""}",

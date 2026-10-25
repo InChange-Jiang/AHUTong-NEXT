@@ -35,7 +35,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.SoftChip
-import com.ahu.ahutong.next.ui.components.SoftChipFlow
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
@@ -232,7 +232,7 @@ fun PhoneBookPage(onBack: () -> Unit) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            SoftChipFlow {
+            SoftChipStrip {
                 SoftChip("全部", onClick = { department = null }, selected = department == null)
                 departments.forEach { name ->
                     SoftChip(name, onClick = { department = name }, selected = department == name)

@@ -4,14 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -42,8 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
@@ -228,14 +232,33 @@ fun SoftChip(
 }
 
 @Composable
-fun SoftChipFlow(
+fun SoftChipStrip(
     modifier: Modifier = Modifier,
-    content: @Composable FlowRowScope.() -> Unit,
+    bleed: Dp = 18.dp,
+    content: @Composable RowScope.() -> Unit,
 ) {
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
+    val bleedPx = with(LocalDensity.current) { bleed.roundToPx() }
+    val scrollState = rememberScrollState()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .layout { measurable, constraints ->
+                val width = constraints.maxWidth
+                val placeable = measurable.measure(
+                    constraints.copy(
+                        minWidth = width + bleedPx * 2,
+                        maxWidth = width + bleedPx * 2,
+                        minHeight = 0,
+                        maxHeight = Constraints.Infinity,
+                    ),
+                )
+                layout(width, (placeable.height - bleedPx * 2).coerceAtLeast(0)) {
+                    placeable.place(-bleedPx, -bleedPx)
+                }
+            }
+            .horizontalScroll(scrollState)
+            .padding(horizontal = bleed, vertical = bleed),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
 }
