@@ -288,13 +288,18 @@ class NextCampusRepository(
     }
 }
 
-private fun roomLabel(selection: RoomSelectionInfo): String =
-    listOfNotNull(
-        selection.campus?.name,
-        selection.building?.name,
-        selection.floor?.name,
-        selection.room?.name,
-    ).joinToString(" ")
+private fun roomLabel(selection: RoomSelectionInfo): String {
+    val campus = selection.campus?.name
+    val building = selection.building?.name
+    val floor = selection.floor?.name
+    val room = selection.room?.name
+    // 上游的 room.name 常已包含楼栋甚至楼层（如「兰园C楼空调-4-415」），避免重复拼接。
+    return if (room != null && building != null && room.contains(building)) {
+        listOfNotNull(campus, room).joinToString(" ")
+    } else {
+        listOfNotNull(campus, building, floor, room).joinToString(" ")
+    }
+}
 
 private fun TurnoverRecord.displayPlace(): String =
     toMerchant?.takeIf { it.isNotBlank() }

@@ -123,7 +123,10 @@ fun ToolResultCard(result: ToolResult) {
                     "get_bills" -> BillsBody(result.data)
                     "get_exams" -> ExamBody(result.data)
                     "get_electricity" -> ElectricityBody(result.data)
-                    "recharge_card" -> RechargeBody(result.data)
+                    "recharge_card",
+                    "recharge_electricity",
+                    "recharge_bathroom",
+                    "recharge_network" -> RechargeBody(result.data)
                     "get_weather" -> WeatherBody(result.data)
                     "get_attendance" -> AttendanceBody(result.data)
                     "get_program_completion" -> CompletionBody(result.data)
