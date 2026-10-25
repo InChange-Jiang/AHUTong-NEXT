@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -51,6 +49,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipFlow
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -137,10 +136,7 @@ fun NoticesPage(onBack: () -> Unit) {
                     }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            SoftChipFlow {
                 SoftChip("全部", onClick = { sourceFilter = null }, selected = sourceFilter == null)
                 sources.forEach { source ->
                     SoftChip(
@@ -264,19 +260,13 @@ fun LostFoundPage(onBack: () -> Unit) {
                     (!myPostsOnly || item.createuser == LegacyCampusApi.currentUserName())
             }
             Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
                     SoftChip("全部校区", onClick = { campusFilter = null }, selected = campusFilter == null)
                     campuses.forEach { campus ->
                         SoftChip(campus.campusName, onClick = { campusFilter = campus.id }, selected = campusFilter == campus.id)
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
                     SoftChip("全部类型", onClick = { typeFilter = null }, selected = typeFilter == null)
                     types.forEach { type ->
                         SoftChip(type.typeName, onClick = { typeFilter = type.typeId }, selected = typeFilter == type.typeId)

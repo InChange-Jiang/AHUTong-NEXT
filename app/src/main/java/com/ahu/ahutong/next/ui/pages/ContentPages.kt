@@ -1,7 +1,6 @@
 package com.ahu.ahutong.next.ui.pages
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +47,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipFlow
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
@@ -132,10 +132,7 @@ fun MailPage(onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp),
         )
         if (folders.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
                 folders.forEach { folder ->
                     SoftChip(
                         "${folder.name}${if (folder.unread > 0) " (${folder.unread})" else ""}",

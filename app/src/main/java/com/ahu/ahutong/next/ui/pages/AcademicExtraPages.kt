@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +43,7 @@ import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipFlow
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
@@ -108,10 +107,7 @@ fun EvaluationPage(onBack: () -> Unit) {
         actions = { RefreshIconButton { reload++ } },
     ) {
         if (semesters.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
                 semesters.forEach { semester ->
                     SoftChip(
                         semester.nameZh.ifBlank { semester.schoolYear },
@@ -350,10 +346,7 @@ fun SchoolCalendarPage(onBack: () -> Unit) {
         actions = { RefreshIconButton { reload++ } },
     ) {
         if (years.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            SoftChipFlow(modifier = Modifier.padding(horizontal = 18.dp)) {
                 years.forEach { year ->
                     SoftChip(
                         year,
