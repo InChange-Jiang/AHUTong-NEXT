@@ -5,6 +5,9 @@ import com.ahu.ahutong.core.common.AhuError
 import com.ahu.ahutong.core.common.AhuResult
 import com.ahu.ahutong.core.common.AppEnvironment
 import com.ahu.ahutong.core.common.AppEnvironmentHolder
+import com.ahu.ahutong.core.common.map
+import com.ahu.ahutong.data.EvaluationRepository
+import com.ahu.ahutong.data.EvalQuestionnaireForm
 import com.ahu.ahutong.data.AHURepository
 import com.ahu.ahutong.data.FreeClassroomGateway
 import com.ahu.ahutong.data.adapter.CardRechargeOutcome
@@ -22,6 +25,15 @@ import com.ahu.ahutong.data.model.CampusDataItem
 import com.ahu.ahutong.data.model.CardRechargeBank
 import com.ahu.ahutong.data.model.BathroomTelInfo
 import com.ahu.ahutong.data.model.Course
+import com.ahu.ahutong.data.model.EvalCheckParam
+import com.ahu.ahutong.data.model.EvalQuestion
+import com.ahu.ahutong.data.model.EvalSemester
+import com.ahu.ahutong.data.model.EvalSubmitRequest
+import com.ahu.ahutong.data.model.EvalTask
+import com.ahu.ahutong.data.model.GpaRankInfo
+import com.ahu.ahutong.data.crawler.model.jwxt.StudentInfo
+import com.ahu.ahutong.data.schedule.ScheduleSemester
+import com.ahu.ahutong.data.server.model.SchoolCalendarYearsResponse
 import com.ahu.ahutong.data.model.ElectricityController
 import com.ahu.ahutong.data.model.LoginOutcome
 import com.ahu.ahutong.data.model.RoomSelectionInfo
@@ -41,6 +53,7 @@ import com.ahu.ahutong.data.schedule.CurrentWeekResolver
 import com.ahu.ahutong.data.schedule.ScheduleSectionTimes
 import com.ahu.ahutong.data.schedule.TeachingWeekPolicy
 import com.ahu.ahutong.data.session.DefaultAhuSession
+import com.ahu.ahutong.data.session.SavedAccounts
 import com.ahu.ahutong.data.session.SecureCredentialVault
 import com.ahu.ahutong.data.session.SessionStore
 import com.tencent.mmkv.MMKV
@@ -133,9 +146,20 @@ object LegacyCampusApi {
     private fun persistUser(user: User, password: String?) {
         password?.let { SecureCredentialVault.saveWisdomPassword(it) }
         AHUCache.saveCurrentUser(user)
+        if (!password.isNullOrBlank()) {
+            runCatching { SavedAccounts.save(user, password) }
+        }
     }
 
     fun hasChaoxingSession(): Boolean = initialized && Store.hasCookie()
+
+    /** 把当前已登录账号补进“保存的账号”，用于旧版本升级后的首次打开。 */
+    fun rememberCurrentAccount() {
+        val user = SessionStore.currentUser() ?: return
+        if (user.xh.isNullOrBlank()) return
+        val password = SecureCredentialVault.wisdomPassword()?.takeIf { it.isNotBlank() } ?: return
+        runCatching { SavedAccounts.save(user, password) }
+    }
 
     suspend fun loginChaoxing(account: String, password: String): AhuResult<Unit> =
         LegacyDataApi.loginChaoxing(account, password)
@@ -189,6 +213,59 @@ object LegacyCampusApi {
             studentName = user.name.orEmpty(),
         )
     }
+
+    // ---- 教务扩展 ----
+
+    suspend fun studentInfo(force: Boolean = false): AhuResult<StudentInfo> =
+        AHURepository.getStudentInfo(force)
+
+    suspend fun gpaRank(): AhuResult<GpaRankInfo> {
+        val user = SessionStore.currentUser()
+            ?: return AhuResult.Failure(AhuError.Unauthorized("尚未登录"))
+        return AHURepository.getGpaRankInfo(user.xh.orEmpty())
+    }
+
+    suspend fun scheduleSemesters(): AhuResult<List<ScheduleSemester>> =
+        AHURepository.getScheduleSemesters()
+
+    suspend fun semesterSchedule(semesterId: Int): AhuResult<List<Course>> =
+        AHURepository.getSemesterSchedule(semesterId)
+
+    suspend fun paymentQr(): AhuResult<String> = AHURepository.getQrcode()
+
+    suspend fun schoolCalendarYears(): AhuResult<SchoolCalendarYearsResponse> =
+        AHURepository.getSchoolCalendarYears()
+
+    suspend fun schoolCalendar(year: String): AhuResult<ByteArray> =
+        when (val result = AHURepository.getSchoolCalendar(year)) {
+            is AhuResult.Failure -> result
+            is AhuResult.Success -> runCatching {
+                result.value.body()?.bytes() ?: ByteArray(0)
+            }.fold(
+                onSuccess = { AhuResult.Success(it) },
+                onFailure = { AhuResult.Failure(AhuError.Unknown(it.message ?: "校历下载失败")) },
+            )
+        }
+
+    suspend fun evaluationSemesters(): AhuResult<List<EvalSemester>> =
+        EvaluationRepository.getSemesters()
+
+    suspend fun evaluationTasks(
+        semesterId: String,
+        evaluated: Boolean = false,
+    ): AhuResult<List<EvalTask>> =
+        EvaluationRepository.getEvaluationList(semesterId, evaluated).map { items ->
+            items.flatMap { it.taskList }
+        }
+
+    suspend fun evaluationForm(questionnaireId: String): AhuResult<EvalQuestionnaireForm> =
+        EvaluationRepository.getQuestions(questionnaireId)
+
+    suspend fun evaluationCheck(stdTaskId: String): AhuResult<EvalCheckParam> =
+        EvaluationRepository.checkParam(stdTaskId)
+
+    suspend fun submitEvaluation(request: EvalSubmitRequest): AhuResult<Unit> =
+        EvaluationRepository.submit(request)
 
     // ---- 校园卡余额与账单（只读，不涉及支付） ----
 

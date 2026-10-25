@@ -75,7 +75,7 @@ class GetGradesTool(private val repository: CampusRepository) : Tool {
     override val spec = ToolSpec(
         name = "get_grades",
         displayName = "查询成绩",
-        description = "查询指定学期的成绩。term 不传时返回当前学期；返回课程、学分、分数与绩点。",
+        description = "查询成绩。term 不传时返回全部学期；返回课程、学分、分数与绩点。",
         parameters = schema(
             properties = buildJsonObject {
                 put("term", stringProp("学期名称，例如 2026-2027 学年第一学期；不传则用当前学期"))

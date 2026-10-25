@@ -48,6 +48,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.components.AgentAvatar
@@ -71,6 +72,7 @@ fun ChatScreen(
     onReject: () -> Unit,
     onCancel: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenDrawer: () -> Unit,
 ) {
     val listState = rememberLazyListState()
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
@@ -115,6 +117,7 @@ fun ChatScreen(
             FloatingTopBar(
                 online = state.hasApiKey,
                 onOpenSettings = onOpenSettings,
+                onOpenDrawer = onOpenDrawer,
             )
 
             Box(modifier = Modifier.weight(1f)) {
@@ -178,18 +181,27 @@ fun ChatScreen(
 private fun FloatingTopBar(
     online: Boolean,
     onOpenSettings: () -> Unit,
+    onOpenDrawer: () -> Unit,
 ) {
     val accountName = com.ahu.ahutong.legacy.LegacyCampusApi.currentUserName()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AgentAvatar(size = 42.dp)
-        Spacer(Modifier.width(12.dp))
+        SoftIconButton(onClick = onOpenDrawer) {
+            Icon(
+                painter = painterResource(R.drawable.ic_iconpark_menu),
+                contentDescription = "功能",
+                tint = NextPalette.Ink,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(8.dp))
 
         SoftSurface(
+            modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(50),
             elevation = 8.dp,
         ) {
@@ -201,6 +213,7 @@ private fun FloatingTopBar(
                     "安大通NEXT",
                     style = MaterialTheme.typography.titleSmall,
                     color = NextPalette.Ink,
+                    maxLines = 1,
                 )
                 Spacer(Modifier.width(9.dp))
                 Box(
@@ -214,6 +227,8 @@ private fun FloatingTopBar(
                     accountName ?: if (online) "在线" else "本地",
                     style = MaterialTheme.typography.labelSmall,
                     color = NextPalette.InkSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

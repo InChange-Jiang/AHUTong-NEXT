@@ -32,6 +32,8 @@ class NextCampusRepository(
     private val demo: MockCampusRepository = MockCampusRepository(),
 ) : CampusRepository {
 
+    private val calendarStore = LocalCalendarStore(com.ahu.ahutong.core.common.AppEnvironmentHolder.context())
+
     private val real: Boolean get() = LegacyCampusApi.isLoggedIn()
 
     override suspend fun schedule(days: Int): List<CourseOccurrence> {
@@ -274,7 +276,15 @@ class NextCampusRepository(
         start: String,
         end: String,
         reminderMinutes: Int,
-    ): CalendarEvent = demo.addCalendarEvent(title, start, end, reminderMinutes)
+    ): CalendarEvent {
+        val event = demo.addCalendarEvent(title, start, end, reminderMinutes)
+        calendarStore.add(event)
+        return event
+    }
+
+    fun calendarEvents(): List<CalendarEvent> = calendarStore.load()
+
+    fun deleteCalendarEvent(id: String): List<CalendarEvent> = calendarStore.delete(id)
 
     private fun <T> AhuResult<T>.orThrow(): T = when (this) {
         is AhuResult.Success -> value
