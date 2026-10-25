@@ -450,7 +450,7 @@ fun RechargeElectricityPage(
     }
 
     FeatureScaffold(
-        title = "宿舍电费充值",
+        title = "电控缴费",
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {

@@ -300,7 +300,7 @@ fun GradesPage(repository: NextCampusRepository, onBack: () -> Unit) {
     }
 
     FeatureScaffold(
-        title = "成绩",
+        title = "成绩单",
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
@@ -477,7 +477,7 @@ fun ExamsPage(repository: NextCampusRepository, onBack: () -> Unit) {
             .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
     }
     FeatureScaffold(
-        title = "考试",
+        title = "考场查询",
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
@@ -653,7 +653,7 @@ fun AttendancePage(onBack: () -> Unit) {
     LaunchedEffect(Unit) { load(1, false) }
 
     FeatureScaffold(
-        title = "考勤",
+        title = "教务考勤",
         onBack = onBack,
         actions = { RefreshIconButton { load(1, false) } },
     ) {

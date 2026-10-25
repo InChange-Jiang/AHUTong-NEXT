@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ private data class DrawerEntry(
     val label: String,
     val route: AppRoute,
     val icon: Int,
+    val tint: Color? = null,
 )
 
 private data class DrawerGroup(
@@ -47,13 +49,13 @@ private val groups = listOf(
         "教务",
         listOf(
             DrawerEntry("课表", AppRoute.Schedule, R.drawable.ic_iconpark_calendar),
-            DrawerEntry("成绩", AppRoute.Grades, R.drawable.ic_iconpark_grades),
-            DrawerEntry("考试", AppRoute.Exams, R.drawable.ic_iconpark_exam),
-            DrawerEntry("评教", AppRoute.Evaluation, R.drawable.ic_iconpark_assignment),
-            DrawerEntry("培养方案", AppRoute.Completion, R.drawable.ic_iconpark_book),
-            DrawerEntry("考勤", AppRoute.Attendance, R.drawable.ic_iconpark_clock),
-            DrawerEntry("空闲教室", AppRoute.FreeRooms, R.drawable.ic_iconpark_search),
-            DrawerEntry("校历", AppRoute.SchoolCalendar, R.drawable.ic_iconpark_calendar),
+            DrawerEntry("成绩单", AppRoute.Grades, R.drawable.ic_grade, Color(0xFFFFC107)),
+            DrawerEntry("考场查询", AppRoute.Exams, R.drawable.ic_exam, Color(0xFF4CAF50)),
+            DrawerEntry("教评", AppRoute.Evaluation, R.drawable.ic_evaluation, Color(0xFF0D9488)),
+            DrawerEntry("培养方案", AppRoute.Completion, R.drawable.ic_nav_degree_hat, Color(0xFF009688)),
+            DrawerEntry("教务考勤", AppRoute.Attendance, R.drawable.ic_attendance, Color(0xFF3F51B5)),
+            DrawerEntry("空闲教室", AppRoute.FreeRooms, R.drawable.ic_round_business_24, Color(0xFF03A9F4)),
+            DrawerEntry("校历", AppRoute.SchoolCalendar, R.drawable.ic_schedule, Color(0xFF9C27B0)),
         ),
     ),
     DrawerGroup(
@@ -61,8 +63,8 @@ private val groups = listOf(
         listOf(
             DrawerEntry("作业", AppRoute.Assignments, R.drawable.ic_iconpark_assignment),
             DrawerEntry("课程任务", AppRoute.CourseTasks, R.drawable.ic_iconpark_assignment),
-            DrawerEntry("学习资料", AppRoute.Materials, R.drawable.ic_iconpark_book),
-            DrawerEntry("学生邮箱", AppRoute.Mail, R.drawable.ic_iconpark_mail),
+            DrawerEntry("学习资料", AppRoute.Materials, R.drawable.ic_repository, Color(0xFF8D6E63)),
+            DrawerEntry("学生邮箱", AppRoute.Mail, R.drawable.ic_student_mail, Color(0xFF3978D4)),
             DrawerEntry("我的日程", AppRoute.CalendarEvents, R.drawable.ic_iconpark_calendar),
         ),
     ),
@@ -77,14 +79,14 @@ private val groups = listOf(
     DrawerGroup(
         "生活",
         listOf(
-            DrawerEntry("电费充值", AppRoute.RechargeElectricity, R.drawable.ic_iconpark_electricity),
-            DrawerEntry("浴室缴费", AppRoute.RechargeBathroom, R.drawable.ic_iconpark_wallet),
-            DrawerEntry("网费充值", AppRoute.RechargeNetwork, R.drawable.ic_iconpark_wallet),
-            DrawerEntry("食堂", AppRoute.Canteen, R.drawable.ic_iconpark_grades),
-            DrawerEntry("失物招领", AppRoute.LostFound, R.drawable.ic_iconpark_search),
-            DrawerEntry("电话本", AppRoute.PhoneBook, R.drawable.ic_iconpark_user),
-            DrawerEntry("校园通知", AppRoute.Notices, R.drawable.ic_iconpark_bell),
-            DrawerEntry("天气", AppRoute.Weather, R.drawable.ic_iconpark_weather),
+            DrawerEntry("电控缴费", AppRoute.RechargeElectricity, R.drawable.ic_electricity_pay, Color(0xFFFFB300)),
+            DrawerEntry("浴室缴费", AppRoute.RechargeBathroom, R.drawable.ic_bathroom_pay, Color(0xFF26A69A)),
+            DrawerEntry("网费充值", AppRoute.RechargeNetwork, R.drawable.ic_network_recharge, Color(0xFF1E88E5)),
+            DrawerEntry("必吃榜", AppRoute.Canteen, R.drawable.ic_canteen_ranking, Color(0xFFFF6633)),
+            DrawerEntry("失物招领", AppRoute.LostFound, R.drawable.lost_and_found, Color(0xFF1976D2)),
+            DrawerEntry("电话本", AppRoute.PhoneBook, R.drawable.ic_phonebook, Color(0xFF009688)),
+            DrawerEntry("校园通知", AppRoute.Notices, R.drawable.ic_campus_notice, Color(0xFF1976D2)),
+            DrawerEntry("天气", AppRoute.Weather, R.drawable.ic_weather, Color(0xFFFFB300)),
         ),
     ),
 )
@@ -153,6 +155,7 @@ fun AppDrawer(
                     DrawerRow(
                         label = entry.label,
                         icon = entry.icon,
+                        tint = entry.tint,
                         selected = current == entry.route,
                         onClick = { onNavigate(entry.route) },
                     )
@@ -175,12 +178,13 @@ private fun DrawerRow(
     icon: Int,
     selected: Boolean,
     onClick: () -> Unit,
+    tint: Color? = null,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (selected) NextPalette.AccentSoft else androidx.compose.ui.graphics.Color.Transparent)
+            .background(if (selected) NextPalette.AccentSoft else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -188,7 +192,7 @@ private fun DrawerRow(
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
-            tint = if (selected) NextPalette.AccentDeep else NextPalette.InkSecondary,
+            tint = tint ?: if (selected) NextPalette.AccentDeep else NextPalette.InkSecondary,
             modifier = Modifier.size(19.dp),
         )
         Spacer(Modifier.width(12.dp))

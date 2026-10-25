@@ -102,7 +102,7 @@ fun EvaluationPage(onBack: () -> Unit) {
     }
 
     FeatureScaffold(
-        title = "评教",
+        title = "教评",
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {

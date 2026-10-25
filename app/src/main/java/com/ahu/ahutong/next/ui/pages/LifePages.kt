@@ -660,7 +660,7 @@ fun CanteenPage(onBack: () -> Unit) {
         }.fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
     }
     FeatureScaffold(
-        title = "食堂榜单",
+        title = "必吃榜",
         onBack = onBack,
         actions = { RefreshIconButton { reload++ } },
     ) {
