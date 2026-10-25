@@ -1,9 +1,5 @@
 package com.ahu.ahutong.next.ui.chat
 
-import android.os.Build
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,18 +37,13 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -70,8 +61,6 @@ import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.theme.NextPalette
 
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
@@ -85,10 +74,27 @@ fun ChatScreen(
 ) {
     val listState = rememberLazyListState()
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
+    val lastAssistantStreaming = (state.items.lastOrNull() as? ChatItem.Assistant)?.streaming == true
 
-    LaunchedEffect(state.items.size, state.status, streamingTextLength) {
+    // 新增消息、状态变化、流式结束都直接贴底，不用 animateScrollToItem：
+    // 后者在长回复里会被不断重排打断，看起来就是反复跳。
+    LaunchedEffect(state.items.size, state.status, lastAssistantStreaming) {
         val target = state.items.lastIndex + if (state.status != null) 1 else 0
-        if (target >= 0) listState.animateScrollToItem(target)
+        if (target >= 0) {
+            // 等最终 Markdown 完成一次测量，避免刚滚到底又被重排顶上去。
+            withFrameNanos { }
+            withFrameNanos { }
+            listState.scrollToItem(target)
+            listState.dispatchRawDelta(BOTTOM_JUMP_PX)
+        }
+    }
+
+    // 流式文本每长高一段就贴底。用非挂起的 dispatchRawDelta，避免滚动任务被下一次
+    // 文本更新取消；这里不做“是否在底部”的判断，否则长回复超过一屏后就再也追不上。
+    LaunchedEffect(streamingTextLength) {
+        if (streamingTextLength == 0) return@LaunchedEffect
+        withFrameNanos { }
+        listState.dispatchRawDelta(BOTTOM_JUMP_PX)
     }
 
     SoftBackground {
@@ -112,7 +118,11 @@ fun ChatScreen(
                         top = 10.dp,
                         bottom = 150.dp,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = if (state.items.isEmpty()) {
+                        Arrangement.Top
+                    } else {
+                        Arrangement.spacedBy(14.dp, Alignment.Bottom)
+                    },
                 ) {
                     if (state.items.isEmpty()) {
                         item {
@@ -401,22 +411,28 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
             )
         }
         Spacer(Modifier.height(7.dp))
-        SoftSurface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(
-                topStart = 8.dp,
-                topEnd = 22.dp,
-                bottomEnd = 22.dp,
-                bottomStart = 22.dp,
-            ),
-            color = NextPalette.Surface,
-            elevation = 5.dp,
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = NextPalette.Surface,
+                    shape = RoundedCornerShape(
+                        topStart = 8.dp,
+                        topEnd = 22.dp,
+                        bottomEnd = 22.dp,
+                        bottomStart = 22.dp,
+                    ),
+                )
+                .padding(horizontal = 15.dp, vertical = 13.dp),
         ) {
             Box(
-                modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 if (streaming) {
-                    StreamingMarkdown(text)
+                    StreamingAppMarkdown(
+                        markdown = text,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 } else if (text.containsMath()) {
                     KatexMarkdown(
                         markdown = text,
@@ -430,51 +446,6 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StreamingMarkdown(text: String) {
-    val blur = remember { Animatable(7f) }
-    val alpha = remember { Animatable(0.55f) }
-    var started by remember { mutableStateOf(false) }
-
-    LaunchedEffect(text.isNotEmpty()) {
-        if (text.isNotEmpty() && !started) {
-            started = true
-            coroutineScope {
-                launch {
-                    alpha.animateTo(
-                        targetValue = 1f,
-                        animationSpec = tween(360, easing = FastOutSlowInEasing),
-                    )
-                }
-                launch {
-                    blur.animateTo(
-                        targetValue = 0f,
-                        animationSpec = tween(700, easing = FastOutSlowInEasing),
-                    )
-                }
-            }
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .graphicsLayer { this.alpha = alpha.value }
-            .then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Modifier.blur(blur.value.dp)
-                } else {
-                    // Modifier.blur 在 API 31 以下无效，低版本只保留淡入。
-                    Modifier
-                },
-            ),
-    ) {
-        StreamingAppMarkdown(
-            markdown = text,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
@@ -517,6 +488,8 @@ private fun StatusPill(text: String, onCancel: () -> Unit) {
         }
     }
 }
+
+private const val BOTTOM_JUMP_PX = 100_000f
 
 private data class Suggestion(
     val label: String,

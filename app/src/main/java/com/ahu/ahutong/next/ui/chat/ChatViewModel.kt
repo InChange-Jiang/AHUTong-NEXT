@@ -27,6 +27,7 @@ import com.ahu.ahutong.next.tools.campusTools
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,6 +41,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: CampusRepository = NextCampusRepository()
     private val gate = ApprovalGate()
     private var runJob: Job? = null
+    private var deltaFlushJob: Job? = null
+    private val pendingDelta = StringBuilder()
     private var persistJob: Job? = null
     private var historyGeneration = 0
     private var streamingItemId: String? = null
@@ -147,6 +150,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         gate.cancel()
         runJob?.cancel()
         runJob = null
+        deltaFlushJob?.cancel()
+        deltaFlushJob = null
+        pendingDelta.setLength(0)
         finalizeStreamingItem(removeIfEmpty = true)
         _ui.update { state ->
             state.copy(
@@ -186,6 +192,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         gate.cancel()
         runJob?.cancel()
+        deltaFlushJob?.cancel()
         super.onCleared()
     }
 
@@ -195,11 +202,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
             AgentEvent.AssistantStart -> startStreamingItem()
 
-            is AgentEvent.AssistantDelta -> appendStreamingDelta(event.text)
+            is AgentEvent.AssistantDelta -> enqueueDelta(event.text)
 
-            is AgentEvent.AssistantMessage -> finishStreamingItem(event.text)
+            is AgentEvent.AssistantMessage -> {
+                flushPendingDeltas()
+                finishStreamingItem(event.text)
+            }
 
             is AgentEvent.ToolResultEvent -> {
+                flushPendingDeltas()
                 finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Tool(UUID.randomUUID().toString(), event.result)
                 _ui.update { it.copy(items = it.items + item, status = null) }
@@ -207,6 +218,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             is AgentEvent.ApprovalRequired -> {
+                flushPendingDeltas()
                 finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Approval(UUID.randomUUID().toString(), event.request)
                 _ui.update {
@@ -219,17 +231,22 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             is AgentEvent.Failed -> {
+                flushPendingDeltas()
                 finalizeStreamingItem(removeIfEmpty = true)
                 val item = ChatItem.Error(UUID.randomUUID().toString(), event.message)
                 _ui.update { it.copy(items = it.items + item, status = null) }
                 persist()
             }
 
-            AgentEvent.Done -> finalizeStreamingItem(removeIfEmpty = true)
+            AgentEvent.Done -> {
+                flushPendingDeltas()
+                finalizeStreamingItem(removeIfEmpty = true)
+            }
         }
     }
 
     private fun startStreamingItem() {
+        pendingDelta.setLength(0)
         if (streamingItemId != null) return
         val item = ChatItem.Assistant(
             id = UUID.randomUUID().toString(),
@@ -240,7 +257,35 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         _ui.update { it.copy(items = it.items + item, status = null) }
     }
 
-    private fun appendStreamingDelta(delta: String) {
+    /**
+     * SSE 的 delta 很密（几十毫秒一次）。逐条 setState 会让 Markdown 反复整段重排，
+     * 看起来像“卡跳”。这里把 33ms 内的增量合并成一次 UI 更新，文本仍是连续长出来的。
+     */
+    private fun enqueueDelta(delta: String) {
+        pendingDelta.append(delta)
+        if (deltaFlushJob?.isActive == true) return
+        deltaFlushJob = viewModelScope.launch {
+            while (true) {
+                delay(DELTA_FLUSH_INTERVAL_MS)
+                if (pendingDelta.isEmpty()) {
+                    deltaFlushJob = null
+                    return@launch
+                }
+                val chunk = pendingDelta.toString()
+                pendingDelta.setLength(0)
+                appendStreamingDeltaNow(chunk)
+            }
+        }
+    }
+
+    private fun flushPendingDeltas() {
+        if (pendingDelta.isEmpty()) return
+        val chunk = pendingDelta.toString()
+        pendingDelta.setLength(0)
+        appendStreamingDeltaNow(chunk)
+    }
+
+    private fun appendStreamingDeltaNow(delta: String) {
         if (streamingItemId == null) startStreamingItem()
         val id = streamingItemId ?: return
         _ui.update { state ->
@@ -257,6 +302,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun finishStreamingItem(finalText: String) {
+        flushPendingDeltas()
         val id = streamingItemId
         if (id == null) {
             val item = ChatItem.Assistant(UUID.randomUUID().toString(), finalText)
@@ -318,6 +364,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun modelLabel(): String =
         if (settings.apiKey().isNullOrBlank()) "本地演示" else "DeepSeek · ${settings.model()}"
+
+    private companion object {
+        const val DELTA_FLUSH_INTERVAL_MS = 33L
+    }
 
     private fun persist() {
         val generation = historyGeneration

@@ -25,10 +25,12 @@ fun AppMarkdown(
     markdown: String,
     modifier: Modifier = Modifier,
 ) {
+    val colors = nextMarkdownColors()
+    val typography = nextMarkdownTypography()
     Markdown(
         content = markdown,
-        colors = nextMarkdownColors(),
-        typography = nextMarkdownTypography(),
+        colors = colors,
+        typography = typography,
         modifier = modifier.fillMaxWidth(),
         loading = {},
         error = { errorModifier ->
@@ -43,8 +45,8 @@ fun AppMarkdown(
 }
 
 /**
- * Streaming buffer rendering. 0.41 does not expose the append-only streaming state,
- * so we re-render the accumulated text through the same renderer while it grows.
+ * Streaming buffer rendering. 0.38.1 没有增量解析状态，仍整段渲染；
+ * 增量合并与滚动策略在 ChatViewModel / ChatScreen 侧处理。
  */
 @Composable
 fun StreamingAppMarkdown(
