@@ -43,13 +43,7 @@ import com.ahu.ahutong.next.agent.ToolOutput
 import com.ahu.ahutong.next.agent.ToolRegistry
 import com.ahu.ahutong.next.agent.ToolSpec
 import com.ahu.ahutong.next.app.data.NextCampusRepository
-import com.ahu.ahutong.next.tools.GetAttendanceTool
-import com.ahu.ahutong.next.tools.GetFreeRoomsTool
-import com.ahu.ahutong.next.tools.GetLostFoundTool
-import com.ahu.ahutong.next.tools.GetNoticesTool
-import com.ahu.ahutong.next.tools.GetProgramCompletionTool
-import com.ahu.ahutong.next.tools.GetWeatherTool
-import com.ahu.ahutong.next.tools.campusTools
+import com.ahu.ahutong.next.tools.allCampusTools
 import com.ahu.ahutong.next.ui.chat.ToolLabResult
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
@@ -72,17 +66,10 @@ fun ToolLabScreen(onBack: () -> Unit) {
     val repository = remember { NextCampusRepository() }
     val registry = remember {
         ToolRegistry(
-            // 工作台绕过确认卡和支付密码，不能放真实扣款的工具进来。
-            campusTools(repository).filterNot {
-                it.spec.requiresPaymentPassword || it.spec.name == "recharge_card"
-            } + listOf(
-                GetWeatherTool(),
-                GetAttendanceTool(),
-                GetProgramCompletionTool(),
-                GetLostFoundTool(),
-                GetNoticesTool(),
-                GetFreeRoomsTool(),
-            ),
+            // 工作台绕过确认卡与支付密码，只保留纯读工具。
+            allCampusTools(repository).filterNot {
+                it.spec.requiresConfirmation || it.spec.requiresPaymentPassword
+            },
         )
     }
     val specs = registry.specs

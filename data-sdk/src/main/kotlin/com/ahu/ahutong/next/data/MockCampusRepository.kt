@@ -175,6 +175,8 @@ class MockCampusRepository : CampusRepository {
 
     fun eventsSnapshot(): List<CalendarEvent> = events.toList()
 
+    override fun calendarEvents(): List<CalendarEvent> = events.toList()
+
     private data class Course(
         val name: String,
         val teacher: String,

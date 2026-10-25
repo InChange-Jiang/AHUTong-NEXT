@@ -474,3 +474,28 @@ fun campusTools(repository: CampusRepository): List<Tool> = listOf(
     RechargeNetworkTool(repository),
     AddCalendarEventTool(repository),
 )
+
+fun extensionTools(repository: CampusRepository): List<Tool> = listOf(
+    GetWeatherTool(),
+    GetAttendanceTool(),
+    GetProgramCompletionTool(),
+    GetLostFoundTool(),
+    GetNoticesTool(),
+    GetFreeRoomsTool(),
+    GetEvaluationTasksTool(),
+    SubmitEvaluationTool(),
+    GetGpaRankTool(),
+    GetCanteenRankingTool(),
+    GetPhoneBookTool(),
+    GetMailTool(),
+    SendMailTool(),
+    GetCourseTasksTool(),
+    GetElectricityConditionsTool(),
+    SwitchElectricityConditionTool(),
+    PublishLostFoundTool(),
+    DeleteLostFoundTool(),
+    GetCalendarEventsTool(repository),
+)
+
+fun allCampusTools(repository: CampusRepository): List<Tool> =
+    campusTools(repository) + extensionTools(repository)

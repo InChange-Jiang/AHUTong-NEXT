@@ -26,10 +26,14 @@ import com.ahu.ahutong.data.model.CardRechargeBank
 import com.ahu.ahutong.data.model.BathroomTelInfo
 import com.ahu.ahutong.data.model.Course
 import com.ahu.ahutong.data.model.EvalCheckParam
+import com.ahu.ahutong.data.model.EvalAnswerOption
 import com.ahu.ahutong.data.model.EvalQuestion
+import com.ahu.ahutong.data.model.EvalQuestionAnswer
+import com.ahu.ahutong.data.model.EvalQuestionnaireRes
 import com.ahu.ahutong.data.model.EvalSemester
 import com.ahu.ahutong.data.model.EvalSubmitRequest
 import com.ahu.ahutong.data.model.EvalTask
+import com.ahu.ahutong.data.model.EvalTeacher
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.data.crawler.model.jwxt.StudentInfo
 import com.ahu.ahutong.data.schedule.ScheduleSemester
@@ -292,6 +296,74 @@ object LegacyCampusApi {
 
     suspend fun submitEvaluation(request: EvalSubmitRequest): AhuResult<Unit> =
         EvaluationRepository.submit(request)
+
+    /** 按问卷第一项 + 通用评语代填一条评教；页面与 AI 工具共用。 */
+    suspend fun submitDefaultEvaluation(task: EvalTask, teacher: EvalTeacher): AhuResult<Unit> {
+        val form = when (val result = evaluationForm(task.evaluationQuestionnaireId)) {
+            is AhuResult.Failure -> return result
+            is AhuResult.Success -> result.value
+        }
+        return submitEvaluation(buildDefaultEvaluationRequest(task, teacher, form))
+    }
+
+    private fun buildDefaultEvaluationRequest(
+        task: EvalTask,
+        teacher: EvalTeacher,
+        form: EvalQuestionnaireForm,
+    ): EvalSubmitRequest {
+        val answers = form.questions.map { question ->
+            val attr = question.attribute
+            val questionId = attr.id.toString()
+            when (attr.typeId) {
+                1 -> {
+                    val option = question.options.firstOrNull()
+                    EvalQuestionAnswer(
+                        questionId = questionId,
+                        questionnaireId = form.questionnaire.id,
+                        type = "1",
+                        score = if (attr.enableScore) option?.optionScore ?: 0.0 else 0.0,
+                        answer = null,
+                        questionAnsExpSaveList = listOf(
+                            EvalAnswerOption(
+                                optionId = option?.optionId?.toString().orEmpty(),
+                                questionnaireId = form.questionnaire.id,
+                                value = option?.value,
+                                score = option?.optionScore,
+                            ),
+                        ),
+                    )
+                }
+                4 -> EvalQuestionAnswer(
+                    questionId = questionId,
+                    questionnaireId = form.questionnaire.id,
+                    type = "4",
+                    score = 0.0,
+                    answer = "老师授课认真负责，课堂内容清晰，学习收获较多。",
+                    questionAnsExpSaveList = emptyList(),
+                )
+                else -> EvalQuestionAnswer(
+                    questionId = questionId,
+                    questionnaireId = form.questionnaire.id,
+                    type = attr.typeId.toString(),
+                    score = 0.0,
+                    answer = null,
+                    questionAnsExpSaveList = emptyList(),
+                )
+            }
+        }
+        return EvalSubmitRequest(
+            stdSumTaskId = teacher.stdSumTaskId.ifBlank { task.stdSumTaskId },
+            anonymous = false,
+            evaluationQuestionnaireRes = EvalQuestionnaireRes(
+                questionnaireId = form.questionnaire.id,
+                questionnaireName = form.questionnaire.nameZh.ifBlank { task.evaluationQuestionnaireName },
+                enable = form.questionnaire.enable,
+                answer = "[]",
+                score = 0.0,
+                questionAnsSaveList = answers,
+            ),
+        )
+    }
 
     // ---- 校园卡余额与账单（只读，不涉及支付） ----
 

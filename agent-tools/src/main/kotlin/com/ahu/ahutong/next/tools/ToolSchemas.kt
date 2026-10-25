@@ -2,6 +2,7 @@ package com.ahu.ahutong.next.tools
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
@@ -38,6 +39,11 @@ internal fun numberProp(description: String, minimum: Double? = null, maximum: D
         maximum?.let { put("maximum", it) }
     }
 
+internal fun boolProp(description: String): JsonObject = buildJsonObject {
+    put("type", "boolean")
+    put("description", description)
+}
+
 internal fun JsonObject.intOr(key: String, default: Int): Int =
     this[key]?.jsonPrimitive?.intOrNull ?: default
 
@@ -46,3 +52,6 @@ internal fun JsonObject.doubleOrNull(key: String): Double? =
 
 internal fun JsonObject.stringOrNull(key: String): String? =
     this[key]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+
+internal fun JsonObject.boolOr(key: String, default: Boolean): Boolean =
+    this[key]?.jsonPrimitive?.booleanOrNull ?: default

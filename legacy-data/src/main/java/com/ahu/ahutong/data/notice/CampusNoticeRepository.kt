@@ -56,6 +56,16 @@ object CampusNoticeRepository {
         }
     }
 
+    /** Tool entry point: sync all enabled sources and return the latest snapshot. */
+    suspend fun syncForTool(accountId: String, force: Boolean = false): CampusNoticeSnapshot? =
+        withContext(Dispatchers.IO) {
+            if (!SessionStore.isLoggedIn()) return@withContext null
+            if (CollegeNoticeRegistry.resolveCurrent() == null && AHUCache.getStudentInfo() == null) {
+                runCatching { AHURepository.getStudentInfo(force = false) }
+            }
+            runCatching { engine.sync(accountId, force).snapshot }.getOrNull()
+        }
+
     /** Notification intents are untrusted; resolve against the current account's stored article. */
     suspend fun verifiedNotice(accountId: String, articleId: String, url: String): CampusNotice? =
         withContext(Dispatchers.IO) {

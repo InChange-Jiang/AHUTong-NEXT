@@ -284,7 +284,7 @@ class NextCampusRepository(
         return event
     }
 
-    fun calendarEvents(): List<CalendarEvent> = calendarStore.load()
+    override fun calendarEvents(): List<CalendarEvent> = calendarStore.load()
 
     fun deleteCalendarEvent(id: String): List<CalendarEvent> = calendarStore.delete(id)
 

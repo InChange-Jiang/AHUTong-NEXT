@@ -38,4 +38,7 @@ interface CampusRepository {
         end: String,
         reminderMinutes: Int,
     ): CalendarEvent
+
+    /** 读取本地日历里已保存的日程。 */
+    fun calendarEvents(): List<CalendarEvent>
 }

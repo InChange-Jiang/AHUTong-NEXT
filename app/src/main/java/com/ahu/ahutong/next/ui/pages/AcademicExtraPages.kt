@@ -186,7 +186,7 @@ fun EvaluationPage(onBack: () -> Unit) {
                         for (task in tasks) {
                             for (teacher in task.teachers) {
                                 runCatching {
-                                    withContext(Dispatchers.IO) { submitDefaultEvaluation(task, teacher) }
+                                    withContext(Dispatchers.IO) { LegacyCampusApi.submitDefaultEvaluation(task, teacher).requireValue() }
                                 }.onSuccess { done++ }.onFailure { failed++ }
                             }
                         }
@@ -216,7 +216,7 @@ fun EvaluationPage(onBack: () -> Unit) {
                         submitting = true
                         scope.launch {
                             runCatching {
-                                withContext(Dispatchers.IO) { submitDefaultEvaluation(task, teacher) }
+                                withContext(Dispatchers.IO) { LegacyCampusApi.submitDefaultEvaluation(task, teacher).requireValue() }
                             }.fold(
                                 onSuccess = {
                                     message = "评教已提交"
@@ -242,71 +242,6 @@ fun EvaluationPage(onBack: () -> Unit) {
             confirmButton = { TextButton(onClick = { message = null }) { Text("知道了") } },
         )
     }
-}
-
-private suspend fun submitDefaultEvaluation(task: EvalTask, teacher: EvalTeacher) {
-    val form = LegacyCampusApi.evaluationForm(task.evaluationQuestionnaireId).requireValue()
-    val request = buildDefaultRequest(task, teacher, form)
-    LegacyCampusApi.submitEvaluation(request).requireValue()
-}
-
-private fun buildDefaultRequest(
-    task: EvalTask,
-    teacher: EvalTeacher,
-    form: EvalQuestionnaireForm,
-): EvalSubmitRequest {
-    val answers = form.questions.map { question ->
-        val attr = question.attribute
-        val questionId = attr.id.toString()
-        when (attr.typeId) {
-            1 -> {
-                val option = question.options.firstOrNull()
-                EvalQuestionAnswer(
-                    questionId = questionId,
-                    questionnaireId = form.questionnaire.id,
-                    type = "1",
-                    score = if (attr.enableScore) option?.optionScore ?: 0.0 else 0.0,
-                    answer = null,
-                    questionAnsExpSaveList = listOf(
-                        EvalAnswerOption(
-                            optionId = option?.optionId?.toString().orEmpty(),
-                            questionnaireId = form.questionnaire.id,
-                            value = option?.value,
-                            score = option?.optionScore,
-                        ),
-                    ),
-                )
-            }
-            4 -> EvalQuestionAnswer(
-                questionId = questionId,
-                questionnaireId = form.questionnaire.id,
-                type = "4",
-                score = 0.0,
-                answer = "老师授课认真负责，课堂内容清晰，学习收获较多。",
-                questionAnsExpSaveList = emptyList(),
-            )
-            else -> EvalQuestionAnswer(
-                questionId = questionId,
-                questionnaireId = form.questionnaire.id,
-                type = attr.typeId.toString(),
-                score = 0.0,
-                answer = null,
-                questionAnsExpSaveList = emptyList(),
-            )
-        }
-    }
-    return EvalSubmitRequest(
-        stdSumTaskId = teacher.stdSumTaskId.ifBlank { task.stdSumTaskId },
-        anonymous = false,
-        evaluationQuestionnaireRes = EvalQuestionnaireRes(
-            questionnaireId = form.questionnaire.id,
-            questionnaireName = form.questionnaire.nameZh.ifBlank { task.evaluationQuestionnaireName },
-            enable = form.questionnaire.enable,
-            answer = "[]",
-            score = 0.0,
-            questionAnsSaveList = answers,
-        ),
-    )
 }
 
 @Composable

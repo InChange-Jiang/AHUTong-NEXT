@@ -33,6 +33,7 @@ import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
+import com.ahu.ahutong.data.phonebook.PhoneBookDirectory
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
@@ -139,88 +140,12 @@ fun CourseTasksPage(onBack: () -> Unit) {
     }
 }
 
-private data class PhoneEntry(val name: String, val numbers: List<String>)
-
-private val phoneBook: Map<String, List<PhoneEntry>> = mapOf(
-    "师生综合服务大厅" to listOf(
-        PhoneEntry("咨询台", listOf("63861400")),
-        PhoneEntry("财务处", listOf("63861322", "65107303")),
-        PhoneEntry("研究生院", listOf("63861455", "65107332")),
-        PhoneEntry("教务处", listOf("63861055", "65107135")),
-        PhoneEntry("双创学院", listOf("65106065")),
-        PhoneEntry("学生处（学生发展中心）", listOf("63861686", "65107232")),
-        PhoneEntry("国际合作与交流处", listOf("63861848")),
-        PhoneEntry("学校办公室", listOf("63861659", "65107020")),
-        PhoneEntry("网络信息中心", listOf("63861855", "65107421")),
-        PhoneEntry("保卫处", listOf("63861918")),
-        PhoneEntry("人事处", listOf("63861922")),
-        PhoneEntry("国有资产管理与实验室管理处", listOf("63861949", "65107310")),
-        PhoneEntry("人文社会科学处", listOf("63861958")),
-        PhoneEntry("科学技术处", listOf("63861983")),
-        PhoneEntry("校团委", listOf("65107537")),
-    ),
-    "学生处（心理健康教育中心）" to listOf(
-        PhoneEntry("学生思想教育科", listOf("63861900")),
-        PhoneEntry("学生管理科", listOf("63861054")),
-        PhoneEntry("学生资助管理中心", listOf("63861900")),
-        PhoneEntry("学生就业指导中心", listOf("63861355", "63861383")),
-        PhoneEntry("心理健康教育中心", listOf("63861590")),
-    ),
-    "校团委" to listOf(PhoneEntry("团委办公室", listOf("63861121", "63861196"))),
-    "图书馆" to listOf(PhoneEntry("图书馆", listOf("63861109"))),
-    "校医院（医保办）" to listOf(
-        PhoneEntry("24 小时值班电话", listOf("63861120")),
-        PhoneEntry("校医疗保障委员会办公室", listOf("63861715")),
-    ),
-    "后勤服务" to listOf(
-        PhoneEntry("学校物业监管办公室", listOf("63861358")),
-        PhoneEntry("餐饮监管办公室", listOf("63861398")),
-    ),
-    "报警电话" to listOf(
-        PhoneEntry("保卫处（优先联系）", listOf("63861110", "65108229")),
-        PhoneEntry("三里庵派出所", listOf("63636594")),
-        PhoneEntry("芙蓉派出所", listOf("63822505")),
-    ),
-    "磬苑后勤" to listOf(
-        PhoneEntry("校园报修电话", listOf("63861118")),
-        PhoneEntry("服务监督电话", listOf("63861722")),
-        PhoneEntry("北区 24 小时报修电话", listOf("62950090")),
-        PhoneEntry("南区 24 小时报修电话", listOf("63861333")),
-        PhoneEntry("桃园", listOf("63861034")),
-        PhoneEntry("李园", listOf("63861037")),
-        PhoneEntry("桔园", listOf("63861036")),
-        PhoneEntry("枣园", listOf("63861218")),
-        PhoneEntry("榴园", listOf("63861217")),
-        PhoneEntry("杏园", listOf("63861219")),
-        PhoneEntry("蕙8", listOf("63861654")),
-        PhoneEntry("蕙9", listOf("63861617")),
-        PhoneEntry("蕙10", listOf("63861697")),
-        PhoneEntry("松园", listOf("63861160")),
-        PhoneEntry("竹园", listOf("63861115")),
-        PhoneEntry("梅园", listOf("63861113")),
-        PhoneEntry("桂园", listOf("63861097")),
-        PhoneEntry("枫园", listOf("63861096")),
-        PhoneEntry("槐园", listOf("63861081")),
-        PhoneEntry("留学生公寓", listOf("63861096")),
-    ),
-    "龙河后勤" to listOf(
-        PhoneEntry("宿舍管理办公室", listOf("65107014")),
-        PhoneEntry("校园报修电话", listOf("63861118")),
-        PhoneEntry("服务监督电话", listOf("63861722")),
-        PhoneEntry("206楼", listOf("65107064")),
-        PhoneEntry("207-208楼", listOf("65108150")),
-        PhoneEntry("209楼", listOf("65107940")),
-        PhoneEntry("301楼", listOf("65108004")),
-        PhoneEntry("304-306楼", listOf("65108004")),
-    ),
-)
-
 @Composable
 fun PhoneBookPage(onBack: () -> Unit) {
     val context = LocalContext.current
     var query by remember { mutableStateOf("") }
     var department by remember { mutableStateOf<String?>(null) }
-    val departments = phoneBook.keys.toList()
+    val departments = PhoneBookDirectory.groups.keys.toList()
 
     FeatureScaffold("电话本", onBack) {
         FeatureScrollColumn {
@@ -237,7 +162,7 @@ fun PhoneBookPage(onBack: () -> Unit) {
                     SoftChip(name, onClick = { department = name }, selected = department == name)
                 }
             }
-            phoneBook.forEach { (group, entries) ->
+            PhoneBookDirectory.groups.forEach { (group, entries) ->
                 if (department != null && department != group) return@forEach
                 val visible = entries.filter {
                     query.isBlank() ||

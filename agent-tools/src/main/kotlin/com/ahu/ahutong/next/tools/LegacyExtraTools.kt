@@ -14,6 +14,7 @@ import com.ahu.ahutong.next.agent.ToolSpec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -187,93 +188,117 @@ class GetProgramCompletionTool : Tool {
 }
 
 
-class GetLostFoundTool : Tool {
-    override val spec = ToolSpec(
-        name = "get_lost_found",
-        displayName = "查询失物招领",
-        description = "查询校园失物招领的最新信息，返回标题、类型、校区与发布时间。只读。",
-        parameters = schema(
-            properties = buildJsonObject {
-                put("page", intProp("页码，默认 1", minimum = 1, maximum = 20))
-                put("page_size", intProp("每页条数，默认 20", minimum = 1, maximum = 50))
-            },
-        ),
-        timeoutMs = 30_000,
-        kind = ToolKind.READ,
-        source = "失物招领",
-    )
-
-    override suspend fun execute(arguments: JsonObject): ToolOutput = withContext(Dispatchers.IO) {
-        if (!LegacyCampusApi.isLoggedIn()) {
-            return@withContext ToolOutput(
-                ok = false,
-                error = ToolError("not_logged_in", "尚未登录安大通账号，无法查询失物招领"),
-            )
-        }
-        val page = arguments.intOr("page", 1).coerceIn(1, 20)
-        val size = arguments.intOr("page_size", 20).coerceIn(1, 50)
-        when (val result = AHURepository.getLostFoundList(page, size, state = 1)) {
-            is com.ahu.ahutong.core.common.AhuResult.Failure -> ToolOutput(
-                ok = false,
-                error = ToolError("lost_found_failed", result.error.toChinese()),
-            )
-            is com.ahu.ahutong.core.common.AhuResult.Success -> {
-                val pageData = result.value.data
-                ToolOutput(
-                    ok = true,
-                    data = buildJsonObject {
-                        put("total", pageData.total)
-                        put("items", kotlinx.serialization.json.buildJsonArray {
-                            pageData.list.forEach { item ->
-                                add(buildJsonObject {
-                                    put("title", item.title)
-                                    put("type", item.lostType?.typeName)
-                                    put("campus", item.campusName)
-                                    put("time", item.createtime)
-                                    put("linkman", item.linkman)
-                                })
-                            }
-                        })
-                    },
-                )
-            }
-        }
-    }
-}
-
-
 class GetNoticesTool : Tool {
     override val spec = ToolSpec(
         name = "get_notices",
         displayName = "查询校园通知",
-        description = "查询安徽大学官网最新的通知公告，返回标题、发布日期与原文链接。",
-        parameters = schema(properties = buildJsonObject { }),
-        timeoutMs = 30_000,
+        description = "查询校园通知。source: all/university(官网)/jwc(教务处)/college(学院)/postgraduate(研究生院)。" +
+            "已登录时同步全部来源并返回未读数；未登录时只能查官网。",
+        parameters = schema(
+            properties = buildJsonObject {
+                put("source", stringProp("来源：all/university/jwc/college/postgraduate，默认 all"))
+                put("query", stringProp("标题关键词"))
+                put("limit", intProp("最多返回条数，默认 20", minimum = 1, maximum = 50))
+                put("refresh", boolProp("是否强制重新同步，默认 false"))
+            },
+        ),
+        timeoutMs = 90_000,
         kind = ToolKind.READ,
-        source = "安徽大学官网",
+        source = "校园通知",
     )
 
     override suspend fun execute(arguments: JsonObject): ToolOutput = withContext(Dispatchers.IO) {
-        when (val result = LegacyCampusApi.universityNotices()) {
-            is com.ahu.ahutong.core.common.AhuResult.Failure -> ToolOutput(
-                ok = false,
-                error = ToolError("notice_failed", result.error.toChinese()),
-            )
-            is com.ahu.ahutong.core.common.AhuResult.Success -> ToolOutput(
-                ok = true,
-                data = buildJsonObject {
-                    put("notices", kotlinx.serialization.json.buildJsonArray {
-                        result.value.take(20).forEach { notice ->
-                            add(buildJsonObject {
-                                put("title", notice.title)
-                                put("publishedOn", notice.publishedOn)
-                                put("url", notice.originalUrl)
-                            })
-                        }
-                    })
-                },
-            )
+        val source = when (arguments.stringOrNull("source")) {
+            "university", "官网" -> "university"
+            "jwc", "教务处" -> "jwc"
+            "college", "学院" -> "college"
+            "postgraduate", "研究生院" -> "postgraduate"
+            else -> null
         }
+        val query = arguments.stringOrNull("query")
+        val limit = arguments.intOr("limit", 20).coerceIn(1, 50)
+        val refresh = arguments.boolOr("refresh", false)
+        val accountId = com.ahu.ahutong.data.session.SessionStore.currentUser()
+            ?.xh?.takeIf(String::isNotBlank)
+        val snapshot = accountId?.let {
+            com.ahu.ahutong.data.notice.CampusNoticeRepository.syncForTool(it, refresh)
+        }
+        if (snapshot == null) {
+            if (source != null && source != "university") {
+                return@withContext ToolOutput(false, error = ToolError("not_logged_in", "登录后才能查询教务处/学院通知"))
+            }
+            return@withContext when (val result = LegacyCampusApi.universityNotices()) {
+                is com.ahu.ahutong.core.common.AhuResult.Failure ->
+                    ToolOutput(false, error = ToolError("notice_failed", result.error.toChinese()))
+                is com.ahu.ahutong.core.common.AhuResult.Success -> {
+                    val notices = result.value
+                        .filter { query == null || it.title.contains(query, ignoreCase = true) }
+                        .take(limit)
+                    ToolOutput(
+                        ok = true,
+                        data = buildJsonObject {
+                            put("source", "官网")
+                            put("unread", 0)
+                            put("notices", buildJsonArray {
+                                notices.forEach { notice ->
+                                    add(noticeJson("university", "安徽大学", notice.title, notice.publishedOn, notice.originalUrl, true))
+                                }
+                            })
+                        },
+                    )
+                }
+            }
+        }
+        val notices = snapshot.notices
+            .filter { source == null || it.sourceId == source }
+            .filter { query == null || it.title.contains(query, ignoreCase = true) }
+            .sortedByDescending { it.publishedOn }
+            .take(limit)
+        ToolOutput(
+            ok = true,
+            data = buildJsonObject {
+                put("source", source ?: "all")
+                put("unread", snapshot.unreadCount)
+                put("notices", buildJsonArray {
+                    notices.forEach { notice ->
+                        add(
+                            noticeJson(
+                                notice.sourceId,
+                                sourceLabel(notice.sourceId),
+                                notice.title,
+                                notice.publishedOn,
+                                notice.originalUrl,
+                                notice.read,
+                            ),
+                        )
+                    }
+                })
+            },
+        )
+    }
+
+    private fun noticeJson(
+        sourceId: String,
+        sourceName: String,
+        title: String,
+        publishedOn: String,
+        url: String,
+        read: Boolean,
+    ): JsonObject = buildJsonObject {
+        put("sourceId", sourceId)
+        put("source", sourceName)
+        put("title", title)
+        put("publishedOn", publishedOn)
+        put("url", url)
+        put("read", read)
+    }
+
+    private fun sourceLabel(sourceId: String): String = when (sourceId) {
+        "university" -> "安徽大学"
+        "jwc" -> "教务处"
+        "college" -> "学院"
+        "postgraduate" -> "研究生院"
+        else -> sourceId
     }
 }
 
@@ -282,12 +307,13 @@ class GetFreeRoomsTool : Tool {
     override val spec = ToolSpec(
         name = "get_free_rooms",
         displayName = "查询空闲教室",
-        description = "查询指定日期（默认今天）某校区的空闲教室。campus: 1=磬苑校区，2=龙河校区；units 为节次，默认 1-13。",
+        description = "查询指定日期（默认今天）某校区的空闲教室。campus: 1=磬苑校区，2=龙河校区；units 为节次，默认 1-13；building 可按教学楼筛选。",
         parameters = schema(
             properties = buildJsonObject {
                 put("campus", intProp("校区：1=磬苑，2=龙河；默认 1", minimum = 1, maximum = 2))
                 put("date", stringProp("日期 yyyy-MM-dd，默认今天"))
                 put("units", stringProp("节次，逗号分隔，例如 1,2,3；默认全部 1-13"))
+                put("building", stringProp("教学楼名称，例如 博学北楼；不传返回全部"))
             },
         ),
         timeoutMs = 90_000,
@@ -311,22 +337,37 @@ class GetFreeRoomsTool : Tool {
             ?.map(Int::toString)
             ?.takeIf { it.isNotEmpty() }
             ?: (1..13).map(Int::toString)
+        val building = arguments.stringOrNull("building")
         when (val result = LegacyCampusApi.freeRooms(campus, date, units)) {
             is com.ahu.ahutong.core.common.AhuResult.Failure -> ToolOutput(
                 ok = false,
                 error = ToolError("free_rooms_failed", result.error.toChinese()),
             )
-            is com.ahu.ahutong.core.common.AhuResult.Success -> ToolOutput(
-                ok = true,
-                data = buildJsonObject {
-                    put("date", date)
-                    put("campus", campus)
-                    put("count", result.value.size)
-                    put("rooms", kotlinx.serialization.json.buildJsonArray {
-                        result.value.take(60).forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
-                    })
-                },
-            )
+            is com.ahu.ahutong.core.common.AhuResult.Success -> {
+                val allRooms = result.value
+                val buildings = allRooms.map { it.substringBefore(' ') }.distinct().sorted()
+                val rooms = if (building == null) {
+                    allRooms
+                } else {
+                    allRooms.filter { it.substringBefore(' ').contains(building, ignoreCase = true) }
+                }
+                ToolOutput(
+                    ok = true,
+                    data = buildJsonObject {
+                        put("date", date)
+                        put("campus", campus)
+                        put("building", building)
+                        put("buildings", kotlinx.serialization.json.buildJsonArray {
+                            buildings.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                        })
+                        put("count", rooms.size)
+                        put("totalCount", allRooms.size)
+                        put("rooms", kotlinx.serialization.json.buildJsonArray {
+                            rooms.take(60).forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                        })
+                    },
+                )
+            }
         }
     }
 }

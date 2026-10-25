@@ -17,13 +17,7 @@ import com.ahu.ahutong.next.model.FakeChatModel
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
 import com.ahu.ahutong.next.tools.DeepSeekSearchClient
 import com.ahu.ahutong.next.tools.WebSearchTool
-import com.ahu.ahutong.next.tools.GetAttendanceTool
-import com.ahu.ahutong.next.tools.GetLostFoundTool
-import com.ahu.ahutong.next.tools.GetFreeRoomsTool
-import com.ahu.ahutong.next.tools.GetNoticesTool
-import com.ahu.ahutong.next.tools.GetProgramCompletionTool
-import com.ahu.ahutong.next.tools.GetWeatherTool
-import com.ahu.ahutong.next.tools.campusTools
+import com.ahu.ahutong.next.tools.allCampusTools
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,13 +51,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val ui: StateFlow<ChatUiState> = _ui.asStateFlow()
 
     private fun buildRegistry(): ToolRegistry {
-        val tools = campusTools(repository).toMutableList()
-        tools += GetWeatherTool()
-        tools += GetAttendanceTool()
-        tools += GetProgramCompletionTool()
-        tools += GetLostFoundTool()
-        tools += GetNoticesTool()
-        tools += GetFreeRoomsTool()
+        val tools = allCampusTools(repository).toMutableList()
         val key = settings.apiKey()
         if (!key.isNullOrBlank() && settings.searchEnabled()) {
             tools += WebSearchTool(DeepSeekSearchClient(settings.baseUrl(), key))
