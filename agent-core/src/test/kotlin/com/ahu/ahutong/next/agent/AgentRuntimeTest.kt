@@ -232,14 +232,13 @@ class AgentRuntimeTest {
         assertTrue(system.contains("龙河"))
         assertTrue(system.contains("每天13节"))
         assertTrue(system.contains("08:00-08:45"))
-        assertTrue(system.contains("自然日：2026-10-25"))
-        assertTrue(system.contains("校园日：2026-10-25"))
+        assertTrue(system.contains("04:00"))
         assertTrue(system.contains("web_search"))
         assertTrue(system.contains("\\("))
     }
 
     @Test
-    fun systemPromptKeepsPreviousCampusDayBeforeFourAm() = runTest {
+    fun systemPromptAsksToClarifyDatesBeforeFourAm() = runTest {
         val fixed = Instant.parse("2026-10-25T19:30:00Z").toEpochMilli()
         val model = RecordingModel()
         val events = mutableListOf<AgentEvent>()
@@ -253,9 +252,9 @@ class AgentRuntimeTest {
 
         val system = model.messages.first { it.role == "system" }.content.orEmpty()
         assertTrue(system.contains("2026-10-26 03:30"))
-        assertTrue(system.contains("自然日：2026-10-26"))
-        assertTrue(system.contains("校园日：2026-10-25"))
-        assertTrue(system.contains("00:00-03:59 仍算前一天"))
+        assertTrue(system.contains("04:00 前仍按前一天 2026-10-25 理解"))
+        assertTrue(system.contains("00:00-03:59仍算前一天"))
+        assertTrue(!system.contains("校园日"))
     }
 
     @Test
