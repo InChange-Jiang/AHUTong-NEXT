@@ -42,7 +42,6 @@ import com.ahu.ahutong.data.attendance.KqcardAttendanceRepository
 import com.ahu.ahutong.data.crawler.model.jwxt.ProgramCompletion
 import com.ahu.ahutong.data.model.GpaRankInfo
 import com.ahu.ahutong.legacy.LegacyCampusApi
-import com.ahu.ahutong.next.app.data.AssignmentPlanner
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CourseOccurrence
@@ -69,7 +68,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
+fun SchedulePage(
+    repository: NextCampusRepository,
+    onBack: () -> Unit,
+    onMenu: (() -> Unit)? = null,
+    bottomBar: @Composable () -> Unit = {},
+) {
     var state by remember { mutableStateOf<LoadState<List<CourseOccurrence>>>(LoadState.Loading) }
     var weekView by remember { mutableStateOf(true) }
     var weekPage by remember { mutableIntStateOf(0) }
@@ -84,6 +88,8 @@ fun SchedulePage(repository: NextCampusRepository, onBack: () -> Unit) {
     FeatureScaffold(
         title = "课表",
         onBack = onBack,
+        onMenu = onMenu,
+        bottomBar = bottomBar,
         actions = { RefreshIconButton { reload++ } },
     ) {
         AsyncContent(state, onRetry = { reload++ }) {
@@ -532,25 +538,42 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
     var days by remember { mutableIntStateOf(14) }
     var state by remember { mutableStateOf<LoadState<List<Assignment>>>(LoadState.Loading) }
     var reload by remember { mutableIntStateOf(0) }
-    var planning by remember { mutableStateOf(false) }
-    var planMessage by remember { mutableStateOf<String?>(null) }
-    var showPlanConfirm by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    var refreshRequested by remember { mutableStateOf(false) }
     LaunchedEffect(reload, days) {
         state = LoadState.Loading
-        state = runCatching { withContext(Dispatchers.IO) { repository.assignments(days) } }
-            .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
+        state = runCatching {
+            withContext(Dispatchers.IO) {
+                if (refreshRequested) repository.refreshAssignments(days)
+                else repository.assignments(days)
+            }
+        }.fold(
+            onSuccess = { LoadState.Ready(it) },
+            onFailure = { failure ->
+                val cached = runCatching { repository.assignments(days) }.getOrNull()
+                if (!cached.isNullOrEmpty()) LoadState.Ready(cached) else failure.toLoadFailure()
+            },
+        )
+        refreshRequested = false
     }
     FeatureScaffold(
         title = "作业",
         onBack = onBack,
         actions = {
-            RefreshIconButton { reload++ }
-            Spacer(Modifier.width(4.dp))
-            TextButton(onClick = { showPlanConfirm = true }) { Text("智能排期") }
+            RefreshIconButton {
+                if (state !is LoadState.Loading) {
+                    refreshRequested = true
+                    reload++
+                }
+            }
         },
     ) {
-        AsyncContent(state, onRetry = { reload++ }) {
+        AsyncContent(
+            state,
+            onRetry = {
+                refreshRequested = true
+                reload++
+            },
+        ) {
             val works = (state as LoadState.Ready).value
             FeatureScrollColumn {
                 SoftChipStrip {
@@ -558,11 +581,8 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                     SoftChip("30 天", onClick = { days = 30 }, selected = days == 30)
                 }
                 if (works.isEmpty()) {
-                    EmptyState("这段时间没有作业。")
+                    EmptyState("还没有缓存作业，点右上角刷新同步。")
                 } else {
-                    planMessage?.let {
-                        Text(it, style = MaterialTheme.typography.labelSmall, color = NextPalette.AccentDeep)
-                    }
                     works.forEach { work ->
                         PageCard {
                             Text(work.title, style = MaterialTheme.typography.titleSmall, color = NextPalette.Ink)
@@ -585,39 +605,6 @@ fun AssignmentsPage(repository: NextCampusRepository, onBack: () -> Unit) {
                 }
             }
         }
-    }
-
-    if (showPlanConfirm) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showPlanConfirm = false },
-            title = { Text("把作业排进日历？") },
-            text = {
-                Text("按截止时间从早到晚，避开课程和已有日程，为每条未完成作业找 1 小时空闲时段写入本地日历。")
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    showPlanConfirm = false
-                    planning = true
-                    planMessage = null
-                    scope.launch {
-                        runCatching {
-                            val works = (state as? LoadState.Ready<List<Assignment>>)?.value.orEmpty()
-                            withContext(Dispatchers.IO) { AssignmentPlanner.plan(repository, works) }
-                        }.fold(
-                            onSuccess = { result ->
-                                planMessage = "已排入 ${result.scheduled.size} 条作业" +
-                                    if (result.skipped > 0) "；${result.skipped} 条在截止前找不到空档" else ""
-                            },
-                            onFailure = { planMessage = it.message ?: "排期失败" },
-                        )
-                        planning = false
-                    }
-                }) { Text("开始排期") }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showPlanConfirm = false }) { Text("取消") }
-            },
-        )
     }
 }
 

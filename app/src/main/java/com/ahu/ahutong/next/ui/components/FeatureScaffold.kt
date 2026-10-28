@@ -44,6 +44,8 @@ fun FeatureScaffold(
     title: String,
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
+    onMenu: (() -> Unit)? = null,
+    bottomBar: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     SoftBackground {
@@ -58,10 +60,12 @@ fun FeatureScaffold(
                     .padding(horizontal = 18.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                SoftIconButton(onClick = onBack) {
+                SoftIconButton(onClick = onMenu ?: onBack) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_iconpark_left),
-                        contentDescription = "返回",
+                        painter = painterResource(
+                            if (onMenu != null) R.drawable.ic_iconpark_menu else R.drawable.ic_iconpark_left,
+                        ),
+                        contentDescription = if (onMenu != null) "功能" else "返回",
                         tint = NextPalette.Ink,
                         modifier = Modifier.size(20.dp),
                     )
@@ -78,6 +82,7 @@ fun FeatureScaffold(
             Column(modifier = Modifier.weight(1f)) {
                 content()
             }
+            bottomBar()
         }
     }
 }

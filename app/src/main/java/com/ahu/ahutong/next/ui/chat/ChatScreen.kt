@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -63,6 +64,7 @@ import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.theme.NextPalette
 
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     state: ChatUiState,
@@ -73,6 +75,7 @@ fun ChatScreen(
     onCancel: () -> Unit,
     onOpenDrawer: () -> Unit,
     showSuggestions: Boolean = true,
+    bottomBar: @Composable () -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
@@ -127,7 +130,7 @@ fun ChatScreen(
                         start = 18.dp,
                         end = 18.dp,
                         top = 10.dp,
-                        bottom = 150.dp,
+                        bottom = 220.dp,
                     ),
                     verticalArrangement = if (state.items.isEmpty()) {
                         Arrangement.Top
@@ -158,20 +161,29 @@ fun ChatScreen(
             }
         }
 
-        Box(
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .imePadding(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            InputPill(
-                value = state.input,
-                enabled = !state.isRunning,
-                onValueChange = onInputChange,
-                onSend = { onSend(state.input) },
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+            ) {
+                InputPill(
+                    value = state.input,
+                    enabled = !state.isRunning,
+                    onValueChange = onInputChange,
+                    onSend = { onSend(state.input) },
+                )
+            }
+            if (!WindowInsets.isImeVisible) {
+                bottomBar()
+            }
         }
     }
 }

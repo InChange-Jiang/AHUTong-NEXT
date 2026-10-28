@@ -59,7 +59,8 @@ class GetAssignmentsTool(private val repository: CampusRepository) : Tool {
 
     override suspend fun execute(arguments: JsonObject): ToolOutput {
         val days = arguments.intOr("days", 14).coerceIn(1, 30)
-        val assignments = repository.assignments(days)
+        val assignments = runCatching { repository.refreshAssignments(days) }
+            .getOrElse { repository.assignments(days) }
         return ToolOutput(
             ok = true,
             data = buildJsonObject {

@@ -19,6 +19,9 @@ data class Assignment(
     val title: String,
     val dueAt: String,
     val status: String,
+    /** 作业开放/截止时间，格式 yyyy-MM-dd HH:mm；日历按这段区间铺色块。 */
+    val startAt: String? = null,
+    val endAt: String? = null,
 )
 
 @Serializable

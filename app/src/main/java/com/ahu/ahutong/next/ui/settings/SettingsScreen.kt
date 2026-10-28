@@ -1,5 +1,7 @@
 package com.ahu.ahutong.next.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +51,7 @@ import com.ahu.ahutong.next.BuildConfig
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.app.data.AssistantPersonality
 import com.ahu.ahutong.next.app.data.SettingsRepository
+import com.ahu.ahutong.next.app.data.modelPresets
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
@@ -58,6 +63,16 @@ import com.ahu.ahutong.next.ui.components.SoftTextField
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+
+private enum class SettingsSection(val title: String, val subtitle: String) {
+    ACCOUNT("账号与学习通", "安大通账号、学习通连接"),
+    MODEL("模型与性格", "API Key、模型预设、安筱桐性格"),
+    DISPLAY("显示与偏好", "显示大小、快捷建议、提醒"),
+    ELECTRICITY("宿舍电费", "电费房间"),
+    APP("应用", "更新与关于"),
+    DATA("数据", "聊天记录"),
+    DEVELOPER("开发者", "工具工作台"),
+}
 
 @Composable
 fun SettingsScreen(
@@ -87,6 +102,7 @@ fun SettingsScreen(
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
     var searchEnabled by remember { mutableStateOf(settings.searchEnabled()) }
     var personality by remember { mutableStateOf(settings.personality()) }
+    var section by remember { mutableStateOf<SettingsSection?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
     var accountName by remember { mutableStateOf(LegacyCampusApi.currentUserName()) }
     var showLogin by remember { mutableStateOf(false) }
@@ -97,6 +113,8 @@ fun SettingsScreen(
         mutableStateOf(LegacyCampusApi.savedElectricityRoom()?.displayLabel())
     }
 
+    BackHandler(enabled = section != null) { section = null }
+
     Box(modifier = Modifier.fillMaxSize()) {
         SoftBackground {
             Column(
@@ -105,341 +123,385 @@ fun SettingsScreen(
                     .windowInsetsPadding(WindowInsets.safeDrawing)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                SettingsTopBar(onBack)
+                SettingsTopBar(
+                    title = section?.title ?: "设置",
+                    onBack = { if (section == null) onBack() else section = null },
+                )
 
-                SettingsCard {
-                    SectionTitle("安大通账号")
-                    if (accountName.isNullOrBlank()) {
-                        Text(
-                            "未登录时，课程、成绩等查询使用演示数据。登录本科教务账号后切换为真实数据。",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        SoftPrimaryButton(
-                            text = "登录",
-                            onClick = { showLogin = true },
-                        )
-                    } else {
-                        Text(
-                            "已登录：$accountName",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = NextPalette.Ink,
-                        )
-                        Text(
-                            "课表、成绩、考试安排来自教务系统；一卡通余额、账单、电费、网费与充值来自校园卡系统。电费/浴室/网费充值的密码只在确认卡里输入。",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        SoftSecondaryButton(
-                            text = "账号与切换",
-                            onClick = onOpenAccounts,
-                        )
-                        SoftSecondaryButton(
-                            text = "退出登录",
-                            onClick = {
-                                LegacyCampusApi.logout()
-                                accountName = null
-                                scope.launch { snackbar.showSnackbar("已退出登录") }
-                            },
-                        )
-                    }
-
-                    HorizontalDivider(color = NextPalette.Line)
-
-                    Text(
-                        "学习通（作业）",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = NextPalette.Ink,
-                    )
-                    Text(
-                        if (chaoxingConnected) {
-                            "已连接学习通，作业查询使用真实数据。"
-                        } else {
-                            "未连接时作业使用演示数据。学习通是独立账号。"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    if (chaoxingConnected) {
-                        SoftSecondaryButton(
-                            text = "重新登录学习通",
-                            onClick = { showChaoxingLogin = true },
-                        )
-                    } else {
-                        SoftSecondaryButton(
-                            text = "连接学习通",
-                            onClick = { showChaoxingLogin = true },
-                        )
+                if (section == null) {
+                    SettingsCard {
+                        SectionTitle("设置")
+                        SettingsSection.entries
+                            .filter { it != SettingsSection.DEVELOPER || BuildConfig.DEBUG }
+                            .forEach { item ->
+                                SettingsNavRow(item.title, item.subtitle) { section = item }
+                            }
                     }
                 }
 
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("模型")
-                    Text(
-                        "自带 API Key（BYOK）。Key 只用 Android Keystore 加密保存在本机，不会上传到安大通服务器。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    SoftTextField(
-                        value = apiKeyInput,
-                        onValueChange = { apiKeyInput = it },
-                        label = "API Key",
-                        placeholder = if (hasKey) "已保存；留空则不修改" else "sk-...",
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SoftTextField(
-                        value = baseUrl,
-                        onValueChange = { baseUrl = it },
-                        label = "Base URL",
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SoftTextField(
-                        value = model,
-                        onValueChange = { model = it },
-                        label = "模型名",
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                                if (section == SettingsSection.ACCOUNT) {
+    SettingsCard {
+                        SectionTitle("安大通账号")
+                        if (accountName.isNullOrBlank()) {
                             Text(
-                                "联网搜索",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = NextPalette.Ink,
-                            )
-                            Text(
-                                if (hasKey) {
-                                    "通过 DeepSeek 搜索获取实时网页信息"
-                                } else {
-                                    "配置 API Key 后生效"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
+                                "未登录时，课程、成绩等查询使用演示数据。登录本科教务账号后切换为真实数据。",
+                                style = MaterialTheme.typography.bodySmall,
                                 color = NextPalette.InkSecondary,
                             )
-                        }
-                        Switch(
-                            checked = searchEnabled,
-                            onCheckedChange = {
-                                searchEnabled = it
-                                settings.setSearchEnabled(it)
-                            },
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        SoftPrimaryButton(
-                            text = "保存",
-                            onClick = {
-                                settings.save(
-                                    baseUrl = baseUrl,
-                                    model = model,
-                                    apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
-                                )
-                                hasKey = !settings.apiKey().isNullOrBlank()
-                                apiKeyInput = ""
-                                onSaved()
-                                scope.launch { snackbar.showSnackbar("已保存") }
-                            },
-                        )
-                        SoftSecondaryButton(
-                            text = "清除 Key",
-                            onClick = {
-                                settings.clearApiKey()
-                                hasKey = false
-                                onSaved()
-                                scope.launch { snackbar.showSnackbar("已清除 API Key") }
-                            },
-                        )
-                    }
-
-                    Text(
-                        "当前模式：$modelLabel",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NextPalette.AccentDeep,
-                    )
-                }
-
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("安筱桐性格")
-                    Text(
-                        "只影响说话方式和主动程度，不改变工具、数据和金额确认。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    SoftChipStrip {
-                        AssistantPersonality.entries.forEach { item ->
-                            SoftChip(
-                                item.label,
-                                onClick = {
-                                    personality = item
-                                    settings.setPersonality(item)
-                                    scope.launch { snackbar.showSnackbar("已切换为${item.label}") }
-                                },
-                                selected = personality == item,
+                            SoftPrimaryButton(
+                                text = "登录",
+                                onClick = { showLogin = true },
                             )
-                        }
-                    }
-                    Text(
-                        personality.description,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.AccentDeep,
-                    )
-                }
-
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("显示")
-                    Text(
-                        "调整聊天、卡片与设置页的整体大小。小屏手机建议 88% - 95%，大屏可以适当放大。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "小",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                        Slider(
-                            value = displayScale,
-                            onValueChange = { onDisplayScaleChange((it * 100).roundToInt() / 100f) },
-                            valueRange = SettingsRepository.MIN_DISPLAY_SCALE..
-                                SettingsRepository.MAX_DISPLAY_SCALE,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 10.dp),
-                            colors = SliderDefaults.colors(
-                                thumbColor = NextPalette.Accent,
-                                activeTrackColor = NextPalette.Accent,
-                                inactiveTrackColor = NextPalette.AccentSoft,
-                                activeTickColor = Color.Transparent,
-                                inactiveTickColor = Color.Transparent,
-                            ),
-                        )
-                        Text(
-                            "大",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            "当前：${(displayScale * 100).roundToInt()}%",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = NextPalette.AccentDeep,
-                        )
-                        TextButton(onClick = { onDisplayScaleChange(1f) }) {
-                            Text("恢复标准")
-                        }
-                    }
-                }
-
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("偏好")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        } else {
                             Text(
-                                "显示快捷建议",
+                                "已登录：$accountName",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = NextPalette.Ink,
                             )
                             Text(
-                                "空会话时展示作业、课表、成绩等推荐问句。",
+                                "课表、成绩、考试安排来自教务系统；一卡通余额、账单、电费、网费与充值来自校园卡系统。电费/浴室/网费充值的密码只在确认卡里输入。",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            SoftSecondaryButton(
+                                text = "账号与切换",
+                                onClick = onOpenAccounts,
+                            )
+                            SoftSecondaryButton(
+                                text = "退出登录",
+                                onClick = {
+                                    LegacyCampusApi.logout()
+                                    accountName = null
+                                    scope.launch { snackbar.showSnackbar("已退出登录") }
+                                },
+                            )
+                        }
+
+                        HorizontalDivider(color = NextPalette.Line)
+
+                        Text(
+                            "学习通（作业）",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = NextPalette.Ink,
+                        )
+                        Text(
+                            if (chaoxingConnected) {
+                                "已连接学习通，作业查询使用真实数据。"
+                            } else {
+                                "未连接时作业使用演示数据。学习通是独立账号。"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        if (chaoxingConnected) {
+                            SoftSecondaryButton(
+                                text = "重新登录学习通",
+                                onClick = { showChaoxingLogin = true },
+                            )
+                        } else {
+                            SoftSecondaryButton(
+                                text = "连接学习通",
+                                onClick = { showChaoxingLogin = true },
+                            )
+                        }
+                    }
+                }
+
+                                if (section == SettingsSection.MODEL) {
+    SettingsCard {
+                        SectionTitle("模型")
+                        Text(
+                            "自带 API Key（BYOK）。Key 只用 Android Keystore 加密保存在本机，不会上传到安大通服务器。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftTextField(
+                            value = apiKeyInput,
+                            onValueChange = { apiKeyInput = it },
+                            label = "API Key",
+                            placeholder = if (hasKey) "已保存；留空则不修改" else "sk-...",
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        SoftTextField(
+                            value = baseUrl,
+                            onValueChange = { baseUrl = it },
+                            label = "Base URL",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        SoftTextField(
+                            value = model,
+                            onValueChange = { model = it },
+                            label = "模型名",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+
+                        Text(
+                            "厂商预设",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftChipStrip {
+                            modelPresets.forEach { preset ->
+                                SoftChip(
+                                    preset.label,
+                                    onClick = {
+                                        baseUrl = preset.baseUrl
+                                        model = preset.model
+                                        scope.launch {
+                                            snackbar.showSnackbar("已填入 ${preset.label}，记得保存")
+                                        }
+                                    },
+                                    selected = baseUrl == preset.baseUrl && model == preset.model,
+                                )
+                            }
+                        }
+                        Text(
+                            "预设只填官方兼容地址和模型名；API Key 需要对应厂商，改完点保存。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "联网搜索",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = NextPalette.Ink,
+                                )
+                                Text(
+                                    if (hasKey) {
+                                        "通过 DeepSeek 搜索获取实时网页信息"
+                                    } else {
+                                        "配置 API Key 后生效"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NextPalette.InkSecondary,
+                                )
+                            }
+                            Switch(
+                                checked = searchEnabled,
+                                onCheckedChange = {
+                                    searchEnabled = it
+                                    settings.setSearchEnabled(it)
+                                },
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SoftPrimaryButton(
+                                text = "保存",
+                                onClick = {
+                                    settings.save(
+                                        baseUrl = baseUrl,
+                                        model = model,
+                                        apiKey = apiKeyInput.trim().takeIf { it.isNotBlank() },
+                                    )
+                                    hasKey = !settings.apiKey().isNullOrBlank()
+                                    apiKeyInput = ""
+                                    onSaved()
+                                    scope.launch { snackbar.showSnackbar("已保存") }
+                                },
+                            )
+                            SoftSecondaryButton(
+                                text = "清除 Key",
+                                onClick = {
+                                    settings.clearApiKey()
+                                    hasKey = false
+                                    onSaved()
+                                    scope.launch { snackbar.showSnackbar("已清除 API Key") }
+                                },
+                            )
+                        }
+
+                        Text(
+                            "当前模式：$modelLabel",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = NextPalette.AccentDeep,
+                        )
+                    }
+                }
+
+                                if (section == SettingsSection.MODEL) {
+    SettingsCard {
+                        SectionTitle("安筱桐性格")
+                        Text(
+                            "只影响说话方式和主动程度，不改变工具、数据和金额确认。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftChipStrip {
+                            AssistantPersonality.entries.forEach { item ->
+                                SoftChip(
+                                    item.label,
+                                    onClick = {
+                                        personality = item
+                                        settings.setPersonality(item)
+                                        scope.launch { snackbar.showSnackbar("已切换为${item.label}") }
+                                    },
+                                    selected = personality == item,
+                                )
+                            }
+                        }
+                        Text(
+                            personality.description,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.AccentDeep,
+                        )
+                    }
+                }
+
+                                if (section == SettingsSection.DISPLAY) {
+    SettingsCard {
+                        SectionTitle("显示")
+                        Text(
+                            "调整聊天、卡片与设置页的整体大小。小屏手机建议 88% - 95%，大屏可以适当放大。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "小",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                            Slider(
+                                value = displayScale,
+                                onValueChange = { onDisplayScaleChange((it * 100).roundToInt() / 100f) },
+                                valueRange = SettingsRepository.MIN_DISPLAY_SCALE..
+                                    SettingsRepository.MAX_DISPLAY_SCALE,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 10.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = NextPalette.Accent,
+                                    activeTrackColor = NextPalette.Accent,
+                                    inactiveTrackColor = NextPalette.AccentSoft,
+                                    activeTickColor = Color.Transparent,
+                                    inactiveTickColor = Color.Transparent,
+                                ),
+                            )
+                            Text(
+                                "大",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = NextPalette.InkSecondary,
                             )
                         }
-                        Switch(
-                            checked = suggestionsEnabled,
-                            onCheckedChange = onSuggestionsChange,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "当前：${(displayScale * 100).roundToInt()}%",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = NextPalette.AccentDeep,
+                            )
+                            TextButton(onClick = { onDisplayScaleChange(1f) }) {
+                                Text("恢复标准")
+                            }
+                        }
+                    }
+                }
+
+                                if (section == SettingsSection.DISPLAY) {
+    SettingsCard {
+                        SectionTitle("偏好")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "显示快捷建议",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NextPalette.Ink,
+                                )
+                                Text(
+                                    "空会话时展示作业、课表、成绩等推荐问句。",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NextPalette.InkSecondary,
+                                )
+                            }
+                            Switch(
+                                checked = suggestionsEnabled,
+                                onCheckedChange = onSuggestionsChange,
+                            )
+                        }
+                        SoftSecondaryButton(
+                            text = "提醒设置",
+                            onClick = onOpenReminders,
                         )
                     }
-                    SoftSecondaryButton(
-                        text = "提醒设置",
-                        onClick = onOpenReminders,
-                    )
                 }
 
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("应用")
-                    SoftSecondaryButton(
-                        text = "应用更新",
-                        onClick = onOpenUpdates,
-                    )
-                    SoftSecondaryButton(
-                        text = "关于安大通 NEXT",
-                        onClick = onOpenAbout,
-                    )
+                                if (section == SettingsSection.APP) {
+    SettingsCard {
+                        SectionTitle("应用")
+                        SoftSecondaryButton(
+                            text = "应用更新",
+                            onClick = onOpenUpdates,
+                        )
+                        SoftSecondaryButton(
+                            text = "关于安大通 NEXT",
+                            onClick = onOpenAbout,
+                        )
+                    }
                 }
 
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("宿舍电费")
-                    Text(
-                        electricityRoomLabel?.let { "当前房间：$it" }
-                            ?: "还没有设置房间。查询电费前先选一次，之后会一直记住。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    SoftSecondaryButton(
-                        text = if (electricityRoomLabel == null) "选择房间" else "修改房间",
-                        onClick = { showElectricityRoom = true },
-                    )
+                                if (section == SettingsSection.ELECTRICITY) {
+    SettingsCard {
+                        SectionTitle("宿舍电费")
+                        Text(
+                            electricityRoomLabel?.let { "当前房间：$it" }
+                                ?: "还没有设置房间。查询电费前先选一次，之后会一直记住。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftSecondaryButton(
+                            text = if (electricityRoomLabel == null) "选择房间" else "修改房间",
+                            onClick = { showElectricityRoom = true },
+                        )
+                    }
                 }
 
-                Spacer(Modifier.padding(top = 14.dp))
-
-                SettingsCard {
-                    SectionTitle("数据")
-                    Text(
-                        "单会话本地历史，共 $historyCount 条。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NextPalette.InkSecondary,
-                    )
-                    SoftSecondaryButton(
-                        text = "清除聊天记录",
-                        onClick = { showClearDialog = true },
-                    )
+                                if (section == SettingsSection.DATA) {
+    SettingsCard {
+                        SectionTitle("数据")
+                        Text(
+                            "单会话本地历史，共 $historyCount 条。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = NextPalette.InkSecondary,
+                        )
+                        SoftSecondaryButton(
+                            text = "清除聊天记录",
+                            onClick = { showClearDialog = true },
+                        )
+                    }
                 }
 
                 if (BuildConfig.DEBUG) {
-                    Spacer(Modifier.padding(top = 14.dp))
-                    SettingsCard {
-                        SectionTitle("开发者")
-                        SoftSecondaryButton(
-                            text = "工具工作台",
-                            onClick = onOpenLab,
-                        )
-                        Text(
-                            "直接调用工具，绕过模型与确认卡，仅用于调试。",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                        )
+                                        if (BuildConfig.DEBUG && section == SettingsSection.DEVELOPER) {
+    SettingsCard {
+                            SectionTitle("开发者")
+                            SoftSecondaryButton(
+                                text = "工具工作台",
+                                onClick = onOpenLab,
+                            )
+                            Text(
+                                "直接调用工具，绕过模型与确认卡，仅用于调试。",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
                     }
                 }
 
@@ -523,7 +585,42 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsTopBar(onBack: () -> Unit) {
+private fun SettingsNavRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = NextPalette.Ink,
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.ic_iconpark_left),
+            contentDescription = null,
+            tint = NextPalette.InkSecondary,
+            modifier = Modifier.size(16.dp).rotate(180f),
+        )
+    }
+}
+
+@Composable
+private fun SettingsTopBar(title: String, onBack: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -540,7 +637,7 @@ private fun SettingsTopBar(onBack: () -> Unit) {
         }
         Spacer(Modifier.width(14.dp))
         Text(
-            "设置",
+            title,
             style = MaterialTheme.typography.titleLarge,
             color = NextPalette.Ink,
         )

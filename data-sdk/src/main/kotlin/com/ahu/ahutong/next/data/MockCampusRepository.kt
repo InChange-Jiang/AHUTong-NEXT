@@ -61,7 +61,11 @@ class MockCampusRepository : CampusRepository {
         }.sortedWith(compareBy({ it.date }, { it.startTime }))
     }
 
-    override suspend fun assignments(days: Int): List<Assignment> {
+    override suspend fun assignments(days: Int): List<Assignment> = demoAssignments(days)
+
+    override suspend fun refreshAssignments(days: Int): List<Assignment> = demoAssignments(days)
+
+    private fun demoAssignments(days: Int): List<Assignment> {
         val now = LocalDateTime.now().withSecond(0).withNano(0)
         return listOf(
             Assignment(

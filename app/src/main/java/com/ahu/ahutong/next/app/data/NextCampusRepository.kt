@@ -33,6 +33,7 @@ class NextCampusRepository(
 ) : CampusRepository {
 
     private val calendarStore = LocalCalendarStore(com.ahu.ahutong.core.common.AppEnvironmentHolder.context())
+    private val assignmentStore = AssignmentCacheStore(com.ahu.ahutong.core.common.AppEnvironmentHolder.context())
 
     private val real: Boolean get() = LegacyCampusApi.isLoggedIn()
 
@@ -165,18 +166,45 @@ class NextCampusRepository(
 
     override suspend fun assignments(days: Int): List<Assignment> {
         if (!LegacyCampusApi.hasChaoxingSession()) return demo.assignments(days)
-        return LegacyCampusApi.assignments().orThrow().map { work ->
+        return filterAssignments(assignmentStore.load(assignmentAccountId()), days)
+    }
+
+    override suspend fun refreshAssignments(days: Int): List<Assignment> {
+        if (!LegacyCampusApi.hasChaoxingSession()) return demo.assignments(days)
+        val fresh = fetchAssignments()
+        assignmentStore.save(assignmentAccountId(), fresh)
+        return filterAssignments(fresh, days)
+    }
+
+    private fun assignmentAccountId(): String =
+        LegacyCampusApi.currentStudentId().orEmpty().ifBlank { "anon" }
+
+    private suspend fun fetchAssignments(): List<Assignment> =
+        LegacyCampusApi.assignments().orThrow().map { work ->
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+            val zone = java.time.ZoneId.systemDefault()
+            fun format(epoch: Long?): String? = epoch?.let {
+                java.time.Instant.ofEpochMilli(it).atZone(zone).format(formatter)
+            }
+            val endAt = format(work.endTs)
             Assignment(
                 course = work.courseName,
                 title = work.title,
-                dueAt = work.endTs?.let { epoch ->
-                    java.time.Instant.ofEpochMilli(epoch)
-                        .atZone(java.time.ZoneId.systemDefault())
-                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-                } ?: work.rawEnd,
+                dueAt = endAt ?: work.rawEnd,
                 status = if (work.isDone) "已完成" else "未提交",
+                startAt = format(work.startTs),
+                endAt = endAt,
             )
         }
+
+    private fun filterAssignments(items: List<Assignment>, days: Int): List<Assignment> {
+        val today = LocalDate.now()
+        val upper = today.plusDays(days.toLong())
+        val lower = today.minusDays(14)
+        return items.filter { work ->
+            val date = runCatching { LocalDate.parse(work.dueAt.take(10)) }.getOrNull()
+            date == null || (date >= lower && date <= upper)
+        }.sortedWith(compareBy({ it.status.contains("已完成") }, { it.dueAt }))
     }
 
     override fun electricityRoomLabel(): String? =

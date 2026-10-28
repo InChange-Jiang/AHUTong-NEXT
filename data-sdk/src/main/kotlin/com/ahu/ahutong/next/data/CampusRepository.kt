@@ -3,6 +3,9 @@ package com.ahu.ahutong.next.data
 interface CampusRepository {
     suspend fun schedule(days: Int = 7): List<CourseOccurrence>
     suspend fun assignments(days: Int = 14): List<Assignment>
+
+    /** 主动刷新：回源学习通并更新本地缓存；页面进入时不要调用。 */
+    suspend fun refreshAssignments(days: Int = 14): List<Assignment>
     suspend fun grades(term: String? = null): List<Grade>
     suspend fun balance(): Balance
     suspend fun bills(): BillSummary

@@ -11,7 +11,11 @@ class SettingsRepository(context: Context) {
 
     fun baseUrl(): String = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
 
-    fun model(): String = prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
+    fun model(): String {
+        val saved = prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
+        val legacyDeepSeek = saved == "deepseek-flash" || saved == "deepseek-chat" || saved == "deepseek-reasoner"
+        return if (legacyDeepSeek && baseUrl().contains("deepseek.com")) DEFAULT_MODEL else saved
+    }
 
     fun searchEnabled(): Boolean = prefs.getBoolean(KEY_SEARCH_ENABLED, true)
 
@@ -69,7 +73,7 @@ class SettingsRepository(context: Context) {
 
     companion object {
         const val DEFAULT_BASE_URL = "https://api.deepseek.com/v1"
-        const val DEFAULT_MODEL = "deepseek-flash"
+        const val DEFAULT_MODEL = "deepseek-v4-flash"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_MODEL = "model"
         private const val KEY_SEARCH_ENABLED = "search_enabled"

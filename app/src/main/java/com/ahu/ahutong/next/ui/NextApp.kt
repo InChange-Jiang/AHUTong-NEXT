@@ -1,6 +1,7 @@
 package com.ahu.ahutong.next.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
@@ -12,6 +13,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -24,9 +26,11 @@ import com.ahu.ahutong.next.reminder.CourseReminders
 import com.ahu.ahutong.next.reminder.ElectricityAlerts
 import com.ahu.ahutong.next.ui.chat.ChatScreen
 import com.ahu.ahutong.next.ui.chat.ChatViewModel
+import com.ahu.ahutong.next.ui.components.TopLevelBottomBar
 import com.ahu.ahutong.next.ui.lab.ToolLabScreen
 import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
+import com.ahu.ahutong.next.ui.nav.TopLevelTab
 import com.ahu.ahutong.next.ui.nav.rememberAppNav
 import com.ahu.ahutong.next.ui.pages.AccountsPage
 import com.ahu.ahutong.next.ui.pages.AssignmentsPage
@@ -72,6 +76,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val settings = remember { SettingsRepository(context) }
     var displayScale by remember { mutableFloatStateOf(settings.displayScale()) }
     var suggestionsEnabled by remember { mutableStateOf(settings.suggestionsEnabled()) }
+    var topTab by rememberSaveable { mutableStateOf(TopLevelTab.CHAT) }
     val baseDensity = LocalDensity.current
 
     LaunchedEffect(Unit) {
@@ -79,10 +84,28 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
         ElectricityAlerts.check(context, repository)
     }
 
-    BackHandler(enabled = nav.canGoBack) { nav.pop() }
+    BackHandler(enabled = nav.canGoBack || topTab != TopLevelTab.CHAT) {
+        if (!nav.pop()) topTab = TopLevelTab.CHAT
+    }
 
     fun closeDrawer() {
         scope.launch { drawerState.close() }
+    }
+
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+    val selectTopTab: (TopLevelTab) -> Unit = { tab ->
+        topTab = tab
+        nav.resetToChat()
+        closeDrawer()
+    }
+    val drawerRoute = if (nav.current == AppRoute.Chat) {
+        when (topTab) {
+            TopLevelTab.CHAT -> AppRoute.Chat
+            TopLevelTab.SCHEDULE -> AppRoute.Schedule
+            TopLevelTab.CALENDAR -> AppRoute.CalendarEvents
+        }
+    } else {
+        nav.current
     }
 
     ModalNavigationDrawer(
@@ -91,14 +114,24 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
         drawerContent = {
             AppDrawer(
                 nav = nav,
-                current = nav.current,
+                current = drawerRoute,
                 onNewChat = {
                     viewModel.clearHistory()
                     nav.resetToChat()
                     closeDrawer()
                 },
                 onNavigate = { route ->
-                    nav.push(route)
+                    when (route) {
+                        AppRoute.Schedule -> {
+                            topTab = TopLevelTab.SCHEDULE
+                            nav.resetToChat()
+                        }
+                        AppRoute.CalendarEvents -> {
+                            topTab = TopLevelTab.CALENDAR
+                            nav.resetToChat()
+                        }
+                        else -> nav.push(route)
+                    }
                     closeDrawer()
                 },
             )
@@ -112,16 +145,50 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
         ) {
             val back: () -> Unit = { nav.pop() }
             when (nav.current) {
-                AppRoute.Chat -> ChatScreen(
-                    state = state,
-                    onInputChange = viewModel::onInputChange,
-                    onSend = viewModel::send,
-                    onApprove = { viewModel.approve(it) },
-                    onReject = viewModel::reject,
-                    onCancel = viewModel::cancelRun,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    showSuggestions = suggestionsEnabled,
-                )
+                AppRoute.Chat -> when (topTab) {
+                    TopLevelTab.CHAT -> ChatScreen(
+                        state = state,
+                        onInputChange = viewModel::onInputChange,
+                        onSend = viewModel::send,
+                        onApprove = { viewModel.approve(it) },
+                        onReject = viewModel::reject,
+                        onCancel = viewModel::cancelRun,
+                        onOpenDrawer = openDrawer,
+                        showSuggestions = suggestionsEnabled,
+                        bottomBar = {
+                            TopLevelBottomBar(
+                                selected = TopLevelTab.CHAT,
+                                onSelect = selectTopTab,
+                            )
+                        },
+                    )
+
+                    TopLevelTab.SCHEDULE -> SchedulePage(
+                        repository = repository,
+                        onBack = {},
+                        onMenu = openDrawer,
+                        bottomBar = {
+                            TopLevelBottomBar(
+                                selected = TopLevelTab.SCHEDULE,
+                                onSelect = selectTopTab,
+                                modifier = androidx.compose.ui.Modifier.navigationBarsPadding(),
+                            )
+                        },
+                    )
+
+                    TopLevelTab.CALENDAR -> CalendarEventsPage(
+                        repository = repository,
+                        onBack = {},
+                        onMenu = openDrawer,
+                        bottomBar = {
+                            TopLevelBottomBar(
+                                selected = TopLevelTab.CALENDAR,
+                                onSelect = selectTopTab,
+                                modifier = androidx.compose.ui.Modifier.navigationBarsPadding(),
+                            )
+                        },
+                    )
+                }
 
                 AppRoute.Settings -> SettingsScreen(
                     modelLabel = state.modelLabel,
