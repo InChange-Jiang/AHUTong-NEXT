@@ -55,6 +55,7 @@ import com.ahu.ahutong.next.data.CalendarEvent
 import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
+import com.ahu.ahutong.next.ui.components.HeaderScrimContentTop
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.LocalNextToast
 import com.ahu.ahutong.next.ui.components.SoftChip
@@ -228,7 +229,7 @@ fun CalendarEventsPage(
     ) {
         AsyncContent(if (initialLoading) LoadState.Loading else LoadState.Ready(Unit)) {
             FeatureScrollColumn(horizontalPadding = 6.dp) {
-                Spacer(Modifier.height(100.dp))
+                Spacer(Modifier.height(HeaderScrimContentTop))
                 PageCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(

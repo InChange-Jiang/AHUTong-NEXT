@@ -1,6 +1,5 @@
 package com.ahu.ahutong.next.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -99,26 +96,13 @@ private fun FeatureHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (overlay) {
-                    Modifier.background(
-                        Brush.verticalGradient(
-                            0.0f to NextPalette.Background.copy(alpha = 0.995f),
-                            0.55f to NextPalette.Background.copy(alpha = 0.955f),
-                            0.80f to NextPalette.Background.copy(alpha = 0.76f),
-                            1.0f to Color.Transparent,
-                        ),
-                    )
-                } else {
-                    Modifier
-                },
-            )
+            .then(if (overlay) Modifier.headerScrim() else Modifier)
             .then(if (overlay) Modifier.statusBarsPadding() else Modifier)
             .padding(
                 start = 18.dp,
                 end = 18.dp,
                 top = 10.dp,
-                bottom = if (overlay) 42.dp else 10.dp,
+                bottom = if (overlay) HeaderScrimBottomPadding else 10.dp,
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {

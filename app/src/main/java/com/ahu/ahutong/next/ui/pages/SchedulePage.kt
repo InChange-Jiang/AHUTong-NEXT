@@ -71,6 +71,7 @@ import com.ahu.ahutong.next.app.data.toSemester
 import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
+import com.ahu.ahutong.next.ui.components.HeaderScrimContentTop
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -289,7 +290,7 @@ fun SemesterSchedulePage(
                     .navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Spacer(Modifier.height(100.dp))
+                Spacer(Modifier.height(HeaderScrimContentTop))
                 LazyRow(
                     state = weekStripState,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp),

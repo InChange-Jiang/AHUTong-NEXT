@@ -59,6 +59,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.components.AgentAvatar
+import com.ahu.ahutong.next.ui.components.HeaderScrimBottomPadding
+import com.ahu.ahutong.next.ui.components.HeaderScrimContentTop
+import com.ahu.ahutong.next.ui.components.headerScrim
 import com.ahu.ahutong.next.ui.markdown.AppMarkdown
 import com.ahu.ahutong.next.ui.markdown.KatexMarkdown
 import com.ahu.ahutong.next.ui.markdown.StreamingAppMarkdown
@@ -133,7 +136,7 @@ fun ChatScreen(
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     end = 18.dp,
-                    top = 120.dp,
+                    top = HeaderScrimContentTop,
                     bottom = 150.dp,
                 ),
                 verticalArrangement = if (state.items.isEmpty()) {
@@ -238,16 +241,9 @@ private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    0.0f to NextPalette.Background.copy(alpha = 0.995f),
-                    0.55f to NextPalette.Background.copy(alpha = 0.955f),
-                    0.80f to NextPalette.Background.copy(alpha = 0.76f),
-                    1.0f to Color.Transparent,
-                ),
-            )
+            .headerScrim()
             .statusBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 42.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = HeaderScrimBottomPadding),
     ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
