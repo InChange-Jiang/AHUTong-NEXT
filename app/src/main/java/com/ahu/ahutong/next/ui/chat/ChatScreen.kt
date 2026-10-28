@@ -133,7 +133,7 @@ fun ChatScreen(
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     end = 18.dp,
-                    top = 126.dp,
+                    top = 120.dp,
                     bottom = 150.dp,
                 ),
                 verticalArrangement = if (state.items.isEmpty()) {
@@ -240,14 +240,14 @@ private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
-                    0.0f to NextPalette.Background.copy(alpha = 0.997f),
-                    0.60f to NextPalette.Background.copy(alpha = 0.975f),
-                    0.82f to NextPalette.Background.copy(alpha = 0.85f),
+                    0.0f to NextPalette.Background.copy(alpha = 0.995f),
+                    0.55f to NextPalette.Background.copy(alpha = 0.955f),
+                    0.80f to NextPalette.Background.copy(alpha = 0.76f),
                     1.0f to Color.Transparent,
                 ),
             )
             .statusBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 46.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 42.dp),
     ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
