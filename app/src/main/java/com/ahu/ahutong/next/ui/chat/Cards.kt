@@ -1,5 +1,6 @@
 package com.ahu.ahutong.next.ui.chat
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -68,89 +70,177 @@ import java.util.Locale
 private val prettyJson = Json { prettyPrint = true }
 
 @Composable
-fun ToolResultCard(result: ToolResult) {
-    SoftSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        elevation = 8.dp,
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+fun ToolResultSection(
+    result: ToolResult,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(onClick = onToggle)
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(NextPalette.AccentSoft),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(toolIcon(result.toolName)),
-                        contentDescription = null,
-                        tint = NextPalette.Accent,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        toolTitle(result.toolName),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = NextPalette.Ink,
-                    )
-                    Text(
-                        if (result.ok) "已完成" else "执行失败",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (result.ok) NextPalette.Success else NextPalette.Danger,
-                    )
-                }
-            }
-
-            if (!result.ok) {
-                Text(
-                    result.error?.message ?: "执行失败",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NextPalette.Danger,
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (result.ok) NextPalette.AccentSoft else NextPalette.DangerSoft,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(toolIcon(result.toolName)),
+                    contentDescription = null,
+                    tint = if (result.ok) NextPalette.Accent else NextPalette.Danger,
+                    modifier = Modifier.size(16.dp),
                 )
-            } else {
-                when (result.toolName) {
-                    "get_schedule" -> ScheduleBody(result.data)
-                    "get_assignments" -> AssignmentBody(result.data)
-                    "get_grades" -> GradeBody(result.data)
-                    "get_balance" -> BalanceBody(result.data)
-                    "get_bills" -> BillsBody(result.data)
-                    "get_exams" -> ExamBody(result.data)
-                    "get_electricity" -> ElectricityBody(result.data)
-                    "recharge_card",
-                    "recharge_electricity",
-                    "recharge_bathroom",
-                    "recharge_network" -> RechargeBody(result.data)
-                    "get_weather" -> WeatherBody(result.data)
-                    "get_attendance" -> AttendanceBody(result.data)
-                    "get_program_completion" -> CompletionBody(result.data)
-                    "get_lost_found" -> LostFoundBody(result.data)
-                    "get_notices" -> NoticeBody(result.data)
-                    "get_free_rooms" -> FreeRoomsBody(result.data)
-                    "add_calendar_event" -> CalendarBody(result.data)
-                    "web_search" -> SearchBody(result.data)
-                    else -> Text(
-                        prettyJson.encodeToString(JsonElement.serializer(), result.data ?: JsonObject(emptyMap())),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                    )
-                }
             }
-
-            HorizontalDivider(color = NextPalette.Line)
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    toolTitle(result.toolName),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = NextPalette.Ink,
+                )
+                Text(
+                    if (result.ok) "执行成功" else "执行失败",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (result.ok) NextPalette.Success else NextPalette.Danger,
+                )
+            }
             Text(
-                "来源：${result.source} · 更新于 ${formatTimestamp(result.fetchedAt)}",
+                if (expanded) "收起" else "查看",
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.AccentDeep,
+            )
+        }
+
+        AnimatedVisibility(visible = expanded) {
+            Column(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (!result.ok) {
+                    Text(
+                        result.error?.message ?: "执行失败",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = NextPalette.Danger,
+                    )
+                } else {
+                    ToolResultBody(result)
+                }
+                HorizontalDivider(color = NextPalette.Line)
+                Text(
+                    "来源：${result.source} · 更新于 ${formatTimestamp(result.fetchedAt)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolResultBody(result: ToolResult) {
+    when (result.toolName) {
+        "get_schedule" -> ScheduleBody(result.data)
+        "get_assignments" -> AssignmentBody(result.data)
+        "get_grades" -> GradeBody(result.data)
+        "get_balance" -> BalanceBody(result.data)
+        "get_bills" -> BillsBody(result.data)
+        "get_exams" -> ExamBody(result.data)
+        "get_electricity" -> ElectricityBody(result.data)
+        "recharge_card",
+        "recharge_electricity",
+        "recharge_bathroom",
+        "recharge_network" -> RechargeBody(result.data)
+        "get_weather" -> WeatherBody(result.data)
+        "get_attendance" -> AttendanceBody(result.data)
+        "get_program_completion" -> CompletionBody(result.data)
+        "get_lost_found" -> LostFoundBody(result.data)
+        "get_notices" -> NoticeBody(result.data)
+        "get_free_rooms" -> FreeRoomsBody(result.data)
+        "add_calendar_event" -> CalendarBody(result.data)
+        "get_calendar_events" -> CalendarEventsBody(result.data)
+        "web_search" -> SearchBody(result.data)
+        else -> GenericBody(result.data)
+    }
+}
+
+@Composable
+private fun CalendarEventsBody(data: JsonObject?) {
+    val events = (data?.get("events") as? JsonArray).orEmpty()
+    if (events.isEmpty()) {
+        EmptyHint("这段时间没有本地日程。")
+        return
+    }
+    events.forEach { element ->
+        val event = element as? JsonObject ?: return@forEach
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                event["title"]?.jsonPrimitive?.content.orEmpty(),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = NextPalette.Ink,
+            )
+            Text(
+                buildString {
+                    append(event["start"]?.jsonPrimitive?.content.orEmpty())
+                    val end = event["end"]?.jsonPrimitive?.content.orEmpty()
+                    if (end.isNotBlank() && end != event["start"]?.jsonPrimitive?.content.orEmpty()) {
+                        append(" → ").append(end)
+                    }
+                    val reminder = event["reminderMinutes"]?.jsonPrimitive?.content
+                        ?.toIntOrNull() ?: 0
+                    if (reminder > 0) append(" · 提前 $reminder 分钟提醒")
+                },
                 style = MaterialTheme.typography.labelSmall,
                 color = NextPalette.InkSecondary,
             )
         }
     }
+}
+
+@Composable
+private fun GenericBody(data: JsonObject?) {
+    if (data.isNullOrEmpty()) {
+        EmptyHint("没有可展示的数据。")
+        return
+    }
+    data.forEach { (key, value) ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                prettyKey(key),
+                modifier = Modifier.width(96.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = NextPalette.InkSecondary,
+            )
+            Text(
+                summarizeJson(value),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodySmall,
+                color = NextPalette.Ink,
+            )
+        }
+    }
+}
+
+private fun prettyKey(key: String): String = key
+    .replace(Regex("([a-z])([A-Z])"), "$1 $2")
+    .lowercase(Locale.CHINA)
+
+private fun summarizeJson(value: JsonElement): String = when (value) {
+    is JsonArray -> "${value.size} 项"
+    is JsonObject -> "${value.size} 个字段"
+    else -> value.jsonPrimitive.content
 }
 
 @Composable
@@ -975,6 +1065,15 @@ private fun toolIcon(name: String): Int = when (name) {
     "get_notices" -> R.drawable.ic_iconpark_assignment
     "get_free_rooms" -> R.drawable.ic_iconpark_calendar
     "add_calendar_event" -> R.drawable.ic_iconpark_plus
+    "get_calendar_events" -> R.drawable.ic_iconpark_calendar
+    "get_phone_book" -> R.drawable.ic_phonebook
+    "get_mail", "send_mail" -> R.drawable.ic_student_mail
+    "get_canteen_ranking" -> R.drawable.ic_canteen_ranking
+    "get_course_tasks" -> R.drawable.ic_iconpark_assignment
+    "get_evaluation_tasks", "submit_evaluation" -> R.drawable.ic_evaluation
+    "get_gpa_rank" -> R.drawable.ic_iconpark_grades
+    "get_electricity_conditions", "switch_electricity_condition" -> R.drawable.ic_iconpark_electricity
+    "publish_lost_found", "delete_lost_found" -> R.drawable.ic_iconpark_search
     "web_search" -> R.drawable.ic_iconpark_search
     else -> R.drawable.ic_iconpark_grades
 }
@@ -998,6 +1097,19 @@ private fun toolTitle(name: String): String = when (name) {
     "get_notices" -> "校园通知"
     "get_free_rooms" -> "空闲教室"
     "add_calendar_event" -> "新建日程"
+    "get_calendar_events" -> "本地日程"
+    "get_phone_book" -> "电话本"
+    "get_mail" -> "学生邮箱"
+    "send_mail" -> "发送邮件"
+    "get_canteen_ranking" -> "必吃榜"
+    "get_course_tasks" -> "课程任务"
+    "get_evaluation_tasks" -> "评教待办"
+    "submit_evaluation" -> "提交评教"
+    "get_gpa_rank" -> "绩点排名"
+    "get_electricity_conditions" -> "电控条件"
+    "switch_electricity_condition" -> "切换电控"
+    "publish_lost_found" -> "发布失物"
+    "delete_lost_found" -> "删除失物"
     "web_search" -> "联网搜索"
     else -> name
 }

@@ -89,16 +89,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 .imePadding()
                 .padding(horizontal = 22.dp, vertical = 14.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (step > 0) {
-                    TextButton(onClick = { step-- }) { Text("上一步") }
-                } else {
-                    Spacer(Modifier.width(48.dp))
-                }
-                Spacer(Modifier.weight(1f))
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     repeat(STEP_COUNT) { index ->
                         Box(
@@ -111,8 +102,6 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         )
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                Spacer(Modifier.width(48.dp))
             }
 
             AnimatedContent(
@@ -160,35 +149,48 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 }
             }
 
-            when (step) {
-                0 -> SoftPrimaryButton(
-                    text = "下一步",
-                    onClick = { step = 1 },
-                    enabled = loggedIn,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (step > 0) {
+                    SoftSecondaryButton(
+                        text = "上一步",
+                        onClick = { step-- },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                when (step) {
+                    0 -> SoftPrimaryButton(
+                        text = "下一步",
+                        onClick = { step = 1 },
+                        enabled = loggedIn,
+                        modifier = Modifier.weight(1.4f),
+                    )
 
-                1 -> SoftPrimaryButton(
-                    text = "保存并继续",
-                    onClick = {
-                        settings.save(
-                            baseUrl = baseUrl,
-                            model = model,
-                            apiKey = apiKey.takeIf { it.isNotBlank() },
-                        )
-                        hasSavedKey = true
-                        step = 2
-                    },
-                    enabled = (apiKey.isNotBlank() || hasSavedKey) &&
-                        baseUrl.isNotBlank() && model.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                    1 -> SoftPrimaryButton(
+                        text = "保存并继续",
+                        onClick = {
+                            settings.save(
+                                baseUrl = baseUrl,
+                                model = model,
+                                apiKey = apiKey.takeIf { it.isNotBlank() },
+                            )
+                            hasSavedKey = true
+                            step = 2
+                        },
+                        enabled = (apiKey.isNotBlank() || hasSavedKey) &&
+                            baseUrl.isNotBlank() && model.isNotBlank(),
+                        modifier = Modifier.weight(1.4f),
+                    )
 
-                else -> SoftPrimaryButton(
-                    text = "开始使用",
-                    onClick = onComplete,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                    else -> SoftPrimaryButton(
+                        text = "开始使用",
+                        onClick = onComplete,
+                        modifier = Modifier.weight(1.4f),
+                    )
+                }
             }
             Spacer(Modifier.size(8.dp))
         }

@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -87,6 +88,8 @@ fun ChatScreen(
     val lastAssistantStreaming = (state.items.lastOrNull() as? ChatItem.Assistant)?.streaming == true
     var stickToBottom by remember { mutableStateOf(true) }
     var showPaymentQr by remember { mutableStateOf(false) }
+    var expandedTools by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val displayItems = remember(state.items) { buildChatDisplay(state.items) }
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
     LaunchedEffect(listState) {
@@ -97,9 +100,9 @@ fun ChatScreen(
     }
 
     // 新增消息、状态变化、流式结束都直接贴底；用户主动上翻后不再抢滚动位置。
-    LaunchedEffect(state.items.size, state.status, lastAssistantStreaming) {
+    LaunchedEffect(displayItems.size, state.status, lastAssistantStreaming) {
         if (!stickToBottom) return@LaunchedEffect
-        val target = state.items.lastIndex + if (state.status != null) 1 else 0
+        val target = displayItems.lastIndex + if (state.status != null) 1 else 0
         if (target < 0) return@LaunchedEffect
         withFrameNanos { }
         listState.scrollToItem(target)
@@ -144,9 +147,17 @@ fun ChatScreen(
                             EmptyHero(onSend = onSend, showSuggestions = showSuggestions)
                         }
                     } else {
-                        items(state.items, key = { it.id }) { item ->
-                            MessageItem(
-                                item = item,
+                        items(displayItems, key = { it.key }) { display ->
+                            ChatDisplayRow(
+                                display = display,
+                                expandedTools = expandedTools,
+                                onToggleTool = { id ->
+                                    expandedTools = if (id in expandedTools) {
+                                        expandedTools - id
+                                    } else {
+                                        expandedTools + id
+                                    }
+                                },
                                 onApprove = onApprove,
                                 onReject = onReject,
                             )
@@ -388,20 +399,85 @@ private fun InputPill(
     }
 }
 
+private sealed interface ChatDisplayItem {
+    val key: String
+
+    data class User(val item: ChatItem.User) : ChatDisplayItem {
+        override val key: String get() = item.id
+    }
+
+    data class AssistantTurn(val items: List<ChatItem>) : ChatDisplayItem {
+        override val key: String get() = items.first().id
+    }
+
+    data class Approval(val item: ChatItem.Approval) : ChatDisplayItem {
+        override val key: String get() = item.id
+    }
+
+    data class Error(val item: ChatItem.Error) : ChatDisplayItem {
+        override val key: String get() = item.id
+    }
+
+    data class Notice(val item: ChatItem.Notice) : ChatDisplayItem {
+        override val key: String get() = item.id
+    }
+}
+
+private fun buildChatDisplay(items: List<ChatItem>): List<ChatDisplayItem> {
+    val result = mutableListOf<ChatDisplayItem>()
+    val turn = mutableListOf<ChatItem>()
+
+    fun flushTurn() {
+        if (turn.isNotEmpty()) {
+            result += ChatDisplayItem.AssistantTurn(turn.toList())
+            turn.clear()
+        }
+    }
+
+    items.forEach { item ->
+        when (item) {
+            is ChatItem.Assistant, is ChatItem.Tool -> turn += item
+            is ChatItem.User -> {
+                flushTurn()
+                result += ChatDisplayItem.User(item)
+            }
+            is ChatItem.Approval -> {
+                flushTurn()
+                result += ChatDisplayItem.Approval(item)
+            }
+            is ChatItem.Error -> {
+                flushTurn()
+                result += ChatDisplayItem.Error(item)
+            }
+            is ChatItem.Notice -> {
+                flushTurn()
+                result += ChatDisplayItem.Notice(item)
+            }
+        }
+    }
+    flushTurn()
+    return result
+}
+
 @Composable
-private fun MessageItem(
-    item: ChatItem,
+private fun ChatDisplayRow(
+    display: ChatDisplayItem,
+    expandedTools: Set<String>,
+    onToggleTool: (String) -> Unit,
     onApprove: (String?) -> Unit,
     onReject: () -> Unit,
 ) {
-    when (item) {
-        is ChatItem.User -> UserBubble(item.text)
-        is ChatItem.Assistant -> AssistantMessage(item.text, item.streaming)
-        is ChatItem.Tool -> ToolResultCard(item.result)
-        is ChatItem.Approval -> ApprovalCard(item, onApprove, onReject)
-        is ChatItem.Error -> ErrorCard(item.text)
-        is ChatItem.Notice -> Text(
-            item.text,
+    when (display) {
+        is ChatDisplayItem.User -> UserBubble(display.item.text)
+        is ChatDisplayItem.AssistantTurn -> AssistantTurnBubble(
+            items = display.items,
+            expandedTools = expandedTools,
+            onToggleTool = onToggleTool,
+        )
+        is ChatDisplayItem.Approval -> ApprovalCard(display.item, onApprove, onReject)
+        is ChatDisplayItem.Error -> ErrorCard(display.item.text)
+        is ChatDisplayItem.Notice -> Text(
+            display.item.text,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelSmall,
             color = NextPalette.InkSecondary,
@@ -439,7 +515,11 @@ private fun UserBubble(text: String) {
 }
 
 @Composable
-private fun AssistantMessage(text: String, streaming: Boolean) {
+private fun AssistantTurnBubble(
+    items: List<ChatItem>,
+    expandedTools: Set<String>,
+    onToggleTool: (String) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AgentAvatar(size = 24.dp)
@@ -466,27 +546,53 @@ private fun AssistantMessage(text: String, streaming: Boolean) {
                 )
                 .padding(horizontal = 15.dp, vertical = 13.dp),
         ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (streaming) {
-                    StreamingAppMarkdown(
-                        markdown = text,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else if (text.containsMath()) {
-                    KatexMarkdown(
-                        markdown = text,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } else {
-                    AppMarkdown(
-                        markdown = text,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                var hasContent = false
+                items.forEach { item ->
+                    when (item) {
+                        is ChatItem.Assistant -> {
+                            if (item.text.isNotBlank()) {
+                                if (hasContent) HorizontalDivider(color = NextPalette.Line)
+                                AssistantText(item.text, item.streaming)
+                                hasContent = true
+                            }
+                        }
+
+                        is ChatItem.Tool -> {
+                            if (hasContent) HorizontalDivider(color = NextPalette.Line)
+                            ToolResultSection(
+                                result = item.result,
+                                expanded = item.id in expandedTools,
+                                onToggle = { onToggleTool(item.id) },
+                            )
+                            hasContent = true
+                        }
+
+                        else -> Unit
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AssistantText(text: String, streaming: Boolean) {
+    if (streaming) {
+        StreamingAppMarkdown(
+            markdown = text,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else if (text.containsMath()) {
+        KatexMarkdown(
+            markdown = text,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else {
+        AppMarkdown(
+            markdown = text,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
