@@ -235,7 +235,12 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
             ),
             LocalNextToast provides showToast,
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            // 页面进出时两张页面之间会露出底色；显式铺主题背景，避免暗色下透出窗口的白底。
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(NextPalette.Background),
+            ) {
             AnimatedContent(
                 targetState = nav.current,
                 transitionSpec = {
