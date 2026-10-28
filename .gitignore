@@ -14,3 +14,6 @@
 *.jks
 *.log
 _preview/
+
+keystore.properties
+/keystore/
