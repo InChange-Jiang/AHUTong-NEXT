@@ -28,8 +28,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -61,6 +59,7 @@ import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.app.data.modelPresets
 import com.ahu.ahutong.next.app.data.providerFor
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
+import com.ahu.ahutong.next.ui.components.LocalNextToast
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
@@ -101,8 +100,8 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
 ) {
     val context = LocalContext.current
+    val showToast = LocalNextToast.current
     val settings = remember { SettingsRepository(context) }
-    val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var apiKeyInput by rememberSaveable { mutableStateOf("") }
@@ -200,7 +199,7 @@ fun SettingsScreen(
                                 onClick = {
                                     LegacyCampusApi.logout()
                                     accountName = null
-                                    scope.launch { snackbar.showSnackbar("已退出登录") }
+                                    showToast("已退出登录")
                                 },
                             )
                         }
@@ -276,9 +275,7 @@ fun SettingsScreen(
                                     onClick = {
                                         baseUrl = preset.baseUrl
                                         model = preset.model
-                                        scope.launch {
-                                            snackbar.showSnackbar("已填入 ${preset.label}，记得保存")
-                                        }
+                                        showToast("已填入 ${preset.label}，记得保存")
                                     },
                                     selected = baseUrl == preset.baseUrl && model == preset.model,
                                 )
@@ -406,7 +403,7 @@ fun SettingsScreen(
                                     hasKey = !settings.apiKey().isNullOrBlank()
                                     apiKeyInput = ""
                                     onSaved()
-                                    scope.launch { snackbar.showSnackbar("已保存") }
+                                    showToast("已保存")
                                 },
                             )
                             SoftSecondaryButton(
@@ -415,7 +412,7 @@ fun SettingsScreen(
                                     settings.clearApiKey()
                                     hasKey = false
                                     onSaved()
-                                    scope.launch { snackbar.showSnackbar("已清除 API Key") }
+                                    showToast("已清除 API Key")
                                 },
                             )
                         }
@@ -443,7 +440,7 @@ fun SettingsScreen(
                                     onClick = {
                                         personality = item
                                         settings.setPersonality(item)
-                                        scope.launch { snackbar.showSnackbar("已切换为${item.label}") }
+                                        showToast("已切换为${item.label}")
                                     },
                                     selected = personality == item,
                                 )
@@ -610,25 +607,6 @@ fun SettingsScreen(
             }
         }
         }
-
-        SnackbarHost(
-            hostState = snackbar,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(18.dp),
-        ) { data ->
-            SoftSurface(
-                shape = RoundedCornerShape(18.dp),
-                elevation = 14.dp,
-            ) {
-                Text(
-                    data.visuals.message,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NextPalette.Ink,
-                )
-            }
-        }
     }
 
     if (showLogin) {
@@ -637,7 +615,7 @@ fun SettingsScreen(
             onSuccess = { name ->
                 accountName = name.ifBlank { "已登录" }
                 showLogin = false
-                scope.launch { snackbar.showSnackbar("登录成功，切换到真实数据") }
+                showToast("登录成功，切换到真实数据")
             },
         )
     }
@@ -648,7 +626,7 @@ fun SettingsScreen(
             onSuccess = {
                 chaoxingConnected = true
                 showChaoxingLogin = false
-                scope.launch { snackbar.showSnackbar("学习通已连接") }
+                showToast("学习通已连接")
             },
         )
     }
@@ -658,7 +636,7 @@ fun SettingsScreen(
             onDismiss = { showElectricityRoom = false },
             onSaved = { label ->
                 electricityRoomLabel = label
-                scope.launch { snackbar.showSnackbar("电费房间已保存") }
+                showToast("电费房间已保存")
             },
         )
     }
@@ -673,7 +651,7 @@ fun SettingsScreen(
                     onClick = {
                         onClearHistory()
                         showClearDialog = false
-                        scope.launch { snackbar.showSnackbar("聊天记录已清除") }
+                        showToast("聊天记录已清除")
                     },
                 ) {
                     Text("清除")

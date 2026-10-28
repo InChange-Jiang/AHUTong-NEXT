@@ -36,6 +36,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,9 +58,8 @@ import com.ahu.ahutong.next.reminder.CourseReminders
 import com.ahu.ahutong.next.reminder.ElectricityAlerts
 import com.ahu.ahutong.next.ui.chat.ChatScreen
 import com.ahu.ahutong.next.ui.chat.ChatViewModel
-import com.ahu.ahutong.next.ui.components.LocalNextSnackbar
-import com.ahu.ahutong.next.ui.components.NextSnackbarHost
-import com.ahu.ahutong.next.ui.components.rememberNextSnackbarController
+import com.ahu.ahutong.next.ui.components.LocalNextToast
+import com.ahu.ahutong.next.ui.components.NextToast
 import com.ahu.ahutong.next.ui.lab.ToolLabScreen
 import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
@@ -108,7 +108,6 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val nav = rememberAppNav()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val snackbarController = rememberNextSnackbarController()
     val repository = remember { NextCampusRepository() }
 
     val context = LocalContext.current
@@ -119,6 +118,20 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val chatListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val baseDensity = LocalDensity.current
     var indicatorVisible by remember { mutableStateOf(true) }
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var toastSeq by remember { mutableIntStateOf(0) }
+    val showToast: (String) -> Unit = { message ->
+        if (message.isNotBlank()) {
+            toastMessage = message
+            toastSeq++
+        }
+    }
+    LaunchedEffect(toastSeq) {
+        if (toastMessage != null) {
+            delay(2200)
+            toastMessage = null
+        }
+    }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.isScrollInProgress }.collectLatest { scrolling ->
@@ -190,7 +203,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 density = baseDensity.density * displayScale,
                 fontScale = baseDensity.fontScale,
             ),
-            LocalNextSnackbar provides snackbarController,
+            LocalNextToast provides showToast,
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
             AnimatedContent(
@@ -359,8 +372,8 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 }
             }
             }
-            NextSnackbarHost(
-                controller = snackbarController,
+            NextToast(
+                message = toastMessage,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
@@ -368,7 +381,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                     .padding(
                         start = 18.dp,
                         end = 18.dp,
-                        bottom = if (nav.current == AppRoute.Chat) 92.dp else 20.dp,
+                        bottom = if (nav.current == AppRoute.Chat) 92.dp else 28.dp,
                     ),
             )
             }
