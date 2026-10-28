@@ -1,7 +1,21 @@
 package com.ahu.ahutong.next.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
@@ -13,11 +27,15 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ahu.ahutong.next.app.data.NextCampusRepository
@@ -26,15 +44,13 @@ import com.ahu.ahutong.next.reminder.CourseReminders
 import com.ahu.ahutong.next.reminder.ElectricityAlerts
 import com.ahu.ahutong.next.ui.chat.ChatScreen
 import com.ahu.ahutong.next.ui.chat.ChatViewModel
-import com.ahu.ahutong.next.ui.components.TopLevelBottomBar
 import com.ahu.ahutong.next.ui.lab.ToolLabScreen
 import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
-import com.ahu.ahutong.next.ui.nav.TopLevelTab
 import com.ahu.ahutong.next.ui.nav.rememberAppNav
+import com.ahu.ahutong.next.ui.pages.AboutPage
 import com.ahu.ahutong.next.ui.pages.AccountsPage
 import com.ahu.ahutong.next.ui.pages.AssignmentsPage
-import com.ahu.ahutong.next.ui.pages.AboutPage
 import com.ahu.ahutong.next.ui.pages.AttendancePage
 import com.ahu.ahutong.next.ui.pages.BillsPage
 import com.ahu.ahutong.next.ui.pages.CalendarEventsPage
@@ -42,6 +58,7 @@ import com.ahu.ahutong.next.ui.pages.CanteenPage
 import com.ahu.ahutong.next.ui.pages.CardPage
 import com.ahu.ahutong.next.ui.pages.CompletionPage
 import com.ahu.ahutong.next.ui.pages.CourseTasksPage
+import com.ahu.ahutong.next.ui.pages.CustomCoursesPage
 import com.ahu.ahutong.next.ui.pages.EvaluationPage
 import com.ahu.ahutong.next.ui.pages.ExamsPage
 import com.ahu.ahutong.next.ui.pages.FreeRoomsPage
@@ -49,8 +66,8 @@ import com.ahu.ahutong.next.ui.pages.GradesPage
 import com.ahu.ahutong.next.ui.pages.LostFoundPage
 import com.ahu.ahutong.next.ui.pages.MailPage
 import com.ahu.ahutong.next.ui.pages.MaterialsPage
-import com.ahu.ahutong.next.ui.pages.PhoneBookPage
 import com.ahu.ahutong.next.ui.pages.NoticesPage
+import com.ahu.ahutong.next.ui.pages.PhoneBookPage
 import com.ahu.ahutong.next.ui.pages.ProfilePage
 import com.ahu.ahutong.next.ui.pages.RechargeBathroomPage
 import com.ahu.ahutong.next.ui.pages.RechargeCardPage
@@ -62,6 +79,7 @@ import com.ahu.ahutong.next.ui.pages.SchoolCalendarPage
 import com.ahu.ahutong.next.ui.pages.UpdatesPage
 import com.ahu.ahutong.next.ui.pages.WeatherPage
 import com.ahu.ahutong.next.ui.settings.SettingsScreen
+import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.launch
 
 @Composable
@@ -76,7 +94,8 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val settings = remember { SettingsRepository(context) }
     var displayScale by remember { mutableFloatStateOf(settings.displayScale()) }
     var suggestionsEnabled by remember { mutableStateOf(settings.suggestionsEnabled()) }
-    var topTab by rememberSaveable { mutableStateOf(TopLevelTab.CHAT) }
+    val pagerState = rememberPagerState(pageCount = { TOP_LEVEL_PAGE_COUNT })
+    val chatListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val baseDensity = LocalDensity.current
 
     LaunchedEffect(Unit) {
@@ -84,8 +103,10 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
         ElectricityAlerts.check(context, repository)
     }
 
-    BackHandler(enabled = nav.canGoBack || topTab != TopLevelTab.CHAT) {
-        if (!nav.pop()) topTab = TopLevelTab.CHAT
+    BackHandler(enabled = nav.canGoBack || pagerState.currentPage != 0) {
+        if (!nav.pop()) {
+            scope.launch { pagerState.animateScrollToPage(0) }
+        }
     }
 
     fun closeDrawer() {
@@ -93,42 +114,33 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     }
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-    val selectTopTab: (TopLevelTab) -> Unit = { tab ->
-        topTab = tab
-        nav.resetToChat()
-        closeDrawer()
-    }
-    val drawerRoute = if (nav.current == AppRoute.Chat) {
-        when (topTab) {
-            TopLevelTab.CHAT -> AppRoute.Chat
-            TopLevelTab.SCHEDULE -> AppRoute.Schedule
-            TopLevelTab.CALENDAR -> AppRoute.CalendarEvents
-        }
-    } else {
-        nav.current
+    val gotoPage: (Int) -> Unit = { page ->
+        scope.launch { pagerState.animateScrollToPage(page) }
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = nav.current == AppRoute.Chat,
+        gesturesEnabled = drawerState.isOpen ||
+            (nav.current == AppRoute.Chat && pagerState.currentPage == 0),
         drawerContent = {
             AppDrawer(
                 nav = nav,
-                current = drawerRoute,
+                current = nav.current,
                 onNewChat = {
                     viewModel.clearHistory()
                     nav.resetToChat()
                     closeDrawer()
+                    gotoPage(0)
                 },
                 onNavigate = { route ->
                     when (route) {
                         AppRoute.Schedule -> {
-                            topTab = TopLevelTab.SCHEDULE
                             nav.resetToChat()
+                            gotoPage(1)
                         }
                         AppRoute.CalendarEvents -> {
-                            topTab = TopLevelTab.CALENDAR
                             nav.resetToChat()
+                            gotoPage(2)
                         }
                         else -> nav.push(route)
                     }
@@ -143,122 +155,163 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 fontScale = baseDensity.fontScale,
             ),
         ) {
-            val back: () -> Unit = { nav.pop() }
-            when (nav.current) {
-                AppRoute.Chat -> when (topTab) {
-                    TopLevelTab.CHAT -> ChatScreen(
-                        state = state,
-                        onInputChange = viewModel::onInputChange,
-                        onSend = viewModel::send,
-                        onApprove = { viewModel.approve(it) },
-                        onReject = viewModel::reject,
-                        onCancel = viewModel::cancelRun,
-                        onOpenDrawer = openDrawer,
-                        showSuggestions = suggestionsEnabled,
-                        bottomBar = {
-                            TopLevelBottomBar(
-                                selected = TopLevelTab.CHAT,
-                                onSelect = selectTopTab,
+            if (nav.current == AppRoute.Chat) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = TOP_LEVEL_PAGE_COUNT,
+                    ) { page ->
+                        when (page) {
+                            0 -> ChatScreen(
+                                state = state,
+                                onInputChange = viewModel::onInputChange,
+                                onSend = viewModel::send,
+                                onApprove = { viewModel.approve(it) },
+                                onReject = viewModel::reject,
+                                onCancel = viewModel::cancelRun,
+                                onOpenDrawer = openDrawer,
+                                showSuggestions = suggestionsEnabled,
+                                listState = chatListState,
                             )
-                        },
-                    )
 
-                    TopLevelTab.SCHEDULE -> SchedulePage(
-                        repository = repository,
-                        onBack = {},
-                        onMenu = openDrawer,
-                        bottomBar = {
-                            TopLevelBottomBar(
-                                selected = TopLevelTab.SCHEDULE,
-                                onSelect = selectTopTab,
-                                modifier = androidx.compose.ui.Modifier.navigationBarsPadding(),
+                            1 -> SchedulePage(
+                                repository = repository,
+                                onBack = {},
+                                onMenu = openDrawer,
+                                onOpenCustomCourses = { nav.push(AppRoute.CustomCourses) },
                             )
-                        },
-                    )
 
-                    TopLevelTab.CALENDAR -> CalendarEventsPage(
-                        repository = repository,
-                        onBack = {},
-                        onMenu = openDrawer,
-                        bottomBar = {
-                            TopLevelBottomBar(
-                                selected = TopLevelTab.CALENDAR,
-                                onSelect = selectTopTab,
-                                modifier = androidx.compose.ui.Modifier.navigationBarsPadding(),
+                            else -> CalendarEventsPage(
+                                repository = repository,
+                                onBack = {},
+                                onMenu = openDrawer,
                             )
-                        },
+                        }
+                    }
+
+                    PageIndicator(
+                        current = pagerState.currentPage,
+                        onSelect = gotoPage,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .statusBarsPadding()
+                            .padding(top = 6.dp),
                     )
                 }
+            } else {
+                val back: () -> Unit = { nav.pop() }
+                when (nav.current) {
+                    AppRoute.Settings -> SettingsScreen(
+                        modelLabel = state.modelLabel,
+                        historyCount = state.items.size,
+                        displayScale = displayScale,
+                        onDisplayScaleChange = {
+                            displayScale = it
+                            settings.setDisplayScale(it)
+                        },
+                        onBack = back,
+                        onSaved = viewModel::refreshSettings,
+                        onClearHistory = viewModel::clearHistory,
+                        onOpenLab = { nav.push(AppRoute.ToolLab) },
+                        suggestionsEnabled = suggestionsEnabled,
+                        onSuggestionsChange = {
+                            suggestionsEnabled = it
+                            settings.setSuggestionsEnabled(it)
+                        },
+                        onOpenAccounts = { nav.push(AppRoute.Accounts) },
+                        onOpenReminders = { nav.push(AppRoute.Reminders) },
+                        onOpenUpdates = { nav.push(AppRoute.Updates) },
+                        onOpenAbout = { nav.push(AppRoute.About) },
+                    )
 
-                AppRoute.Settings -> SettingsScreen(
-                    modelLabel = state.modelLabel,
-                    historyCount = state.items.size,
-                    displayScale = displayScale,
-                    onDisplayScaleChange = {
-                        displayScale = it
-                        settings.setDisplayScale(it)
-                    },
-                    onBack = back,
-                    onSaved = viewModel::refreshSettings,
-                    onClearHistory = viewModel::clearHistory,
-                    onOpenLab = { nav.push(AppRoute.ToolLab) },
-                    suggestionsEnabled = suggestionsEnabled,
-                    onSuggestionsChange = {
-                        suggestionsEnabled = it
-                        settings.setSuggestionsEnabled(it)
-                    },
-                    onOpenAccounts = { nav.push(AppRoute.Accounts) },
-                    onOpenReminders = { nav.push(AppRoute.Reminders) },
-                    onOpenUpdates = { nav.push(AppRoute.Updates) },
-                    onOpenAbout = { nav.push(AppRoute.About) },
-                )
-
-                AppRoute.ToolLab -> ToolLabScreen(onBack = back)
-                AppRoute.Profile -> ProfilePage(
-                    onBack = back,
-                    onOpenAccounts = { nav.push(AppRoute.Accounts) },
-                    onLoggedOut = {
-                        viewModel.refreshSettings()
-                        nav.resetToChat()
-                    },
-                )
-                AppRoute.Accounts -> AccountsPage(
-                    onBack = back,
-                    onAccountChanged = {
-                        viewModel.refreshSettings()
-                        nav.resetToChat()
-                    },
-                )
-                AppRoute.Schedule -> SchedulePage(repository, back)
-                AppRoute.Grades -> GradesPage(repository, back)
-                AppRoute.Exams -> ExamsPage(repository, back)
-                AppRoute.Assignments -> AssignmentsPage(repository, back)
-                AppRoute.Attendance -> AttendancePage(back)
-                AppRoute.Completion -> CompletionPage(back)
-                AppRoute.FreeRooms -> FreeRoomsPage(repository, back)
-                AppRoute.CourseTasks -> CourseTasksPage(back)
-                AppRoute.PhoneBook -> PhoneBookPage(back)
-                AppRoute.Notices -> NoticesPage(back)
-                AppRoute.LostFound -> LostFoundPage(back)
-                AppRoute.Weather -> WeatherPage(back)
-                AppRoute.Card -> CardPage(repository, back) { nav.push(it) }
-                AppRoute.Bills -> BillsPage(repository, back)
-                AppRoute.RechargeCard -> RechargeCardPage(repository, back)
-                AppRoute.RechargeElectricity -> RechargeElectricityPage(repository, back) {
-                    nav.push(AppRoute.Reminders)
+                    AppRoute.ToolLab -> ToolLabScreen(onBack = back)
+                    AppRoute.Profile -> ProfilePage(
+                        onBack = back,
+                        onOpenAccounts = { nav.push(AppRoute.Accounts) },
+                        onLoggedOut = {
+                            viewModel.refreshSettings()
+                            nav.resetToChat()
+                        },
+                    )
+                    AppRoute.Accounts -> AccountsPage(
+                        onBack = back,
+                        onAccountChanged = {
+                            viewModel.refreshSettings()
+                            nav.resetToChat()
+                        },
+                    )
+                    AppRoute.Schedule -> SchedulePage(
+                        repository = repository,
+                        onBack = back,
+                        onOpenCustomCourses = { nav.push(AppRoute.CustomCourses) },
+                    )
+                    AppRoute.CustomCourses -> CustomCoursesPage(onBack = back)
+                    AppRoute.Grades -> GradesPage(repository, back)
+                    AppRoute.Exams -> ExamsPage(repository, back)
+                    AppRoute.Assignments -> AssignmentsPage(repository, back)
+                    AppRoute.Attendance -> AttendancePage(back)
+                    AppRoute.Completion -> CompletionPage(back)
+                    AppRoute.FreeRooms -> FreeRoomsPage(repository, back)
+                    AppRoute.CourseTasks -> CourseTasksPage(back)
+                    AppRoute.PhoneBook -> PhoneBookPage(back)
+                    AppRoute.Notices -> NoticesPage(back)
+                    AppRoute.LostFound -> LostFoundPage(back)
+                    AppRoute.Weather -> WeatherPage(back)
+                    AppRoute.Card -> CardPage(repository, back) { nav.push(it) }
+                    AppRoute.Bills -> BillsPage(repository, back)
+                    AppRoute.RechargeCard -> RechargeCardPage(repository, back)
+                    AppRoute.RechargeElectricity -> RechargeElectricityPage(repository, back) {
+                        nav.push(AppRoute.Reminders)
+                    }
+                    AppRoute.RechargeBathroom -> RechargeBathroomPage(repository, back)
+                    AppRoute.RechargeNetwork -> RechargeNetworkPage(repository, back)
+                    AppRoute.Evaluation -> EvaluationPage(back)
+                    AppRoute.SchoolCalendar -> SchoolCalendarPage(back)
+                    AppRoute.Canteen -> CanteenPage(back)
+                    AppRoute.Mail -> MailPage(back)
+                    AppRoute.Materials -> MaterialsPage(back)
+                    AppRoute.CalendarEvents -> CalendarEventsPage(repository, back)
+                    AppRoute.Reminders -> RemindersPage(repository, back)
+                    AppRoute.Updates -> UpdatesPage(back)
+                    AppRoute.About -> AboutPage(back)
+                    AppRoute.Chat -> Unit
                 }
-                AppRoute.RechargeBathroom -> RechargeBathroomPage(repository, back)
-                AppRoute.RechargeNetwork -> RechargeNetworkPage(repository, back)
-                AppRoute.Evaluation -> EvaluationPage(back)
-                AppRoute.SchoolCalendar -> SchoolCalendarPage(back)
-                AppRoute.Canteen -> CanteenPage(back)
-                AppRoute.Mail -> MailPage(back)
-                AppRoute.Materials -> MaterialsPage(back)
-                AppRoute.CalendarEvents -> CalendarEventsPage(repository, back)
-                AppRoute.Reminders -> RemindersPage(repository, back)
-                AppRoute.Updates -> UpdatesPage(back)
-                AppRoute.About -> AboutPage(back)
             }
+        }
+    }
+}
+
+private const val TOP_LEVEL_PAGE_COUNT = 3
+
+@Composable
+private fun PageIndicator(
+    current: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(NextPalette.Surface.copy(alpha = 0.86f))
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        repeat(TOP_LEVEL_PAGE_COUNT) { index ->
+            val active = index == current
+            val width by animateDpAsState(if (active) 17.dp else 6.dp)
+            val color by animateColorAsState(
+                if (active) NextPalette.AccentDeep else NextPalette.InkSecondary.copy(alpha = 0.32f),
+            )
+            Box(
+                modifier = Modifier
+                    .width(width)
+                    .size(width = width, height = 6.dp)
+                    .clip(CircleShape)
+                    .background(color)
+                    .clickable { onSelect(index) },
+            )
         }
     }
 }

@@ -48,7 +48,6 @@ private val groups = listOf(
     DrawerGroup(
         "教务",
         listOf(
-            DrawerEntry("课表", AppRoute.Schedule, R.drawable.ic_iconpark_calendar),
             DrawerEntry("成绩单", AppRoute.Grades, R.drawable.ic_grade, Color(0xFFFFC107)),
             DrawerEntry("考场查询", AppRoute.Exams, R.drawable.ic_exam, Color(0xFF4CAF50)),
             DrawerEntry("教评", AppRoute.Evaluation, R.drawable.ic_evaluation, Color(0xFF0D9488)),
@@ -65,7 +64,6 @@ private val groups = listOf(
             DrawerEntry("课程任务", AppRoute.CourseTasks, R.drawable.ic_iconpark_assignment),
             DrawerEntry("学习资料", AppRoute.Materials, R.drawable.ic_repository, Color(0xFF8D6E63)),
             DrawerEntry("学生邮箱", AppRoute.Mail, R.drawable.ic_student_mail, Color(0xFF3978D4)),
-            DrawerEntry("我的日程", AppRoute.CalendarEvents, R.drawable.ic_iconpark_calendar),
         ),
     ),
     DrawerGroup(

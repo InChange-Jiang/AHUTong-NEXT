@@ -194,6 +194,9 @@ class NextCampusRepository(
                 status = if (work.isDone) "已完成" else "未提交",
                 startAt = format(work.startTs),
                 endAt = endAt,
+                workId = work.workId,
+                courseId = work.courseId,
+                detailUrl = work.detailUrl,
             )
         }
 

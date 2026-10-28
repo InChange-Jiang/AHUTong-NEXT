@@ -45,15 +45,21 @@ fun AppMarkdown(
 }
 
 /**
- * Streaming buffer rendering. 0.38.1 没有增量解析状态，仍整段渲染；
- * 增量合并与滚动策略在 ChatViewModel / ChatScreen 侧处理。
+ * Streaming buffer rendering. 0.38.1 没有增量解析状态：若每 33ms 都把整段文本重新解析成
+ * Markdown 组件树，长回复会明显掉帧。流式期间先用纯文本布局（Compose 对相同文本有排版缓存），
+ * 收到最终消息后再一次性切换成完整 Markdown。
  */
 @Composable
 fun StreamingAppMarkdown(
     markdown: String,
     modifier: Modifier = Modifier,
 ) {
-    AppMarkdown(markdown = markdown, modifier = modifier)
+    Text(
+        text = markdown,
+        modifier = modifier,
+        style = MaterialTheme.typography.bodyLarge,
+        color = NextPalette.Ink,
+    )
 }
 
 @Composable

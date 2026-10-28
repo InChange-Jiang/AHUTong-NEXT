@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,6 +38,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +69,6 @@ import com.ahu.ahutong.next.ui.components.SoftSurface
 import com.ahu.ahutong.next.ui.theme.NextPalette
 
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
     state: ChatUiState,
@@ -75,21 +79,26 @@ fun ChatScreen(
     onCancel: () -> Unit,
     onOpenDrawer: () -> Unit,
     showSuggestions: Boolean = true,
-    bottomBar: @Composable () -> Unit = {},
+    listState: LazyListState = rememberLazyListState(),
 ) {
-    val listState = rememberLazyListState()
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
     val lastAssistantStreaming = (state.items.lastOrNull() as? ChatItem.Assistant)?.streaming == true
+    var stickToBottom by remember { mutableStateOf(true) }
 
-    // 新增消息、状态变化、流式结束都直接贴底，不用 animateScrollToItem：
-    // 后者在长回复里会被不断重排打断，看起来就是反复跳。
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
+            .collect { (scrolling, canForward) ->
+                if (scrolling) stickToBottom = !canForward
+            }
+    }
+
+    // 新增消息、状态变化、流式结束都直接贴底；用户主动上翻后不再抢滚动位置。
     LaunchedEffect(state.items.size, state.status, lastAssistantStreaming) {
+        if (!stickToBottom) return@LaunchedEffect
         val target = state.items.lastIndex + if (state.status != null) 1 else 0
         if (target < 0) return@LaunchedEffect
         withFrameNanos { }
         listState.scrollToItem(target)
-        // 历史里的超长工具卡是惰性测量的：先跳到末条时列表还没算上它们的高度，
-        // 随后几帧内容会继续变高。这里连续补滚到真正稳定，同时避开用户的拖动。
         var stableFrames = 0
         repeat(BOTTOM_SETTLE_MAX_FRAMES) {
             if (stableFrames >= BOTTOM_SETTLE_STABLE_FRAMES) return@LaunchedEffect
@@ -103,10 +112,8 @@ fun ChatScreen(
         }
     }
 
-    // 流式文本每长高一段就贴底。用非挂起的 dispatchRawDelta，避免滚动任务被下一次
-    // 文本更新取消；这里不做“是否在底部”的判断，否则长回复超过一屏后就再也追不上。
     LaunchedEffect(streamingTextLength) {
-        if (streamingTextLength == 0) return@LaunchedEffect
+        if (streamingTextLength == 0 || !stickToBottom) return@LaunchedEffect
         withFrameNanos { }
         listState.dispatchRawDelta(BOTTOM_JUMP_PX)
     }
@@ -117,10 +124,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            FloatingTopBar(
-                online = state.hasApiKey,
-                onOpenDrawer = onOpenDrawer,
-            )
+            FloatingTopBar(onOpenDrawer = onOpenDrawer)
 
             Box(modifier = Modifier.weight(1f)) {
                 LazyColumn(
@@ -130,7 +134,7 @@ fun ChatScreen(
                         start = 18.dp,
                         end = 18.dp,
                         top = 10.dp,
-                        bottom = 220.dp,
+                        bottom = 150.dp,
                     ),
                     verticalArrangement = if (state.items.isEmpty()) {
                         Arrangement.Top
@@ -161,39 +165,26 @@ fun ChatScreen(
             }
         }
 
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .imePadding()
                 .navigationBarsPadding()
-                .imePadding(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(horizontal = 18.dp, vertical = 12.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-            ) {
-                InputPill(
-                    value = state.input,
-                    enabled = !state.isRunning,
-                    onValueChange = onInputChange,
-                    onSend = { onSend(state.input) },
-                )
-            }
-            if (!WindowInsets.isImeVisible) {
-                bottomBar()
-            }
+            InputPill(
+                value = state.input,
+                enabled = !state.isRunning,
+                onValueChange = onInputChange,
+                onSend = { onSend(state.input) },
+            )
         }
     }
 }
 
 @Composable
-private fun FloatingTopBar(
-    online: Boolean,
-    onOpenDrawer: () -> Unit,
-) {
-    val accountName = com.ahu.ahutong.legacy.LegacyCampusApi.currentUserName()
+private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -208,41 +199,6 @@ private fun FloatingTopBar(
                 modifier = Modifier.size(20.dp),
             )
         }
-        Spacer(Modifier.width(8.dp))
-
-        SoftSurface(
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(50),
-            elevation = 8.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "安大通NEXT",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = NextPalette.Ink,
-                    maxLines = 1,
-                )
-                Spacer(Modifier.width(9.dp))
-                Box(
-                    Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(if (online) NextPalette.Success else NextPalette.Warning),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    accountName ?: if (online) "在线" else "本地",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NextPalette.InkSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-
     }
 }
 

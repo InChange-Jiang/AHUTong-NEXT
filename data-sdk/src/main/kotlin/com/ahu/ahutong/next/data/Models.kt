@@ -22,6 +22,10 @@ data class Assignment(
     /** 作业开放/截止时间，格式 yyyy-MM-dd HH:mm；日历按这段区间铺色块。 */
     val startAt: String? = null,
     val endAt: String? = null,
+    /** 学习通作业标识与课程；用于详情里的「跳转学习通」和「查看题目」。 */
+    val workId: String = "",
+    val courseId: String = "",
+    val detailUrl: String = "",
 )
 
 @Serializable

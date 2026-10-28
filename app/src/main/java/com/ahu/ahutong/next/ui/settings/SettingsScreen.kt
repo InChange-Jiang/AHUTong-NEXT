@@ -49,9 +49,11 @@ import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.BuildConfig
 import com.ahu.ahutong.next.R
+import com.ahu.ahutong.next.agent.LlmMessage
 import com.ahu.ahutong.next.app.data.AssistantPersonality
 import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.app.data.modelPresets
+import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
@@ -102,6 +104,9 @@ fun SettingsScreen(
     var hasKey by remember { mutableStateOf(!settings.apiKey().isNullOrBlank()) }
     var searchEnabled by remember { mutableStateOf(settings.searchEnabled()) }
     var personality by remember { mutableStateOf(settings.personality()) }
+    var testingModel by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<String?>(null) }
+    var testSucceeded by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf<SettingsSection?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
     var accountName by remember { mutableStateOf(LegacyCampusApi.currentUserName()) }
@@ -263,6 +268,78 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,
                         )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            SoftSecondaryButton(
+                                text = if (testingModel) "测试中…" else "测试连通性",
+                                onClick = {
+                                    if (testingModel) return@SoftSecondaryButton
+                                    val key = apiKeyInput.trim()
+                                        .ifBlank { settings.apiKey().orEmpty() }
+                                    if (key.isBlank()) {
+                                        testSucceeded = false
+                                        testResult = "先填写 API Key，或保存一次已填的 Key"
+                                        return@SoftSecondaryButton
+                                    }
+                                    if (baseUrl.isBlank() || model.isBlank()) {
+                                        testSucceeded = false
+                                        testResult = "Base URL 和模型名都不能为空"
+                                        return@SoftSecondaryButton
+                                    }
+                                    testingModel = true
+                                    testResult = null
+                                    scope.launch {
+                                        val outcome = runCatching {
+                                            OpenAiCompatibleChatModel(
+                                                baseUrl = baseUrl.trim(),
+                                                apiKey = key,
+                                                model = model.trim(),
+                                            ).complete(
+                                                messages = listOf(
+                                                    LlmMessage(
+                                                        role = "user",
+                                                        content = "只回复 OK",
+                                                    ),
+                                                ),
+                                                tools = emptyList(),
+                                            )
+                                        }
+                                        testingModel = false
+                                        testSucceeded = outcome.isSuccess
+                                        testResult = outcome.fold(
+                                            onSuccess = { reply ->
+                                                val text = reply.content
+                                                    ?.trim()
+                                                    ?.take(40)
+                                                    ?.ifBlank { null }
+                                                    ?: "模型已响应"
+                                                "连接正常 · $text"
+                                            },
+                                            onFailure = {
+                                                "连接失败：${it.message ?: "未知错误"}"
+                                            },
+                                        )
+                                    }
+                                },
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                "会发一条最小请求，不消耗多少额度。",
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
+                        testResult?.let { message ->
+                            Text(
+                                message,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (testSucceeded) NextPalette.AccentDeep else NextPalette.Danger,
+                            )
+                        }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),

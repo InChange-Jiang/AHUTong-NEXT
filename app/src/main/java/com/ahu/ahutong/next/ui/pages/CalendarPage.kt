@@ -1,5 +1,9 @@
 package com.ahu.ahutong.next.ui.pages
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,18 +31,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ahu.ahutong.data.xuexiaotong.Store
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.data.Assignment
@@ -48,12 +55,21 @@ import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
 import com.ahu.ahutong.next.ui.components.RefreshIconButton
+import com.ahu.ahutong.next.ui.components.SoftChip
+import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
+import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
+import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
+import com.ahu.ahutong.next.ui.components.SoftTextField
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URLEncoder
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 private enum class CalendarEntryKind { ASSIGNMENT, EVENT }
 
@@ -67,6 +83,8 @@ private data class CalendarEntry(
     val kind: CalendarEntryKind,
     val startText: String,
     val endText: String,
+    val assignment: Assignment? = null,
+    val event: CalendarEvent? = null,
 )
 
 private data class CalendarSegment(
@@ -113,6 +131,10 @@ fun CalendarEventsPage(
     var refreshRequested by remember { mutableStateOf(false) }
     var selectedEntry by remember { mutableStateOf<CalendarEntry?>(null) }
     var deletingEventId by remember { mutableStateOf<String?>(null) }
+    var showAddEvent by remember { mutableStateOf(false) }
+    var webAssignment by remember { mutableStateOf<Assignment?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(reload) {
         loading = true
@@ -142,6 +164,15 @@ fun CalendarEventsPage(
         onMenu = onMenu,
         bottomBar = bottomBar,
         actions = {
+            SoftIconButton(onClick = { showAddEvent = true }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_iconpark_plus),
+                    contentDescription = "新建日程",
+                    tint = NextPalette.Ink,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Spacer(Modifier.width(8.dp))
             RefreshIconButton {
                 if (!loading) {
                     refreshRequested = true
@@ -260,42 +291,57 @@ fun CalendarEventsPage(
     }
 
     selectedEntry?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { selectedEntry = null },
-            title = { Text(entry.title) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (entry.subtitle.isNotBlank()) {
-                        Text(entry.subtitle, color = NextPalette.Ink)
+        val work = entry.assignment
+        if (work != null) {
+            AssignmentDetailDialog(
+                entry = entry,
+                work = work,
+                onViewQuestions = {
+                    selectedEntry = null
+                    webAssignment = work
+                },
+                onOpenChaoxing = { openAssignmentInChaoxing(context, work) },
+                onDismiss = { selectedEntry = null },
+            )
+        } else {
+            EventDetailDialog(
+                entry = entry,
+                onDelete = {
+                    selectedEntry = null
+                    deletingEventId = entry.id
+                },
+                onDismiss = { selectedEntry = null },
+            )
+        }
+    }
+
+    webAssignment?.let { work ->
+        WorkWebViewDialog(
+            title = work.title,
+            url = work.detailUrl,
+            courseId = work.courseId,
+            cookieHeader = Store.getCookie(),
+            onDismiss = { webAssignment = null },
+        )
+    }
+
+    if (showAddEvent) {
+        AddCalendarEventDialog(
+            onDismiss = { showAddEvent = false },
+            onSave = { title, start, end, reminder ->
+                showAddEvent = false
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            repository.addCalendarEvent(title, start, end, reminder)
+                        }
+                    }.onSuccess {
+                        events = repository.calendarEvents()
+                    }.onFailure {
+                        Toast.makeText(context, it.message ?: "日程保存失败", Toast.LENGTH_SHORT).show()
                     }
-                    Text(
-                        if (entry.start == entry.end) entry.start.toString()
-                        else "${entry.start} → ${entry.end}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = NextPalette.InkSecondary,
-                    )
-                    Text(
-                        if (entry.kind == CalendarEntryKind.ASSIGNMENT) {
-                            if (entry.done) "作业 · 已完成" else "作业 · 未完成"
-                        } else {
-                            "本地日程"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                    )
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { selectedEntry = null }) { Text("关闭") }
-            },
-            dismissButton = if (entry.kind == CalendarEntryKind.EVENT) {
-                {
-                    TextButton(onClick = {
-                        selectedEntry = null
-                        deletingEventId = entry.id
-                    }) { Text("删除") }
-                }
-            } else null,
         )
     }
 
@@ -411,7 +457,7 @@ private fun buildEntries(
         val end = parseDay(endText) ?: start
         add(
             CalendarEntry(
-                id = "assignment:${work.course}:${work.title}:${work.dueAt}",
+                id = work.workId.ifBlank { "assignment:${work.course}:${work.title}:${work.dueAt}" },
                 title = work.title,
                 subtitle = work.course,
                 start = minOf(start, end),
@@ -420,6 +466,7 @@ private fun buildEntries(
                 kind = CalendarEntryKind.ASSIGNMENT,
                 startText = startText,
                 endText = endText,
+                assignment = work,
             ),
         )
     }
@@ -437,6 +484,7 @@ private fun buildEntries(
                 kind = CalendarEntryKind.EVENT,
                 startText = event.start,
                 endText = event.end,
+                event = event,
             ),
         )
     }
@@ -490,5 +538,260 @@ private fun buildWeeks(month: YearMonth, entries: List<CalendarEntry>): List<Cal
             segments = placed,
             laneCount = maxOf(1, laneEnds.size),
         )
+    }
+}
+
+@Composable
+private fun AssignmentDetailDialog(
+    entry: CalendarEntry,
+    work: Assignment,
+    onViewQuestions: () -> Unit,
+    onOpenChaoxing: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                entry.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (entry.subtitle.isNotBlank()) {
+                    Text(
+                        entry.subtitle,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = NextPalette.InkSecondary,
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (entry.done) "已完成" else "未完成",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (entry.done) NextPalette.InkSecondary else NextPalette.AccentDeep,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "作业",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                }
+                HorizontalDivider(color = NextPalette.Line)
+                CalendarDetailRow("开始", entry.startText.ifBlank { "未设置" })
+                CalendarDetailRow("截止", entry.endText.ifBlank { "未设置" })
+                if (work.courseId.isBlank() || work.detailUrl.isBlank()) {
+                    Text(
+                        "这条作业来自旧缓存。到「作业」页刷新一次，就能看到题目和跳转入口。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.InkSecondary,
+                    )
+                }
+                if (work.detailUrl.isNotBlank()) {
+                    SoftPrimaryButton(
+                        text = "查看题目",
+                        onClick = onViewQuestions,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (work.courseId.isNotBlank()) {
+                    SoftSecondaryButton(
+                        text = "跳转学习通",
+                        onClick = onOpenChaoxing,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        },
+    )
+}
+
+@Composable
+private fun EventDetailDialog(
+    entry: CalendarEntry,
+    onDelete: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                entry.title,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CalendarDetailRow("开始", entry.startText)
+                CalendarDetailRow("结束", entry.endText)
+                Text(
+                    "本机日程，不会写入系统日历。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDelete) { Text("删除") }
+        },
+    )
+}
+
+@Composable
+private fun CalendarDetailRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth()) {
+        Text(
+            label,
+            modifier = Modifier.width(46.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = NextPalette.InkSecondary,
+        )
+        Text(
+            value,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = NextPalette.Ink,
+        )
+    }
+}
+
+@Composable
+private fun AddCalendarEventDialog(
+    onDismiss: () -> Unit,
+    onSave: (title: String, start: String, end: String, reminder: Int) -> Unit,
+) {
+    val formatter = remember { DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm") }
+    val defaultStart = remember {
+        LocalDateTime.now().withSecond(0).withNano(0).plusHours(1).withMinute(0)
+    }
+    var title by remember { mutableStateOf("") }
+    var startText by remember { mutableStateOf(defaultStart.format(formatter)) }
+    var endText by remember { mutableStateOf(defaultStart.plusHours(1).format(formatter)) }
+    var reminder by remember { mutableIntStateOf(15) }
+    val start = remember(startText) { parseCalendarTime(startText, formatter) }
+    val end = remember(endText) { parseCalendarTime(endText, formatter) }
+    val valid = title.isNotBlank() && start != null && end != null && end > start
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("新建日程") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                SoftTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = "标题",
+                    placeholder = "例如：交实验报告",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SoftTextField(
+                    value = startText,
+                    onValueChange = { startText = it },
+                    label = "开始时间",
+                    placeholder = "yyyy-MM-dd HH:mm",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SoftTextField(
+                    value = endText,
+                    onValueChange = { endText = it },
+                    label = "结束时间",
+                    placeholder = "yyyy-MM-dd HH:mm",
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "提前提醒",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                )
+                SoftChipStrip {
+                    listOf(0 to "不提醒", 15 to "15分", 30 to "30分", 60 to "60分")
+                        .forEach { (minutes, label) ->
+                            SoftChip(
+                                label,
+                                onClick = { reminder = minutes },
+                                selected = reminder == minutes,
+                            )
+                        }
+                }
+                if (startText.isNotBlank() && start == null) {
+                    Text(
+                        "开始时间格式应为 yyyy-MM-dd HH:mm",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.Danger,
+                    )
+                } else if (start != null && end != null && end <= start) {
+                    Text(
+                        "结束时间要晚于开始时间",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NextPalette.Danger,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (valid) {
+                        onSave(
+                            title.trim(),
+                            start!!.format(formatter),
+                            end!!.format(formatter),
+                            reminder,
+                        )
+                    }
+                },
+                enabled = valid,
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+private fun parseCalendarTime(text: String, formatter: DateTimeFormatter): LocalDateTime? =
+    runCatching { LocalDateTime.parse(text.trim(), formatter) }.getOrNull()
+
+/**
+ * 跳学习通 App 打开该课程作业列表。普通课与镜像课都走票据端点，
+ * classId 从本地课程缓存现查；缺少班级信息时只提示，不降级到浏览器。
+ */
+private fun openAssignmentInChaoxing(context: Context, work: Assignment) {
+    val clazzId = Store.getCourses()
+        .firstOrNull { it.courseId == work.courseId }
+        ?.clazzId
+    if (clazzId.isNullOrBlank()) {
+        Toast.makeText(context, "缺少课程班级信息，请先在课程页同步一次", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val ticketUrl = "https://mobilelearn.chaoxing.com/task/getStuWorkAndExamSkipUrl" +
+        "?courseId=${work.courseId}&classId=$clazzId#INNER"
+    val link = runCatching {
+        "chaoxingshareback://xuexitong.com/?sharebacktype=1" +
+            "&title=" + URLEncoder.encode(work.course, "UTF-8") +
+            "&url=" + URLEncoder.encode(ticketUrl, "UTF-8")
+    }.getOrNull() ?: return
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+        setPackage("com.chaoxing.mobile")
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    if (intent.resolveActivity(context.packageManager) != null) {
+        context.startActivity(intent)
+    } else {
+        Toast.makeText(context, "未安装学习通 App", Toast.LENGTH_SHORT).show()
     }
 }

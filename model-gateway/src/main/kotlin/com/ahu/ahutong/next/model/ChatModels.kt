@@ -277,27 +277,29 @@ class OpenAiCompatibleChatModel(
         val payload = buildJsonObject {
             put("model", model)
             put("messages", AgentJson.encodeToJsonElement(messages))
-            put(
-                "tools",
-                buildJsonArray {
-                    tools.forEach { spec ->
-                        add(
-                            buildJsonObject {
-                                put("type", "function")
-                                put(
-                                    "function",
-                                    buildJsonObject {
-                                        put("name", spec.name)
-                                        put("description", spec.description)
-                                        put("parameters", spec.parameters)
-                                    },
-                                )
-                            },
-                        )
-                    }
-                },
-            )
-            put("tool_choice", "auto")
+            if (tools.isNotEmpty()) {
+                put(
+                    "tools",
+                    buildJsonArray {
+                        tools.forEach { spec ->
+                            add(
+                                buildJsonObject {
+                                    put("type", "function")
+                                    put(
+                                        "function",
+                                        buildJsonObject {
+                                            put("name", spec.name)
+                                            put("description", spec.description)
+                                            put("parameters", spec.parameters)
+                                        },
+                                    )
+                                },
+                            )
+                        }
+                    },
+                )
+                put("tool_choice", "auto")
+            }
             put("temperature", 0.2)
             put("stream", stream)
         }

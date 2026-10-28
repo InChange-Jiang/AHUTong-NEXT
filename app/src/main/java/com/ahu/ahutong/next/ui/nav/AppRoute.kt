@@ -11,6 +11,7 @@ sealed interface AppRoute {
     data object Profile : AppRoute
     data object Accounts : AppRoute
     data object Schedule : AppRoute
+    data object CustomCourses : AppRoute
     data object Grades : AppRoute
     data object Exams : AppRoute
     data object Assignments : AppRoute

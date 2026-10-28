@@ -72,72 +72,14 @@ fun SchedulePage(
     repository: NextCampusRepository,
     onBack: () -> Unit,
     onMenu: (() -> Unit)? = null,
-    bottomBar: @Composable () -> Unit = {},
+    onOpenCustomCourses: () -> Unit = {},
 ) {
-    var state by remember { mutableStateOf<LoadState<List<CourseOccurrence>>>(LoadState.Loading) }
-    var weekView by remember { mutableStateOf(true) }
-    var weekPage by remember { mutableIntStateOf(0) }
-    var reload by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(reload) {
-        state = LoadState.Loading
-        state = runCatching { withContext(Dispatchers.IO) { repository.schedule(14) } }
-            .fold(onSuccess = { LoadState.Ready(it) }, onFailure = { it.toLoadFailure() })
-    }
-
-    FeatureScaffold(
-        title = "课表",
+    SemesterSchedulePage(
+        repository = repository,
         onBack = onBack,
         onMenu = onMenu,
-        bottomBar = bottomBar,
-        actions = { RefreshIconButton { reload++ } },
-    ) {
-        AsyncContent(state, onRetry = { reload++ }) {
-            val courses = (state as LoadState.Ready).value
-            FeatureScrollColumn {
-                SoftChipStrip {
-                    SoftChip("周视图", onClick = { weekView = true }, selected = weekView)
-                    SoftChip("列表", onClick = { weekView = false }, selected = !weekView)
-                    if (weekView) {
-                        SoftChip("本周", onClick = { weekPage = 0 }, selected = weekPage == 0)
-                        SoftChip("下周", onClick = { weekPage = 1 }, selected = weekPage == 1)
-                    }
-                }
-                if (courses.isEmpty()) {
-                    EmptyState("这段时间没有课程。")
-                } else if (weekView) {
-                    WeekTimetable(courses, LocalDate.now().plusDays((weekPage * 7).toLong()))
-                } else {
-                    val grouped = courses.groupBy { it.date }
-                    grouped.forEach { (date, list) ->
-                        PageCard {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    LocalDate.parse(date).format(
-                                        DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA),
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (date == LocalDate.now().toString()) {
-                                        NextPalette.AccentDeep
-                                    } else {
-                                        NextPalette.Ink
-                                    },
-                                )
-                                Text(
-                                    "${list.size} 节",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = NextPalette.InkSecondary,
-                                )
-                            }
-                            list.sortedBy { it.startTime }.forEach { course -> CourseRow(course) }
-                        }
-                    }
-                }
-            }
-        }
-    }
+        onOpenCustomCourses = onOpenCustomCourses,
+    )
 }
 
 private val coursePalette = listOf(

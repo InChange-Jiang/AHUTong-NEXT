@@ -1,5 +1,6 @@
 package com.ahu.ahutong.next.ui.chat
 
+import androidx.compose.runtime.Immutable
 import com.ahu.ahutong.next.agent.ApprovalRequest
 import com.ahu.ahutong.next.agent.ToolResult
 
@@ -9,6 +10,7 @@ enum class ApprovalDecision {
     REJECTED,
 }
 
+@Immutable
 sealed interface ChatItem {
     val id: String
 
@@ -33,6 +35,7 @@ sealed interface ChatItem {
     data class Notice(override val id: String, val text: String) : ChatItem
 }
 
+@Immutable
 data class ChatUiState(
     val items: List<ChatItem> = emptyList(),
     val input: String = "",
