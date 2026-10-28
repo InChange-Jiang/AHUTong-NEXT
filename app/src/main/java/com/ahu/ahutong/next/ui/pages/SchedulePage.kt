@@ -193,7 +193,7 @@ fun SemesterSchedulePage(
                 }
             }) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_schedule_today),
+                    painter = painterResource(R.drawable.ic_iconpark_aiming),
                     contentDescription = "回到本周",
                     tint = NextPalette.Ink,
                     modifier = Modifier.size(20.dp),
