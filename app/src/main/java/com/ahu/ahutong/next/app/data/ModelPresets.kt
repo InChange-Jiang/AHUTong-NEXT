@@ -8,7 +8,7 @@ data class ModelPreset(
 
 /** 官方 OpenAI 兼容入口；模型名以各厂商 2026-10 文档为准，可手动改。 */
 val modelPresets = listOf(
-    ModelPreset("DeepSeek", "https://api.deepseek.com/v1", "deepseek-v4-flash"),
+    ModelPreset("DeepSeek", "https://api.deepseek.com/v1", "deepseek-flash"),
     ModelPreset("Kimi", "https://api.moonshot.cn/v1", "kimi-k3"),
     ModelPreset("智谱 GLM", "https://open.bigmodel.cn/api/paas/v4/", "glm-5.3"),
     ModelPreset("通义千问", "https://dashscope.aliyuncs.com/compatible-mode/v1", "qwen3.8-max"),

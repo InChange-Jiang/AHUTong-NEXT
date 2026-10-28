@@ -313,7 +313,7 @@ private fun ApiStep(
             value = model,
             onValueChange = onModel,
             label = "模型名",
-            placeholder = "deepseek-v4-flash",
+            placeholder = "deepseek-flash",
             modifier = Modifier.fillMaxWidth(),
         )
         SoftTextField(
