@@ -33,7 +33,9 @@ import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.ui.components.AgentAvatar
+import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import com.ahu.ahutong.next.ui.theme.forDarkSurface
 
 private data class DrawerEntry(
     val label: String,
@@ -89,6 +91,8 @@ fun AppDrawer(
     current: AppRoute,
     onNewChat: () -> Unit,
     onNavigate: (AppRoute) -> Unit,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
 ) {
     val name = LegacyCampusApi.currentUserName()
     val studentId = LegacyCampusApi.currentStudentId()
@@ -168,32 +172,48 @@ fun AppDrawer(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(vertical = 14.dp)
-                .width(200.dp)
-                .shadow(elevation = 10.dp, shape = RoundedCornerShape(28.dp))
-                .clip(RoundedCornerShape(28.dp))
-                .background(
-                    if (current == AppRoute.Settings) NextPalette.AccentSoft
-                    else NextPalette.Surface,
-                )
-                .clickable { onNavigate(AppRoute.Settings) }
-                .padding(horizontal = 18.dp, vertical = 13.dp),
+                .padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_iconpark_setting),
-                contentDescription = null,
-                tint = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.InkSecondary,
-                modifier = Modifier.size(19.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "设置",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.Ink,
-            )
+            Row(
+                modifier = Modifier
+                    .width(176.dp)
+                    .shadow(elevation = 10.dp, shape = RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        if (current == AppRoute.Settings) NextPalette.AccentSoft
+                        else NextPalette.Surface,
+                    )
+                    .clickable { onNavigate(AppRoute.Settings) }
+                    .padding(horizontal = 18.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_iconpark_setting),
+                    contentDescription = null,
+                    tint = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.InkSecondary,
+                    modifier = Modifier.size(19.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "设置",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.Ink,
+                )
+            }
+            SoftIconButton(onClick = onToggleTheme) {
+                Icon(
+                    painter = painterResource(
+                        if (darkTheme) R.drawable.ic_iconpark_sun else R.drawable.ic_iconpark_moon,
+                    ),
+                    contentDescription = if (darkTheme) "切换到浅色模式" else "切换到深色模式",
+                    tint = NextPalette.Ink,
+                    modifier = Modifier.size(21.dp),
+                )
+            }
         }
         }
     }
@@ -219,7 +239,7 @@ private fun DrawerRow(
         Icon(
             painter = painterResource(icon),
             contentDescription = null,
-            tint = tint ?: if (selected) NextPalette.AccentDeep else NextPalette.InkSecondary,
+            tint = tint?.forDarkSurface() ?: if (selected) NextPalette.AccentDeep else NextPalette.InkSecondary,
             modifier = Modifier.size(19.dp),
         )
         Spacer(Modifier.width(12.dp))

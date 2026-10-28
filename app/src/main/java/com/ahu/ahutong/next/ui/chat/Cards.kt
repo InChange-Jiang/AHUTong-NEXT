@@ -909,7 +909,7 @@ fun ApprovalCard(
     SoftSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        color = if (pending) androidx.compose.ui.graphics.Color(0xFFF3F7FF) else NextPalette.Surface,
+        color = if (pending) NextPalette.PendingSurface else NextPalette.Surface,
         elevation = 10.dp,
     ) {
         Column(

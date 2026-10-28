@@ -15,6 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -98,6 +100,7 @@ import com.ahu.ahutong.next.ui.pages.SchoolCalendarPage
 import com.ahu.ahutong.next.ui.pages.UpdatesPage
 import com.ahu.ahutong.next.ui.pages.WeatherPage
 import com.ahu.ahutong.next.ui.settings.SettingsScreen
+import com.ahu.ahutong.next.ui.theme.AppThemeState
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -113,6 +116,8 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
 
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
+    val systemDark = isSystemInDarkTheme()
+    val darkTheme = if (AppThemeState.followSystem) systemDark else AppThemeState.dark
     var onboardingDone by remember { mutableStateOf(settings.onboardingCompleted()) }
     if (!onboardingDone) {
         OnboardingScreen(
@@ -179,6 +184,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
         scope.launch { pagerState.animateScrollToPage(page) }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = drawerState.isOpen ||
@@ -206,6 +212,18 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                         else -> nav.push(route)
                     }
                     closeDrawer()
+                },
+                darkTheme = darkTheme,
+                onToggleTheme = {
+                    val next = !darkTheme
+                    val brokeFollow = AppThemeState.followSystem
+                    if (brokeFollow) {
+                        AppThemeState.followSystem = false
+                        settings.setFollowSystemTheme(false)
+                    }
+                    AppThemeState.dark = next
+                    settings.setDarkTheme(next)
+                    if (brokeFollow) showToast("已退出自适应亮暗模式")
                 },
             )
         },
@@ -309,6 +327,15 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                             suggestionsEnabled = it
                             settings.setSuggestionsEnabled(it)
                         },
+                        followSystemTheme = AppThemeState.followSystem,
+                        onFollowSystemThemeChange = { enabled ->
+                            if (!enabled) {
+                                AppThemeState.dark = darkTheme
+                                settings.setDarkTheme(darkTheme)
+                            }
+                            AppThemeState.followSystem = enabled
+                            settings.setFollowSystemTheme(enabled)
+                        },
                         onOpenAccounts = { nav.push(AppRoute.Accounts) },
                         onOpenReminders = { nav.push(AppRoute.Reminders) },
                         onOpenUpdates = { nav.push(AppRoute.Updates) },
@@ -385,21 +412,24 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                     AppRoute.Chat -> Unit
                 }
             }
-            }
-            NextToast(
-                message = toastMessage,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(
-                        start = 18.dp,
-                        end = 18.dp,
-                        bottom = if (nav.current == AppRoute.Chat) 92.dp else 28.dp,
-                    ),
-            )
-            }
         }
+    }
+    }
+    }
+    // 浮在抽屉之上，避免抽屉打开时 toast 被遮住。
+    NextToast(
+        message = toastMessage,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .zIndex(10f)
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(
+                start = 18.dp,
+                end = 18.dp,
+                bottom = if (nav.current == AppRoute.Chat) 92.dp else 28.dp,
+            ),
+    )
     }
 }
 

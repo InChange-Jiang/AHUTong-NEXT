@@ -93,6 +93,8 @@ fun SettingsScreen(
     onOpenLab: () -> Unit,
     suggestionsEnabled: Boolean,
     onSuggestionsChange: (Boolean) -> Unit,
+    followSystemTheme: Boolean,
+    onFollowSystemThemeChange: (Boolean) -> Unit,
     onOpenAccounts: () -> Unit,
     onOpenReminders: () -> Unit,
     onOpenUpdates: () -> Unit,
@@ -513,6 +515,27 @@ fun SettingsScreen(
                                 if (activeSection == SettingsSection.DISPLAY) {
     SettingsCard {
                         SectionTitle("偏好")
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "适应系统亮暗模式",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = NextPalette.Ink,
+                                )
+                                Text(
+                                    "跟随手机的深色模式自动切换；手动切换主题后会关闭。",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NextPalette.InkSecondary,
+                                )
+                            }
+                            Switch(
+                                checked = followSystemTheme,
+                                onCheckedChange = onFollowSystemThemeChange,
+                            )
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,

@@ -51,6 +51,20 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_SUGGESTIONS, enabled).apply()
     }
 
+    /** 是否跟随系统亮暗。默认跟随；手动切换主题后会关掉。 */
+    fun followSystemTheme(): Boolean = prefs.getBoolean(KEY_FOLLOW_SYSTEM_THEME, true)
+
+    fun setFollowSystemTheme(follow: Boolean) {
+        prefs.edit().putBoolean(KEY_FOLLOW_SYSTEM_THEME, follow).apply()
+    }
+
+    /** 不跟随系统时使用的明暗选择。 */
+    fun darkTheme(): Boolean = prefs.getBoolean(KEY_DARK_THEME, false)
+
+    fun setDarkTheme(dark: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_THEME, dark).apply()
+    }
+
     fun onboardingCompleted(): Boolean = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
 
     fun setOnboardingCompleted(completed: Boolean) {
@@ -87,6 +101,8 @@ class SettingsRepository(context: Context) {
         private const val KEY_SUGGESTIONS = "quick_suggestions"
         private const val KEY_PERSONALITY = "assistant_personality"
         private const val KEY_ONBOARDING_DONE = "onboarding_completed"
+        private const val KEY_FOLLOW_SYSTEM_THEME = "theme_follow_system"
+        private const val KEY_DARK_THEME = "theme_dark"
         const val MIN_DISPLAY_SCALE = 0.80f
         const val MAX_DISPLAY_SCALE = 1.20f
     }

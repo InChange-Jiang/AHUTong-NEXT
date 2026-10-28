@@ -59,6 +59,7 @@ import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import com.ahu.ahutong.next.ui.theme.forDarkSurface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -159,7 +160,8 @@ private fun CourseBlock(course: CourseOccurrence, hourHeight: androidx.compose.u
     val endMinutes = (end.hour - 8) * 60 + end.minute
     val top = (startMinutes.coerceIn(0, 14 * 60) / 60f) * hourHeight.value
     val height = ((endMinutes - startMinutes).coerceAtLeast(30) / 60f) * hourHeight.value
-    val color = coursePalette[(course.name.hashCode() and Int.MAX_VALUE) % coursePalette.size]
+    val courseColor = coursePalette[(course.name.hashCode() and Int.MAX_VALUE) % coursePalette.size]
+    val color = if (NextPalette.isDark) courseColor.forDarkSurface(0.45f) else courseColor
     Column(
         modifier = Modifier
             .padding(horizontal = 2.dp)
@@ -167,7 +169,7 @@ private fun CourseBlock(course: CourseOccurrence, hourHeight: androidx.compose.u
             .fillMaxWidth()
             .height(height.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(color.copy(alpha = 0.18f))
+            .background(color.copy(alpha = if (NextPalette.isDark) 0.22f else 0.18f))
             .padding(5.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {

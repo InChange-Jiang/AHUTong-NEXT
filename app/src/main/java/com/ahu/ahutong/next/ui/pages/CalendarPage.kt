@@ -65,6 +65,7 @@ import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.SoftTextField
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import com.ahu.ahutong.next.ui.theme.forDarkSurface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -531,7 +532,12 @@ private fun toneFor(entry: CalendarEntry): CalendarTone {
         return CalendarTone(NextPalette.AccentSoft, NextPalette.AccentDeep)
     }
     val index = (entry.subtitle.hashCode() and Int.MAX_VALUE) % calendarTones.size
-    return calendarTones[index]
+    val tone = calendarTones[index]
+    if (!NextPalette.isDark) return tone
+    return CalendarTone(
+        background = tone.foreground.copy(alpha = 0.22f),
+        foreground = tone.foreground.forDarkSurface(0.55f),
+    )
 }
 
 private fun buildEntries(

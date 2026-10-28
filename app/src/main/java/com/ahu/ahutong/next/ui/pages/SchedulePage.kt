@@ -77,6 +77,7 @@ import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import com.ahu.ahutong.next.ui.theme.forDarkSurface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -615,7 +616,8 @@ private fun CourseBlock(
     onClick: () -> Unit,
 ) {
     val course = placed.course
-    val color = color ?: scheduleColors[(course.name.hashCode() and Int.MAX_VALUE) % scheduleColors.size]
+    val baseColor = color ?: scheduleColors[(course.name.hashCode() and Int.MAX_VALUE) % scheduleColors.size]
+    val color = if (NextPalette.isDark) baseColor.forDarkSurface(0.45f) else baseColor
     val top = ((course.startTime - 1).coerceAtLeast(0) * SECTION_HEIGHT.value).dp
     val height = (course.length.coerceAtLeast(1) * SECTION_HEIGHT.value - 2f).coerceAtLeast(26f).dp
     val laneWidth = 1f / placed.laneCount.coerceAtLeast(1)
@@ -626,7 +628,7 @@ private fun CourseBlock(
             .height(height)
             .padding(start = 1.dp, end = 1.dp)
             .clip(RoundedCornerShape(7.dp))
-            .background(color.copy(alpha = 0.16f))
+            .background(color.copy(alpha = if (NextPalette.isDark) 0.22f else 0.16f))
             .clickable(onClick = onClick)
             .padding(horizontal = 3.dp, vertical = 3.dp),
     ) {

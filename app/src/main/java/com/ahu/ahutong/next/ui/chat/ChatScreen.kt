@@ -198,7 +198,7 @@ fun ChatScreen(
                     shape = CircleShape,
                     color = NextPalette.Surface,
                     shadowElevation = 9.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+                    border = BorderStroke(1.dp, NextPalette.SurfaceBorder),
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(

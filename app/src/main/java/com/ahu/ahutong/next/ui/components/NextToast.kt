@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ahu.ahutong.next.ui.theme.NextPalette
 
 /**
  * 轻量提示：白底圆角胶囊，居中偏下。新消息直接替换旧消息，不排队。
@@ -64,15 +65,15 @@ fun NextToast(
                         ambientColor = Color(0x33000000),
                         spotColor = Color(0x33000000),
                     )
-                    .background(Color.White, RoundedCornerShape(50))
-                    .border(1.dp, Color(0x14000000), RoundedCornerShape(50))
+                    .background(NextPalette.Surface, RoundedCornerShape(50))
+                    .border(1.dp, NextPalette.Line, RoundedCornerShape(50))
                     .padding(horizontal = 22.dp, vertical = 11.dp),
             ) {
                 Text(
                     text = lastMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1F1F1F),
+                    color = NextPalette.Ink,
                     textAlign = TextAlign.Center,
                 )
             }

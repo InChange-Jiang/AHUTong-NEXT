@@ -100,7 +100,7 @@ fun SoftSurface(
         shape = shape,
         color = color,
         shadowElevation = elevation,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+        border = BorderStroke(1.dp, NextPalette.SurfaceBorder),
         content = content,
     )
 }
@@ -117,7 +117,7 @@ fun SoftIconButton(
         shape = CircleShape,
         color = NextPalette.Surface,
         shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+        border = BorderStroke(1.dp, NextPalette.SurfaceBorder),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             content()
@@ -155,7 +155,7 @@ fun SoftPrimaryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = NextPalette.Accent,
             contentColor = Color.White,
-            disabledContainerColor = Color(0xFFE2E0DA),
+            disabledContainerColor = NextPalette.SurfaceDisabled,
             disabledContentColor = NextPalette.InkSecondary,
         ),
         elevation = ButtonDefaults.buttonElevation(
@@ -207,7 +207,7 @@ fun SoftChip(
         shape = RoundedCornerShape(50),
         color = if (selected) NextPalette.AccentSoft else NextPalette.Surface,
         shadowElevation = if (selected) 2.dp else 8.dp,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+        border = BorderStroke(1.dp, NextPalette.SurfaceBorder),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -279,7 +279,7 @@ fun AgentAvatar(
                 spotColor = Color(0x33F07B46),
             )
             .clip(CircleShape)
-            .border(2.dp, Color.White.copy(alpha = 0.9f), CircleShape),
+            .border(2.dp, NextPalette.SurfaceBorderStrong, CircleShape),
     ) {
         Image(
             painter = painterResource(R.drawable.agent_ahtorus),
