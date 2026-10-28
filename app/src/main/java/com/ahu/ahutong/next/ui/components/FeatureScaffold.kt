@@ -74,6 +74,14 @@ fun FeatureScaffold(
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
+            FeatureHeader(
+                title = title,
+                subtitle = subtitle,
+                onBack = onBack,
+                onMenu = onMenu,
+                actions = actions,
+                overlay = false,
+            )
             Column(modifier = Modifier.weight(1f)) {
                 content()
             }
