@@ -130,7 +130,7 @@ fun ChatScreen(
                 contentPadding = PaddingValues(
                     start = 18.dp,
                     end = 18.dp,
-                    top = 132.dp,
+                    top = 126.dp,
                     bottom = 150.dp,
                 ),
                 verticalArrangement = if (state.items.isEmpty()) {
@@ -188,7 +188,7 @@ fun ChatScreen(
                 ) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_qr_code),
+                            painter = painterResource(R.drawable.ic_iconpark_pay_code),
                             contentDescription = "校园卡付款码",
                             tint = NextPalette.Ink,
                             modifier = Modifier.size(21.dp),
@@ -229,14 +229,14 @@ private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
             .fillMaxWidth()
             .background(
                 Brush.verticalGradient(
-                    0.0f to NextPalette.Background,
-                    0.55f to NextPalette.Background,
-                    0.80f to NextPalette.Background.copy(alpha = 0.90f),
+                    0.0f to NextPalette.Background.copy(alpha = 0.997f),
+                    0.60f to NextPalette.Background.copy(alpha = 0.975f),
+                    0.82f to NextPalette.Background.copy(alpha = 0.85f),
                     1.0f to Color.Transparent,
                 ),
             )
             .statusBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 52.dp),
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 46.dp),
     ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
