@@ -51,6 +51,12 @@ class SettingsRepository(context: Context) {
         prefs.edit().putBoolean(KEY_SUGGESTIONS, enabled).apply()
     }
 
+    fun onboardingCompleted(): Boolean = prefs.getBoolean(KEY_ONBOARDING_DONE, false)
+
+    fun setOnboardingCompleted(completed: Boolean) {
+        prefs.edit().putBoolean(KEY_ONBOARDING_DONE, completed).apply()
+    }
+
     fun personality(): AssistantPersonality =
         AssistantPersonality.fromId(prefs.getString(KEY_PERSONALITY, AssistantPersonality.STANDARD.id))
 
@@ -80,6 +86,7 @@ class SettingsRepository(context: Context) {
         private const val KEY_DISPLAY_SCALE = "display_scale"
         private const val KEY_SUGGESTIONS = "quick_suggestions"
         private const val KEY_PERSONALITY = "assistant_personality"
+        private const val KEY_ONBOARDING_DONE = "onboarding_completed"
         const val MIN_DISPLAY_SCALE = 0.80f
         const val MAX_DISPLAY_SCALE = 1.20f
     }

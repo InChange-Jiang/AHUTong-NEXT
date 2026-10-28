@@ -16,7 +16,6 @@ import com.ahu.ahutong.next.data.CampusRepository
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.app.data.modelLabel as buildModelLabel
 import com.ahu.ahutong.next.app.data.providerFor
-import com.ahu.ahutong.next.model.FakeChatModel
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
 import com.ahu.ahutong.next.tools.DeepSeekSearchClient
 import com.ahu.ahutong.next.tools.WebSearchTool
@@ -76,6 +75,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val trimmed = text.trim()
         val state = _ui.value
         if (trimmed.isEmpty() || state.isRunning || state.pendingApprovalId != null) return
+
+        val setupError = when {
+            !com.ahu.ahutong.legacy.LegacyCampusApi.isLoggedIn() -> "请先在「设置 → 账号与学习通」登录智慧安大"
+            settings.apiKey().isNullOrBlank() -> "请先在「设置 → 模型与性格」配置 API Key"
+            else -> null
+        }
+        if (setupError != null) {
+            _ui.update {
+                it.copy(
+                    items = it.items + ChatItem.Error(
+                        UUID.randomUUID().toString(),
+                        setupError,
+                    ),
+                    input = "",
+                )
+            }
+            persist()
+            return
+        }
 
         val history = buildHistory(state.items)
         val userItem = ChatItem.User(UUID.randomUUID().toString(), trimmed)
@@ -425,15 +443,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun buildModel(): ChatModel {
         val key = settings.apiKey()
-        return if (key.isNullOrBlank()) {
-            FakeChatModel()
-        } else {
-            OpenAiCompatibleChatModel(
-                baseUrl = settings.baseUrl(),
-                apiKey = key,
-                model = settings.model(),
-            )
-        }
+        check(!key.isNullOrBlank()) { "请先在设置中配置 API Key" }
+        return OpenAiCompatibleChatModel(
+            baseUrl = settings.baseUrl(),
+            apiKey = key,
+            model = settings.model(),
+        )
     }
 
     private fun buildHistory(items: List<ChatItem>): List<LlmMessage> = items.mapNotNull { item ->

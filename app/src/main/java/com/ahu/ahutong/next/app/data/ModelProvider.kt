@@ -20,4 +20,4 @@ fun providerFor(baseUrl: String): ModelProviderInfo {
 }
 
 fun modelLabel(baseUrl: String, model: String, hasKey: Boolean): String =
-    if (!hasKey) "本地演示" else "${providerFor(baseUrl).label} · $model"
+    if (!hasKey) "未配置模型" else "${providerFor(baseUrl).label} · $model"

@@ -16,7 +16,6 @@ import com.ahu.ahutong.next.data.CourseOccurrence
 import com.ahu.ahutong.next.data.Electricity
 import com.ahu.ahutong.next.data.Exam
 import com.ahu.ahutong.next.data.Grade
-import com.ahu.ahutong.next.data.MockCampusRepository
 import com.ahu.ahutong.next.data.RechargeReceipt
 import com.ahu.ahutong.core.common.AhuResult
 import java.time.LocalDate
@@ -25,20 +24,21 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /**
- * 已登录时走旧工程真实数据层，未登录时退回演示数据。
- * 真实请求失败不会静默换成演示数据——宁可告诉用户“登录失效”，也不能把假数据当真的给。
+ * 校园数据只走旧工程真实数据层；未登录直接提示，不再生成任何演示数据。
  */
-class NextCampusRepository(
-    private val demo: MockCampusRepository = MockCampusRepository(),
-) : CampusRepository {
+class NextCampusRepository : CampusRepository {
 
     private val calendarStore = LocalCalendarStore(com.ahu.ahutong.core.common.AppEnvironmentHolder.context())
     private val assignmentStore = AssignmentCacheStore(com.ahu.ahutong.core.common.AppEnvironmentHolder.context())
 
     private val real: Boolean get() = LegacyCampusApi.isLoggedIn()
 
+    private fun requireLogin() {
+        if (!real) throw IllegalStateException("请先登录智慧安大")
+    }
+
     override suspend fun schedule(days: Int): List<CourseOccurrence> {
-        if (!real) return demo.schedule(days)
+        requireLogin()
         val courses = LegacyCampusApi.scheduleOccurrences(days).orThrow()
         return courses.map {
             CourseOccurrence(
@@ -54,7 +54,7 @@ class NextCampusRepository(
     }
 
     override suspend fun grades(term: String?): List<Grade> {
-        if (!real) return demo.grades(term)
+        requireLogin()
         val grade = LegacyCampusApi.grades().orThrow()
         val terms = grade.termGradeList.orEmpty()
             .filter { term == null || it.schoolYear.contains(term) || it.term == term }
@@ -80,7 +80,7 @@ class NextCampusRepository(
     }
 
     override suspend fun exams(): List<Exam> {
-        if (!real) return demo.exams()
+        requireLogin()
         return LegacyCampusApi.exams().orThrow().map {
             Exam(
                 course = it.course.orEmpty(),
@@ -91,9 +91,8 @@ class NextCampusRepository(
         }
     }
 
-    // 未登录时继续用演示数据；已登录时查询真实一卡通与电费，失败直接报错，不冒充真实结果。
     override suspend fun balance(): Balance {
-        if (!real) return demo.balance()
+        requireLogin()
         val card = LegacyCampusApi.cardMoney().orThrow()
         val cardNo = when (val number = LegacyCampusApi.cardNumber()) {
             is AhuResult.Success -> number.value
@@ -107,7 +106,7 @@ class NextCampusRepository(
     }
 
     override suspend fun bills(): BillSummary {
-        if (!real) return demo.bills()
+        requireLogin()
         val now = LocalDateTime.now()
         val timeFrom = now.toLocalDate().withDayOfMonth(1).atStartOfDay().format(TIME_FORMAT)
         val timeTo = now.format(TIME_FORMAT)
@@ -143,7 +142,7 @@ class NextCampusRepository(
     }
 
     override suspend fun electricity(): Electricity {
-        if (!real) return demo.electricity()
+        requireLogin()
         val selection = LegacyCampusApi.savedElectricityRoom()?.takeIf { it.room != null }
             ?: throw IllegalStateException("还没有设置宿舍电费房间，请先到「设置 → 宿舍电费」里选一次")
         val controller = LegacyCampusApi.electricityController()
@@ -165,12 +164,12 @@ class NextCampusRepository(
     }
 
     override suspend fun assignments(days: Int): List<Assignment> {
-        if (!LegacyCampusApi.hasChaoxingSession()) return demo.assignments(days)
+        if (!LegacyCampusApi.hasChaoxingSession()) return emptyList()
         return filterAssignments(assignmentStore.load(assignmentAccountId()), days)
     }
 
     override suspend fun refreshAssignments(days: Int): List<Assignment> {
-        if (!LegacyCampusApi.hasChaoxingSession()) return demo.assignments(days)
+        if (!LegacyCampusApi.hasChaoxingSession()) return emptyList()
         val fresh = fetchAssignments()
         assignmentStore.save(assignmentAccountId(), fresh)
         return filterAssignments(fresh, days)
@@ -310,7 +309,13 @@ class NextCampusRepository(
         end: String,
         reminderMinutes: Int,
     ): CalendarEvent {
-        val event = demo.addCalendarEvent(title, start, end, reminderMinutes)
+        val event = CalendarEvent(
+            id = java.util.UUID.randomUUID().toString(),
+            title = title,
+            start = start,
+            end = end,
+            reminderMinutes = reminderMinutes,
+        )
         calendarStore.add(event)
         return event
     }

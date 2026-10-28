@@ -65,6 +65,7 @@ import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
 import com.ahu.ahutong.next.ui.nav.NavDirection
 import com.ahu.ahutong.next.ui.nav.rememberAppNav
+import com.ahu.ahutong.next.ui.onboarding.OnboardingScreen
 import com.ahu.ahutong.next.ui.pages.AboutPage
 import com.ahu.ahutong.next.ui.pages.AccountsPage
 import com.ahu.ahutong.next.ui.pages.AssignmentsPage
@@ -112,6 +113,17 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
 
     val context = LocalContext.current
     val settings = remember { SettingsRepository(context) }
+    var onboardingDone by remember { mutableStateOf(settings.onboardingCompleted()) }
+    if (!onboardingDone) {
+        OnboardingScreen(
+            onComplete = {
+                settings.setOnboardingCompleted(true)
+                viewModel.refreshSettings()
+                onboardingDone = true
+            },
+        )
+        return
+    }
     var displayScale by remember { mutableFloatStateOf(settings.displayScale()) }
     var suggestionsEnabled by remember { mutableStateOf(settings.suggestionsEnabled()) }
     val pagerState = rememberPagerState(pageCount = { TOP_LEVEL_PAGE_COUNT })

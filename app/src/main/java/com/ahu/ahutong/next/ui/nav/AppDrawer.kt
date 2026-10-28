@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -166,9 +167,10 @@ fun AppDrawer(
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(vertical = 14.dp)
+                .width(200.dp)
+                .shadow(elevation = 10.dp, shape = RoundedCornerShape(28.dp))
                 .clip(RoundedCornerShape(28.dp))
                 .background(
                     if (current == AppRoute.Settings) NextPalette.AccentSoft
@@ -177,6 +179,7 @@ fun AppDrawer(
                 .clickable { onNavigate(AppRoute.Settings) }
                 .padding(horizontal = 18.dp, vertical = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_iconpark_setting),
@@ -184,7 +187,7 @@ fun AppDrawer(
                 tint = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.InkSecondary,
                 modifier = Modifier.size(19.dp),
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(8.dp))
             Text(
                 "设置",
                 style = MaterialTheme.typography.bodyMedium,

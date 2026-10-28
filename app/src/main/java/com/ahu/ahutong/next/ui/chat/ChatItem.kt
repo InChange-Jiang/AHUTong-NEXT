@@ -44,7 +44,7 @@ data class ChatUiState(
     val status: String? = null,
     val pendingApprovalId: String? = null,
     val hasApiKey: Boolean = false,
-    val modelLabel: String = "本地演示",
+    val modelLabel: String = "未配置模型",
     val sessions: List<ChatSessionSummary> = emptyList(),
     val currentSessionId: String? = null,
 )

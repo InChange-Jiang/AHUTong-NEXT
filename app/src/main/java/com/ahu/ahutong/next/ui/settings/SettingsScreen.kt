@@ -171,7 +171,7 @@ fun SettingsScreen(
                         SectionTitle("安大通账号")
                         if (accountName.isNullOrBlank()) {
                             Text(
-                                "未登录时，课程、成绩等查询使用演示数据。登录本科教务账号后切换为真实数据。",
+                                "课程、成绩、考试等校园数据来自智慧安大；首次启动必须登录。",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = NextPalette.InkSecondary,
                             )
@@ -215,7 +215,7 @@ fun SettingsScreen(
                             if (chaoxingConnected) {
                                 "已连接学习通，作业查询使用真实数据。"
                             } else {
-                                "未连接时作业使用演示数据。学习通是独立账号。"
+                                "未连接时作业为空；学习通是独立账号，连接后查询真实作业。"
                             },
                             style = MaterialTheme.typography.labelSmall,
                             color = NextPalette.InkSecondary,

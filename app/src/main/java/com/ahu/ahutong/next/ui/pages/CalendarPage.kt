@@ -170,12 +170,10 @@ fun CalendarEventsPage(
     }
 
     val entries = remember(events, assignments) { buildEntries(events, assignments) }
-    val visibleEntries = remember(entries, showOnlyEvents) {
-        if (showOnlyEvents) entries.filter { it.kind == CalendarEntryKind.EVENT } else entries
-    }
-    val weeks = remember(month, visibleEntries) { buildWeeks(month, visibleEntries) }
-    val monthEntries = remember(month, visibleEntries) {
-        visibleEntries
+    // 月历始终保留作业条；“仅看日程”只筛下面的日视图列表。
+    val weeks = remember(month, entries) { buildWeeks(month, entries) }
+    val monthEntries = remember(month, entries, showOnlyEvents) {
+        (if (showOnlyEvents) entries.filter { it.kind == CalendarEntryKind.EVENT } else entries)
             .filter { it.start <= month.atEndOfMonth() && it.end >= month.atDay(1) }
             .sortedWith(compareBy<CalendarEntry> { it.start }.thenBy { it.title })
     }
