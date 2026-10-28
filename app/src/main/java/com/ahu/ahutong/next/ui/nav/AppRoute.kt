@@ -1,11 +1,21 @@
 package com.ahu.ahutong.next.ui.nav
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
+enum class NavDirection {
+    PUSH,
+    POP,
+    RESET,
+}
 
 sealed interface AppRoute {
     data object Chat : AppRoute
+    data object History : AppRoute
     data object Settings : AppRoute
     data object ToolLab : AppRoute
     data object Profile : AppRoute
@@ -43,22 +53,28 @@ sealed interface AppRoute {
 class AppNavState(initial: AppRoute = AppRoute.Chat) {
     val stack = mutableStateListOf(initial)
 
+    var direction by mutableStateOf(NavDirection.RESET)
+        private set
+
     val current: AppRoute get() = stack.last()
 
     val canGoBack: Boolean get() = stack.size > 1
 
     fun push(route: AppRoute) {
         if (route == current) return
+        direction = NavDirection.PUSH
         stack.add(route)
     }
 
     fun pop(): Boolean {
         if (stack.size <= 1) return false
+        direction = NavDirection.POP
         stack.removeAt(stack.lastIndex)
         return true
     }
 
     fun resetToChat() {
+        if (current != AppRoute.Chat) direction = NavDirection.POP
         stack.clear()
         stack.add(AppRoute.Chat)
     }

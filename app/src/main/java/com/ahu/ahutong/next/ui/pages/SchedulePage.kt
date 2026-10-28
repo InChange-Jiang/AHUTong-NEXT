@@ -60,8 +60,13 @@ import com.ahu.ahutong.legacy.toChinese
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.app.data.CustomCourseStore
 import com.ahu.ahutong.next.app.data.NextCampusRepository
+import com.ahu.ahutong.next.app.data.ScheduleCache
+import com.ahu.ahutong.next.app.data.ScheduleCacheStore
 import com.ahu.ahutong.next.app.data.SchedulePrefs
+import com.ahu.ahutong.next.app.data.toCached
+import com.ahu.ahutong.next.app.data.toCourse
 import com.ahu.ahutong.next.app.data.toCourses
+import com.ahu.ahutong.next.app.data.toSemester
 import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.EmptyState
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
@@ -118,6 +123,7 @@ fun SemesterSchedulePage(
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefs = remember { SchedulePrefs(context) }
     val customStore = remember { CustomCourseStore(context) }
+    val cacheStore = remember { ScheduleCacheStore(context) }
     val accountId = remember {
         LegacyCampusApi.currentStudentId().orEmpty().ifBlank { "anon" }
     }
@@ -132,17 +138,34 @@ fun SemesterSchedulePage(
     var selectedWeek by rememberSaveable { mutableIntStateOf(1) }
     var weekInitialized by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
+    var refreshRequested by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var detailCourse by remember { mutableStateOf<Course?>(null) }
 
     LaunchedEffect(reload) {
-        state = LoadState.Loading
-        state = runCatching {
-            withContext(Dispatchers.IO) { loadSemesterSchedule(selectedSemesterId) }
-        }.fold(
-            onSuccess = { LoadState.Ready(it) },
-            onFailure = { it.toLoadFailure() },
-        )
+        val hadData = state is LoadState.Ready
+        if (!hadData) state = LoadState.Loading
+        if (refreshRequested) refreshing = true
+        val result = runCatching {
+            withContext(Dispatchers.IO) {
+                loadSemesterSchedule(
+                    requestedSemesterId = selectedSemesterId,
+                    cacheStore = cacheStore,
+                    accountId = accountId,
+                    forceRefresh = refreshRequested,
+                )
+            }
+        }
+        val loaded = result.getOrNull()
+        if (loaded != null) {
+            state = LoadState.Ready(loaded)
+        } else if (!hadData) {
+            state = result.exceptionOrNull()?.toLoadFailure()
+                ?: LoadState.Failed("课表加载失败")
+        }
+        refreshRequested = false
+        refreshing = false
         val ready = state
         if (ready is LoadState.Ready) {
             if (selectedSemesterId == null) selectedSemesterId = ready.value.semesterId
@@ -182,10 +205,33 @@ fun SemesterSchedulePage(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            RefreshIconButton { reload++ }
+            SoftIconButton(onClick = {
+                if (!refreshing) {
+                    refreshRequested = true
+                    reload++
+                }
+            }) {
+                if (refreshing) {
+                    androidx.compose.material3.CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = NextPalette.Accent,
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_iconpark_refresh),
+                        contentDescription = "刷新课表",
+                        tint = NextPalette.Ink,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         },
     ) {
-        AsyncContent(state, onRetry = { reload++ }) {
+        AsyncContent(state, onRetry = {
+            refreshRequested = true
+            reload++
+        }) {
             val data = (state as LoadState.Ready).value
             val semester = data.semesters.firstOrNull { it.id == data.semesterId }
                 ?: data.semesters.firstOrNull()
@@ -237,7 +283,7 @@ fun SemesterSchedulePage(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 LazyRow(
@@ -330,6 +376,7 @@ fun SemesterSchedulePage(
                 selectedWeek = if (target.isCurrent) ready.value.currentWeek else 1
                 overview = false
                 showSettings = false
+                state = LoadState.Loading
                 reload++
             },
             onDismiss = { showSettings = false },
@@ -341,14 +388,76 @@ fun SemesterSchedulePage(
     }
 }
 
-private suspend fun loadSemesterSchedule(requestedSemesterId: Int?): SemesterSchedule {
+private suspend fun loadSemesterSchedule(
+    requestedSemesterId: Int?,
+    cacheStore: ScheduleCacheStore,
+    accountId: String,
+    forceRefresh: Boolean,
+): SemesterSchedule {
+    val cached = cacheStore.load(accountId)
+    val localConfig = runCatching {
+        CurrentWeekResolver.resolveLocalConfig()?.config
+    }.getOrNull()
+    val requested = requestedSemesterId
+        ?: cached?.semesters?.firstOrNull { it.isCurrent }?.id
+        ?: cached?.semesters?.firstOrNull()?.id
+
+    if (!forceRefresh && cached != null && requested != null &&
+        cached.coursesBySemester.containsKey(requested.toString())
+    ) {
+        return buildFromCache(cached, requested, localConfig)
+    }
+
     val semesters = LegacyCampusApi.scheduleSemesters().valueOrThrow()
     if (semesters.isEmpty()) throw IllegalStateException("教务没有返回学期信息")
     val current = semesters.firstOrNull { it.isCurrent } ?: semesters.first()
-    val semester = semesters.firstOrNull { it.id == requestedSemesterId } ?: current
+    val semester = semesters.firstOrNull { it.id == requested } ?: current
     val courses = LegacyCampusApi.semesterSchedule(semester.id).valueOrThrow()
-    val config = runCatching { CurrentWeekResolver.resolveLocalFirst().config }.getOrNull()
-    val currentWeek = config?.week?.coerceIn(1, TOTAL_WEEKS) ?: 1
+    val config = localConfig ?: runCatching {
+        CurrentWeekResolver.resolveLocalFirst().config
+    }.getOrNull()
+    val currentWeek = config?.week?.coerceIn(1, TOTAL_WEEKS)
+        ?: cached?.currentWeek?.coerceIn(1, TOTAL_WEEKS)
+        ?: 1
+    val newCache = ScheduleCache(
+        semesters = semesters.map { it.toCached() },
+        coursesBySemester = cached?.coursesBySemester.orEmpty() +
+            (semester.id.toString() to courses.map { it.toCached() }),
+        currentWeek = currentWeek,
+        updatedAt = System.currentTimeMillis(),
+    )
+    cacheStore.save(accountId, newCache)
+    val startDate = parseDate(semester.startDate)
+        ?: if (semester.isCurrent) {
+            runCatching {
+                config?.startTime?.toInstant()?.atZone(ZoneId.systemDefault())?.toLocalDate()
+            }.getOrNull()
+        } else {
+            null
+        }
+    return SemesterSchedule(
+        semesters = semesters,
+        currentSemesterId = current.id,
+        semesterId = semester.id,
+        courses = courses,
+        startDate = startDate,
+        currentWeek = currentWeek,
+    )
+}
+
+private fun buildFromCache(
+    cache: ScheduleCache,
+    requestedSemesterId: Int,
+    config: com.ahu.ahutong.data.model.ScheduleConfigBean?,
+): SemesterSchedule {
+    val semesters = cache.semesters.map { it.toSemester() }
+    val current = semesters.firstOrNull { it.isCurrent } ?: semesters.first()
+    val semester = semesters.firstOrNull { it.id == requestedSemesterId } ?: current
+    val courses = cache.coursesBySemester[semester.id.toString()]
+        .orEmpty()
+        .map { it.toCourse() }
+    val currentWeek = config?.week?.coerceIn(1, TOTAL_WEEKS)
+        ?: cache.currentWeek.coerceIn(1, TOTAL_WEEKS)
     val startDate = parseDate(semester.startDate)
         ?: if (semester.isCurrent) {
             runCatching {

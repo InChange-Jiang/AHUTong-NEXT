@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +47,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ahu.ahutong.data.xuexiaotong.Store
+import com.ahu.ahutong.legacy.LegacyCampusApi
 import com.ahu.ahutong.next.R
+import com.ahu.ahutong.next.app.data.AssignmentCacheStore
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.CalendarEvent
@@ -54,7 +57,6 @@ import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
-import com.ahu.ahutong.next.ui.components.RefreshIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -66,9 +68,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private enum class CalendarEntryKind { ASSIGNMENT, EVENT }
@@ -123,21 +127,27 @@ fun CalendarEventsPage(
     onMenu: (() -> Unit)? = null,
     bottomBar: @Composable () -> Unit = {},
 ) {
-    var events by remember { mutableStateOf<List<CalendarEvent>>(emptyList()) }
-    var assignments by remember { mutableStateOf<List<Assignment>>(emptyList()) }
+    val context = LocalContext.current
+    val accountId = remember {
+        LegacyCampusApi.currentStudentId().orEmpty().ifBlank { "anon" }
+    }
+    val assignmentCache = remember { AssignmentCacheStore(context) }
+    var events by remember { mutableStateOf(repository.calendarEvents()) }
+    var assignments by remember { mutableStateOf(assignmentCache.load(accountId)) }
     var month by remember { mutableStateOf(YearMonth.now()) }
-    var loading by remember { mutableStateOf(true) }
+    var initialLoading by remember { mutableStateOf(assignments.isEmpty()) }
+    var syncing by remember { mutableStateOf(false) }
+    var lastSync by remember { mutableStateOf(assignmentCache.lastModified(accountId)) }
     var reload by remember { mutableIntStateOf(0) }
     var refreshRequested by remember { mutableStateOf(false) }
     var selectedEntry by remember { mutableStateOf<CalendarEntry?>(null) }
     var deletingEventId by remember { mutableStateOf<String?>(null) }
     var showAddEvent by remember { mutableStateOf(false) }
     var webAssignment by remember { mutableStateOf<Assignment?>(null) }
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(reload) {
-        loading = true
+        if (refreshRequested) syncing = true
         withContext(Dispatchers.IO) {
             events = runCatching { repository.calendarEvents() }.getOrDefault(emptyList())
             assignments = runCatching {
@@ -147,8 +157,14 @@ fun CalendarEventsPage(
                 runCatching { repository.assignments(90) }.getOrDefault(emptyList())
             }
         }
+        if (refreshRequested) {
+            lastSync = System.currentTimeMillis()
+        } else if (lastSync == 0L) {
+            lastSync = assignmentCache.lastModified(accountId)
+        }
         refreshRequested = false
-        loading = false
+        syncing = false
+        initialLoading = false
     }
 
     val entries = remember(events, assignments) { buildEntries(events, assignments) }
@@ -158,8 +174,15 @@ fun CalendarEventsPage(
             .sortedWith(compareBy<CalendarEntry> { it.start }.thenBy { it.title })
     }
 
+    val subtitle = when {
+        syncing -> "正在同步作业…"
+        lastSync > 0 -> "上次同步 ${formatSyncTime(lastSync)}"
+        else -> "尚未同步"
+    }
+
     FeatureScaffold(
         title = "日程",
+        subtitle = subtitle,
         onBack = onBack,
         onMenu = onMenu,
         bottomBar = bottomBar,
@@ -173,16 +196,31 @@ fun CalendarEventsPage(
                 )
             }
             Spacer(Modifier.width(8.dp))
-            RefreshIconButton {
-                if (!loading) {
+            SoftIconButton(onClick = {
+                if (!syncing) {
                     refreshRequested = true
                     reload++
+                }
+            }) {
+                if (syncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = NextPalette.Accent,
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_iconpark_refresh),
+                        contentDescription = "同步作业",
+                        tint = NextPalette.Ink,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         },
     ) {
-        AsyncContent(if (loading) LoadState.Loading else LoadState.Ready(Unit)) {
-            FeatureScrollColumn {
+        AsyncContent(if (initialLoading) LoadState.Loading else LoadState.Ready(Unit)) {
+            FeatureScrollColumn(horizontalPadding = 6.dp) {
                 PageCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -492,6 +530,11 @@ private fun buildEntries(
 
 private fun parseDay(value: String): LocalDate? =
     runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
+
+private fun formatSyncTime(timestamp: Long): String =
+    DateTimeFormatter.ofPattern("MM-dd HH:mm").format(
+        Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()),
+    )
 
 private fun buildWeeks(month: YearMonth, entries: List<CalendarEntry>): List<CalendarWeek> {
     val first = month.atDay(1)

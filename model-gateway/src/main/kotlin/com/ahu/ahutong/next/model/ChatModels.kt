@@ -171,7 +171,7 @@ class OpenAiCompatibleChatModel(
         .build(),
 ) : ChatModel {
 
-    override val name: String = "DeepSeek · $model"
+    override val name: String = model
 
     override suspend fun complete(messages: List<LlmMessage>, tools: List<ToolSpec>): ModelReply =
         withContext(Dispatchers.IO) {

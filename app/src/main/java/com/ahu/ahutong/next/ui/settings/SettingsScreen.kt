@@ -1,6 +1,12 @@
 package com.ahu.ahutong.next.ui.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +59,7 @@ import com.ahu.ahutong.next.agent.LlmMessage
 import com.ahu.ahutong.next.app.data.AssistantPersonality
 import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.app.data.modelPresets
+import com.ahu.ahutong.next.app.data.providerFor
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
 import com.ahu.ahutong.next.ui.components.SoftBackground
 import com.ahu.ahutong.next.ui.components.SoftChip
@@ -107,6 +114,7 @@ fun SettingsScreen(
     var testingModel by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<String?>(null) }
     var testSucceeded by remember { mutableStateOf(false) }
+    val currentProvider = providerFor(baseUrl)
     var section by remember { mutableStateOf<SettingsSection?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
     var accountName by remember { mutableStateOf(LegacyCampusApi.currentUserName()) }
@@ -121,6 +129,19 @@ fun SettingsScreen(
     BackHandler(enabled = section != null) { section = null }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = section,
+            transitionSpec = {
+                if (targetState != null) {
+                    (slideInHorizontally { it / 4 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { -it / 6 } + fadeOut())
+                } else {
+                    (slideInHorizontally { -it / 5 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { it / 6 } + fadeOut())
+                }
+            },
+            label = "settingsSection",
+        ) { activeSection ->
         SoftBackground {
             Column(
                 modifier = Modifier
@@ -131,11 +152,11 @@ fun SettingsScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 SettingsTopBar(
-                    title = section?.title ?: "设置",
-                    onBack = { if (section == null) onBack() else section = null },
+                    title = activeSection?.title ?: "设置",
+                    onBack = { if (activeSection == null) onBack() else section = null },
                 )
 
-                if (section == null) {
+                if (activeSection == null) {
                     SettingsCard {
                         SectionTitle("设置")
                         SettingsSection.entries
@@ -146,7 +167,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.ACCOUNT) {
+                                if (activeSection == SettingsSection.ACCOUNT) {
     SettingsCard {
                         SectionTitle("安大通账号")
                         if (accountName.isNullOrBlank()) {
@@ -214,7 +235,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.MODEL) {
+                                if (activeSection == SettingsSection.MODEL) {
     SettingsCard {
                         SectionTitle("模型")
                         Text(
@@ -352,21 +373,24 @@ fun SettingsScreen(
                                     color = NextPalette.Ink,
                                 )
                                 Text(
-                                    if (hasKey) {
-                                        "通过 DeepSeek 搜索获取实时网页信息"
-                                    } else {
-                                        "配置 API Key 后生效"
+                                    when {
+                                        !currentProvider.supportsWebSearch ->
+                                            "当前接口暂未接入联网搜索；目前仅 DeepSeek 官方接口可用"
+                                        hasKey -> "通过 ${currentProvider.label} 官方搜索获取实时网页信息"
+                                        else -> "配置 API Key 后生效"
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = NextPalette.InkSecondary,
                                 )
                             }
                             Switch(
-                                checked = searchEnabled,
+                                checked = searchEnabled && currentProvider.supportsWebSearch,
                                 onCheckedChange = {
                                     searchEnabled = it
                                     settings.setSearchEnabled(it)
                                 },
+                                enabled = currentProvider.supportsWebSearch &&
+                                    (hasKey || apiKeyInput.isNotBlank()),
                             )
                         }
 
@@ -404,7 +428,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.MODEL) {
+                                if (activeSection == SettingsSection.MODEL) {
     SettingsCard {
                         SectionTitle("安筱桐性格")
                         Text(
@@ -433,7 +457,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.DISPLAY) {
+                                if (activeSection == SettingsSection.DISPLAY) {
     SettingsCard {
                         SectionTitle("显示")
                         Text(
@@ -489,7 +513,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.DISPLAY) {
+                                if (activeSection == SettingsSection.DISPLAY) {
     SettingsCard {
                         SectionTitle("偏好")
                         Row(
@@ -520,7 +544,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.APP) {
+                                if (activeSection == SettingsSection.APP) {
     SettingsCard {
                         SectionTitle("应用")
                         SoftSecondaryButton(
@@ -534,7 +558,7 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.ELECTRICITY) {
+                                if (activeSection == SettingsSection.ELECTRICITY) {
     SettingsCard {
                         SectionTitle("宿舍电费")
                         Text(
@@ -550,23 +574,23 @@ fun SettingsScreen(
                     }
                 }
 
-                                if (section == SettingsSection.DATA) {
+                                if (activeSection == SettingsSection.DATA) {
     SettingsCard {
                         SectionTitle("数据")
                         Text(
-                            "单会话本地历史，共 $historyCount 条。",
+                            "当前会话共 $historyCount 条消息；历史对话可在侧边菜单查看。",
                             style = MaterialTheme.typography.bodySmall,
                             color = NextPalette.InkSecondary,
                         )
                         SoftSecondaryButton(
-                            text = "清除聊天记录",
+                            text = "清空全部聊天记录",
                             onClick = { showClearDialog = true },
                         )
                     }
                 }
 
                 if (BuildConfig.DEBUG) {
-                                        if (BuildConfig.DEBUG && section == SettingsSection.DEVELOPER) {
+                                        if (BuildConfig.DEBUG && activeSection == SettingsSection.DEVELOPER) {
     SettingsCard {
                             SectionTitle("开发者")
                             SoftSecondaryButton(
@@ -584,6 +608,7 @@ fun SettingsScreen(
 
                 Spacer(Modifier.padding(bottom = 24.dp))
             }
+        }
         }
 
         SnackbarHost(
@@ -641,8 +666,8 @@ fun SettingsScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("清除聊天记录？") },
-            text = { Text("本地历史会被删除，无法恢复。") },
+            title = { Text("清空全部聊天记录？") },
+            text = { Text("所有历史对话都会从本机删除，无法恢复。") },
             confirmButton = {
                 TextButton(
                     onClick = {

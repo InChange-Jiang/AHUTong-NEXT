@@ -45,6 +45,7 @@ fun FeatureScaffold(
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
     onMenu: (() -> Unit)? = null,
+    subtitle: String? = null,
     bottomBar: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -71,12 +72,21 @@ fun FeatureScaffold(
                     )
                 }
                 Spacer(Modifier.width(14.dp))
-                Text(
-                    title,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = NextPalette.Ink,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = NextPalette.Ink,
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NextPalette.InkSecondary,
+                            maxLines = 1,
+                        )
+                    }
+                }
                 actions()
             }
             Column(modifier = Modifier.weight(1f)) {
@@ -142,13 +152,14 @@ fun AsyncContent(
 @Composable
 fun FeatureScrollColumn(
     modifier: Modifier = Modifier,
+    horizontalPadding: androidx.compose.ui.unit.Dp = 18.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp, vertical = 6.dp),
+            .padding(horizontal = horizontalPadding, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         content = content,
     )

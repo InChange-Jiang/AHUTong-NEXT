@@ -3,6 +3,7 @@ package com.ahu.ahutong.next.ui.chat
 import androidx.compose.runtime.Immutable
 import com.ahu.ahutong.next.agent.ApprovalRequest
 import com.ahu.ahutong.next.agent.ToolResult
+import com.ahu.ahutong.next.app.data.ChatSessionSummary
 
 enum class ApprovalDecision {
     PENDING,
@@ -44,6 +45,8 @@ data class ChatUiState(
     val pendingApprovalId: String? = null,
     val hasApiKey: Boolean = false,
     val modelLabel: String = "本地演示",
+    val sessions: List<ChatSessionSummary> = emptyList(),
+    val currentSessionId: String? = null,
 )
 
 data class ToolLabResult(

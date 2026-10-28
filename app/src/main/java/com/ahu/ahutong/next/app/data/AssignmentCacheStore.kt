@@ -26,4 +26,8 @@ class AssignmentCacheStore(context: android.content.Context) {
             file(accountId).writeText(json.encodeToString(ListSerializer(Assignment.serializer()), items))
         }
     }
+
+    /** 缓存文件最后写入时间，用于页头“上次同步”。 */
+    fun lastModified(accountId: String): Long =
+        runCatching { file(accountId).lastModified() }.getOrDefault(0L)
 }

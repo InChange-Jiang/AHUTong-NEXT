@@ -1,8 +1,18 @@
 package com.ahu.ahutong.next.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +58,7 @@ import com.ahu.ahutong.next.ui.chat.ChatViewModel
 import com.ahu.ahutong.next.ui.lab.ToolLabScreen
 import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
+import com.ahu.ahutong.next.ui.nav.NavDirection
 import com.ahu.ahutong.next.ui.nav.rememberAppNav
 import com.ahu.ahutong.next.ui.pages.AboutPage
 import com.ahu.ahutong.next.ui.pages.AccountsPage
@@ -63,6 +75,7 @@ import com.ahu.ahutong.next.ui.pages.EvaluationPage
 import com.ahu.ahutong.next.ui.pages.ExamsPage
 import com.ahu.ahutong.next.ui.pages.FreeRoomsPage
 import com.ahu.ahutong.next.ui.pages.GradesPage
+import com.ahu.ahutong.next.ui.pages.HistoryPage
 import com.ahu.ahutong.next.ui.pages.LostFoundPage
 import com.ahu.ahutong.next.ui.pages.MailPage
 import com.ahu.ahutong.next.ui.pages.MaterialsPage
@@ -80,6 +93,8 @@ import com.ahu.ahutong.next.ui.pages.UpdatesPage
 import com.ahu.ahutong.next.ui.pages.WeatherPage
 import com.ahu.ahutong.next.ui.settings.SettingsScreen
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @Composable
@@ -97,6 +112,21 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val pagerState = rememberPagerState(pageCount = { TOP_LEVEL_PAGE_COUNT })
     val chatListState = androidx.compose.foundation.lazy.rememberLazyListState()
     val baseDensity = LocalDensity.current
+    var indicatorVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.isScrollInProgress }.collectLatest { scrolling ->
+            if (scrolling) {
+                indicatorVisible = true
+            } else {
+                delay(1400)
+                indicatorVisible = false
+            }
+        }
+    }
+    LaunchedEffect(pagerState.currentPage) {
+        indicatorVisible = true
+    }
 
     LaunchedEffect(Unit) {
         CourseReminders.schedule(context, repository)
@@ -127,7 +157,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 nav = nav,
                 current = nav.current,
                 onNewChat = {
-                    viewModel.clearHistory()
+                    viewModel.newChat()
                     nav.resetToChat()
                     closeDrawer()
                     gotoPage(0)
@@ -155,7 +185,26 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 fontScale = baseDensity.fontScale,
             ),
         ) {
-            if (nav.current == AppRoute.Chat) {
+            AnimatedContent(
+                targetState = nav.current,
+                transitionSpec = {
+                    val push = nav.direction == NavDirection.PUSH ||
+                        nav.direction == NavDirection.RESET
+                    val enter = if (push) {
+                        slideInHorizontally { it / 4 } + fadeIn()
+                    } else {
+                        slideInHorizontally { -it / 5 } + fadeIn()
+                    }
+                    val exit = if (push) {
+                        slideOutHorizontally { -it / 6 } + fadeOut()
+                    } else {
+                        slideOutHorizontally { it / 5 } + fadeOut()
+                    }
+                    (enter togetherWith exit).using(SizeTransform(clip = false))
+                },
+                label = "route",
+            ) { route ->
+                if (route == AppRoute.Chat) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     HorizontalPager(
                         state = pagerState,
@@ -190,18 +239,24 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                         }
                     }
 
-                    PageIndicator(
-                        current = pagerState.currentPage,
-                        onSelect = gotoPage,
+                    AnimatedVisibility(
+                        visible = indicatorVisible,
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .statusBarsPadding()
                             .padding(top = 6.dp),
-                    )
+                        enter = fadeIn() + scaleIn(initialScale = 0.92f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.92f),
+                    ) {
+                        PageIndicator(
+                            current = pagerState.currentPage,
+                            onSelect = gotoPage,
+                        )
+                    }
                 }
             } else {
                 val back: () -> Unit = { nav.pop() }
-                when (nav.current) {
+                when (route) {
                     AppRoute.Settings -> SettingsScreen(
                         modelLabel = state.modelLabel,
                         historyCount = state.items.size,
@@ -212,7 +267,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                         },
                         onBack = back,
                         onSaved = viewModel::refreshSettings,
-                        onClearHistory = viewModel::clearHistory,
+                        onClearHistory = viewModel::clearAllHistory,
                         onOpenLab = { nav.push(AppRoute.ToolLab) },
                         suggestionsEnabled = suggestionsEnabled,
                         onSuggestionsChange = {
@@ -223,6 +278,23 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                         onOpenReminders = { nav.push(AppRoute.Reminders) },
                         onOpenUpdates = { nav.push(AppRoute.Updates) },
                         onOpenAbout = { nav.push(AppRoute.About) },
+                    )
+
+                    AppRoute.History -> HistoryPage(
+                        sessions = state.sessions,
+                        currentSessionId = state.currentSessionId,
+                        onBack = back,
+                        onOpen = { sessionId ->
+                            viewModel.openSession(sessionId)
+                            nav.resetToChat()
+                            gotoPage(0)
+                        },
+                        onDelete = viewModel::deleteSession,
+                        onNewChat = {
+                            viewModel.newChat()
+                            nav.resetToChat()
+                            gotoPage(0)
+                        },
                     )
 
                     AppRoute.ToolLab -> ToolLabScreen(onBack = back)
@@ -277,6 +349,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                     AppRoute.About -> AboutPage(back)
                     AppRoute.Chat -> Unit
                 }
+            }
             }
         }
     }

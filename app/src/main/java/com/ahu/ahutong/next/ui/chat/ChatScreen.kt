@@ -199,6 +199,12 @@ private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
                 modifier = Modifier.size(20.dp),
             )
         }
+        Spacer(Modifier.width(10.dp))
+        Text(
+            "智能体",
+            style = MaterialTheme.typography.titleLarge,
+            color = NextPalette.Ink,
+        )
     }
 }
 

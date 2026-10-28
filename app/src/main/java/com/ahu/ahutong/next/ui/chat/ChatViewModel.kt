@@ -14,6 +14,8 @@ import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.app.data.SoulRepository
 import com.ahu.ahutong.next.data.CampusRepository
 import com.ahu.ahutong.next.app.data.NextCampusRepository
+import com.ahu.ahutong.next.app.data.modelLabel as buildModelLabel
+import com.ahu.ahutong.next.app.data.providerFor
 import com.ahu.ahutong.next.model.FakeChatModel
 import com.ahu.ahutong.next.model.OpenAiCompatibleChatModel
 import com.ahu.ahutong.next.tools.DeepSeekSearchClient
@@ -48,6 +50,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             items = historyStore.load(),
             hasApiKey = !settings.apiKey().isNullOrBlank(),
             modelLabel = modelLabel(),
+            sessions = historyStore.summaries(),
+            currentSessionId = historyStore.currentId(),
         ),
     )
     val ui: StateFlow<ChatUiState> = _ui.asStateFlow()
@@ -55,7 +59,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildRegistry(): ToolRegistry {
         val tools = allCampusTools(repository).toMutableList()
         val key = settings.apiKey()
-        if (!key.isNullOrBlank() && settings.searchEnabled()) {
+        if (!key.isNullOrBlank() &&
+            settings.searchEnabled() &&
+            providerFor(settings.baseUrl()).supportsWebSearch
+        ) {
             tools += WebSearchTool(DeepSeekSearchClient(settings.baseUrl(), key))
         }
         return ToolRegistry(tools)
@@ -165,13 +172,83 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         persist()
     }
 
-    fun clearHistory() {
+    fun newChat() {
         cancelRun()
         historyGeneration++
         persistJob?.cancel()
-        historyStore.clear()
-        historyStore.save(emptyList())
-        _ui.update { it.copy(items = emptyList(), input = "", status = null) }
+        val sessionId = historyStore.startNewSession()
+        _ui.update {
+            it.copy(
+                items = emptyList(),
+                input = "",
+                status = null,
+                pendingApprovalId = null,
+                sessions = historyStore.summaries(),
+                currentSessionId = sessionId,
+            )
+        }
+    }
+
+    fun clearAllHistory() {
+        cancelRun()
+        historyGeneration++
+        persistJob?.cancel()
+        historyStore.clearAll()
+        val sessionId = historyStore.startNewSession()
+        _ui.update {
+            it.copy(
+                items = emptyList(),
+                input = "",
+                status = null,
+                pendingApprovalId = null,
+                sessions = historyStore.summaries(),
+                currentSessionId = sessionId,
+            )
+        }
+    }
+
+    fun openSession(sessionId: String) {
+        if (sessionId == _ui.value.currentSessionId) return
+        cancelRun()
+        historyGeneration++
+        persistJob?.cancel()
+        val items = historyStore.switchTo(sessionId)
+        _ui.update {
+            it.copy(
+                items = items,
+                input = "",
+                status = null,
+                pendingApprovalId = null,
+                sessions = historyStore.summaries(),
+                currentSessionId = historyStore.currentId(),
+            )
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        cancelRun()
+        historyGeneration++
+        persistJob?.cancel()
+        historyStore.delete(sessionId)
+        _ui.update {
+            it.copy(
+                items = historyStore.load(),
+                input = "",
+                status = null,
+                pendingApprovalId = null,
+                sessions = historyStore.summaries(),
+                currentSessionId = historyStore.currentId(),
+            )
+        }
+    }
+
+    fun refreshSessions() {
+        _ui.update {
+            it.copy(
+                sessions = historyStore.summaries(),
+                currentSessionId = historyStore.currentId(),
+            )
+        }
     }
 
     fun refreshSettings() {
@@ -367,8 +444,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.takeLast(24)
 
-    private fun modelLabel(): String =
-        if (settings.apiKey().isNullOrBlank()) "本地演示" else "DeepSeek · ${settings.model()}"
+    private fun modelLabel(): String {
+        val key = settings.apiKey()
+        return buildModelLabel(
+            baseUrl = settings.baseUrl(),
+            model = settings.model(),
+            hasKey = !key.isNullOrBlank(),
+        )
+    }
 
     private companion object {
         const val DELTA_FLUSH_INTERVAL_MS = 33L
@@ -379,7 +462,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val snapshot = _ui.value.items
         persistJob?.cancel()
         persistJob = viewModelScope.launch(Dispatchers.IO) {
-            if (generation == historyGeneration) historyStore.save(snapshot)
+            if (generation == historyGeneration) {
+                historyStore.save(snapshot)
+                val sessions = historyStore.summaries()
+                val currentId = historyStore.currentId()
+                _ui.update {
+                    it.copy(sessions = sessions, currentSessionId = currentId)
+                }
+            }
         }
     }
 }

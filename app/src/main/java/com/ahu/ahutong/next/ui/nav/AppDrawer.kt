@@ -141,6 +141,12 @@ fun AppDrawer(
                 selected = false,
                 onClick = onNewChat,
             )
+            DrawerRow(
+                label = "历史对话",
+                icon = R.drawable.ic_iconpark_clock,
+                selected = current == AppRoute.History,
+                onClick = { onNavigate(AppRoute.History) },
+            )
 
             groups.forEach { group ->
                 Text(
