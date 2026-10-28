@@ -1,5 +1,6 @@
 package com.ahu.ahutong.next.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -45,54 +48,107 @@ fun FeatureScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     onMenu: (() -> Unit)? = null,
     subtitle: String? = null,
+    overlayHeader: Boolean = false,
     bottomBar: @Composable () -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     SoftBackground {
+        if (overlayHeader) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        content()
+                    }
+                    bottomBar()
+                }
+                FeatureHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    onBack = onBack,
+                    onMenu = onMenu,
+                    actions = actions,
+                    overlay = true,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SoftIconButton(onClick = onMenu ?: onBack) {
-                    Icon(
-                        painter = painterResource(
-                            if (onMenu != null) R.drawable.ic_iconpark_menu else R.drawable.ic_iconpark_left,
-                        ),
-                        contentDescription = if (onMenu != null) "功能" else "返回",
-                        tint = NextPalette.Ink,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Spacer(Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = NextPalette.Ink,
-                    )
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(
-                            subtitle,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = NextPalette.InkSecondary,
-                            maxLines = 1,
-                        )
-                    }
-                }
-                actions()
-            }
             Column(modifier = Modifier.weight(1f)) {
                 content()
             }
             bottomBar()
         }
+        }
+    }
+}
+
+@Composable
+private fun FeatureHeader(
+    title: String,
+    subtitle: String?,
+    onBack: () -> Unit,
+    onMenu: (() -> Unit)?,
+    actions: @Composable RowScope.() -> Unit,
+    overlay: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (overlay) {
+                    Modifier.background(
+                        Brush.verticalGradient(
+                            0.0f to NextPalette.Background.copy(alpha = 0.995f),
+                            0.55f to NextPalette.Background.copy(alpha = 0.955f),
+                            0.80f to NextPalette.Background.copy(alpha = 0.76f),
+                            1.0f to Color.Transparent,
+                        ),
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .then(if (overlay) Modifier.statusBarsPadding() else Modifier)
+            .padding(
+                start = 18.dp,
+                end = 18.dp,
+                top = 10.dp,
+                bottom = if (overlay) 42.dp else 10.dp,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SoftIconButton(onClick = onMenu ?: onBack) {
+            Icon(
+                painter = painterResource(
+                    if (onMenu != null) R.drawable.ic_iconpark_menu else R.drawable.ic_iconpark_left,
+                ),
+                contentDescription = if (onMenu != null) "功能" else "返回",
+                tint = NextPalette.Ink,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                color = NextPalette.Ink,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.InkSecondary,
+                    maxLines = 1,
+                )
+            }
+        }
+        actions()
     }
 }
 

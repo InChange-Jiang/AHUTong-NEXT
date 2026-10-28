@@ -189,6 +189,7 @@ fun CalendarEventsPage(
     FeatureScaffold(
         title = "日程",
         subtitle = subtitle,
+        overlayHeader = true,
         onBack = onBack,
         onMenu = onMenu,
         bottomBar = bottomBar,
@@ -227,6 +228,7 @@ fun CalendarEventsPage(
     ) {
         AsyncContent(if (initialLoading) LoadState.Loading else LoadState.Ready(Unit)) {
             FeatureScrollColumn(horizontalPadding = 6.dp) {
+                Spacer(Modifier.height(100.dp))
                 PageCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(

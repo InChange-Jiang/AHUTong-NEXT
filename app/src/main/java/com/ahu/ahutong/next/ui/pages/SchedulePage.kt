@@ -179,6 +179,7 @@ fun SemesterSchedulePage(
 
     FeatureScaffold(
         title = "课表",
+        overlayHeader = true,
         onBack = onBack,
         onMenu = onMenu,
         actions = {
@@ -288,6 +289,7 @@ fun SemesterSchedulePage(
                     .navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                Spacer(Modifier.height(100.dp))
                 LazyRow(
                     state = weekStripState,
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp),
