@@ -3,7 +3,6 @@ package com.ahu.ahutong.next.ui.pages
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +57,7 @@ import com.ahu.ahutong.next.ui.components.AsyncContent
 import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.next.ui.components.LoadState
+import com.ahu.ahutong.next.ui.components.LocalNextSnackbar
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftIconButton
@@ -65,6 +66,7 @@ import com.ahu.ahutong.next.ui.components.SoftSecondaryButton
 import com.ahu.ahutong.next.ui.components.SoftTextField
 import com.ahu.ahutong.next.ui.theme.NextPalette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URLEncoder
@@ -144,6 +146,8 @@ fun CalendarEventsPage(
     var deletingEventId by remember { mutableStateOf<String?>(null) }
     var showAddEvent by remember { mutableStateOf(false) }
     var webAssignment by remember { mutableStateOf<Assignment?>(null) }
+    var linkError by remember { mutableStateOf<String?>(null) }
+    val snackbar = LocalNextSnackbar.current
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(reload) {
@@ -328,18 +332,34 @@ fun CalendarEventsPage(
         }
     }
 
+    LaunchedEffect(linkError) {
+        if (linkError != null) {
+            delay(2600)
+            linkError = null
+        }
+    }
+
     selectedEntry?.let { entry ->
         val work = entry.assignment
         if (work != null) {
             AssignmentDetailDialog(
                 entry = entry,
                 work = work,
+                message = linkError,
                 onViewQuestions = {
                     selectedEntry = null
+                    linkError = null
                     webAssignment = work
                 },
-                onOpenChaoxing = { openAssignmentInChaoxing(context, work) },
-                onDismiss = { selectedEntry = null },
+                onOpenChaoxing = {
+                    openAssignmentInChaoxing(context, work) { message ->
+                        linkError = message
+                    }
+                },
+                onDismiss = {
+                    selectedEntry = null
+                    linkError = null
+                },
             )
         } else {
             EventDetailDialog(
@@ -376,7 +396,7 @@ fun CalendarEventsPage(
                     }.onSuccess {
                         events = repository.calendarEvents()
                     }.onFailure {
-                        Toast.makeText(context, it.message ?: "日程保存失败", Toast.LENGTH_SHORT).show()
+                        snackbar?.show(it.message ?: "日程保存失败")
                     }
                 }
             },
@@ -588,6 +608,7 @@ private fun buildWeeks(month: YearMonth, entries: List<CalendarEntry>): List<Cal
 private fun AssignmentDetailDialog(
     entry: CalendarEntry,
     work: Assignment,
+    message: String?,
     onViewQuestions: () -> Unit,
     onOpenChaoxing: () -> Unit,
     onDismiss: () -> Unit,
@@ -647,6 +668,11 @@ private fun AssignmentDetailDialog(
                         onClick = onOpenChaoxing,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                if (!message.isNullOrBlank()) {
+                    Snackbar(modifier = Modifier.fillMaxWidth()) {
+                        Text(message)
+                    }
                 }
             }
         },
@@ -813,12 +839,16 @@ private fun parseCalendarTime(text: String, formatter: DateTimeFormatter): Local
  * 跳学习通 App 打开该课程作业列表。普通课与镜像课都走票据端点，
  * classId 从本地课程缓存现查；缺少班级信息时只提示，不降级到浏览器。
  */
-private fun openAssignmentInChaoxing(context: Context, work: Assignment) {
+private fun openAssignmentInChaoxing(
+    context: Context,
+    work: Assignment,
+    onMessage: (String) -> Unit,
+) {
     val clazzId = Store.getCourses()
         .firstOrNull { it.courseId == work.courseId }
         ?.clazzId
     if (clazzId.isNullOrBlank()) {
-        Toast.makeText(context, "缺少课程班级信息，请先在课程页同步一次", Toast.LENGTH_SHORT).show()
+        onMessage("缺少课程班级信息，请先在课程页同步一次")
         return
     }
     val ticketUrl = "https://mobilelearn.chaoxing.com/task/getStuWorkAndExamSkipUrl" +
@@ -835,6 +865,6 @@ private fun openAssignmentInChaoxing(context: Context, work: Assignment) {
     if (intent.resolveActivity(context.packageManager) != null) {
         context.startActivity(intent)
     } else {
-        Toast.makeText(context, "未安装学习通 App", Toast.LENGTH_SHORT).show()
+        onMessage("未安装学习通 App")
     }
 }

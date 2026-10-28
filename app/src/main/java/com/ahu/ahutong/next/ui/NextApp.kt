@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -55,6 +57,9 @@ import com.ahu.ahutong.next.reminder.CourseReminders
 import com.ahu.ahutong.next.reminder.ElectricityAlerts
 import com.ahu.ahutong.next.ui.chat.ChatScreen
 import com.ahu.ahutong.next.ui.chat.ChatViewModel
+import com.ahu.ahutong.next.ui.components.LocalNextSnackbar
+import com.ahu.ahutong.next.ui.components.NextSnackbarHost
+import com.ahu.ahutong.next.ui.components.rememberNextSnackbarController
 import com.ahu.ahutong.next.ui.lab.ToolLabScreen
 import com.ahu.ahutong.next.ui.nav.AppDrawer
 import com.ahu.ahutong.next.ui.nav.AppRoute
@@ -103,6 +108,7 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
     val nav = rememberAppNav()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val snackbarController = rememberNextSnackbarController()
     val repository = remember { NextCampusRepository() }
 
     val context = LocalContext.current
@@ -184,7 +190,9 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                 density = baseDensity.density * displayScale,
                 fontScale = baseDensity.fontScale,
             ),
+            LocalNextSnackbar provides snackbarController,
         ) {
+            Box(modifier = Modifier.fillMaxSize()) {
             AnimatedContent(
                 targetState = nav.current,
                 transitionSpec = {
@@ -350,6 +358,19 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                     AppRoute.Chat -> Unit
                 }
             }
+            }
+            NextSnackbarHost(
+                controller = snackbarController,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(
+                        start = 18.dp,
+                        end = 18.dp,
+                        bottom = if (nav.current == AppRoute.Chat) 92.dp else 20.dp,
+                    ),
+            )
             }
         }
     }
