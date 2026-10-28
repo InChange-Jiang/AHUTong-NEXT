@@ -78,12 +78,16 @@ fun ChatScreen(
     onReject: () -> Unit,
     onCancel: () -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenRechargeCard: () -> Unit = {},
+    onOpenBills: () -> Unit = {},
     showSuggestions: Boolean = true,
     listState: LazyListState = rememberLazyListState(),
 ) {
     val streamingTextLength = (state.items.lastOrNull() as? ChatItem.Assistant)?.text?.length ?: 0
     val lastAssistantStreaming = (state.items.lastOrNull() as? ChatItem.Assistant)?.streaming == true
     var stickToBottom by remember { mutableStateOf(true) }
+    var showPaymentQr by remember { mutableStateOf(false) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
 
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress to listState.canScrollForward }
@@ -173,13 +177,45 @@ fun ChatScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 18.dp, vertical = 12.dp),
         ) {
-            InputPill(
-                value = state.input,
-                enabled = !state.isRunning,
-                onValueChange = onInputChange,
-                onSend = { onSend(state.input) },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                SoftIconButton(onClick = {
+                    focusManager.clearFocus()
+                    showPaymentQr = true
+                }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_iconpark_qr),
+                        contentDescription = "校园卡付款码",
+                        tint = NextPalette.Ink,
+                        modifier = Modifier.size(21.dp),
+                    )
+                }
+                InputPill(
+                    value = state.input,
+                    enabled = !state.isRunning,
+                    onValueChange = onInputChange,
+                    onSend = { onSend(state.input) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
+    }
+
+    if (showPaymentQr) {
+        PaymentQrCardDialog(
+            onDismiss = { showPaymentQr = false },
+            onRecharge = {
+                showPaymentQr = false
+                onOpenRechargeCard()
+            },
+            onBills = {
+                showPaymentQr = false
+                onOpenBills()
+            },
+        )
     }
 }
 
@@ -266,11 +302,12 @@ private fun InputPill(
     enabled: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val canSend = enabled && value.isNotBlank()
 
     SoftSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(30.dp),
         elevation = 18.dp,
     ) {

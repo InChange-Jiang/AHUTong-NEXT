@@ -67,14 +67,6 @@ private val groups = listOf(
         ),
     ),
     DrawerGroup(
-        "校园卡",
-        listOf(
-            DrawerEntry("校园卡", AppRoute.Card, R.drawable.ic_iconpark_wallet),
-            DrawerEntry("账单与消费", AppRoute.Bills, R.drawable.ic_iconpark_bill),
-            DrawerEntry("校园卡充值", AppRoute.RechargeCard, R.drawable.ic_iconpark_wallet),
-        ),
-    ),
-    DrawerGroup(
         "生活",
         listOf(
             DrawerEntry("电控缴费", AppRoute.RechargeElectricity, R.drawable.ic_electricity_pay, Color(0xFFFFB300)),

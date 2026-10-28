@@ -241,6 +241,8 @@ fun NextApp(viewModel: ChatViewModel = viewModel()) {
                                 onReject = viewModel::reject,
                                 onCancel = viewModel::cancelRun,
                                 onOpenDrawer = openDrawer,
+                                onOpenRechargeCard = { nav.push(AppRoute.RechargeCard) },
+                                onOpenBills = { nav.push(AppRoute.Bills) },
                                 showSuggestions = suggestionsEnabled,
                                 listState = chatListState,
                             )
