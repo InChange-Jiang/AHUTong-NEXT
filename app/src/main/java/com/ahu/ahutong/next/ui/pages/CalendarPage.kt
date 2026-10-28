@@ -143,6 +143,7 @@ fun CalendarEventsPage(
     var selectedEntry by remember { mutableStateOf<CalendarEntry?>(null) }
     var deletingEventId by remember { mutableStateOf<String?>(null) }
     var showAddEvent by remember { mutableStateOf(false) }
+    var showOnlyEvents by remember { mutableStateOf(false) }
     var webAssignment by remember { mutableStateOf<Assignment?>(null) }
     val showToast = LocalNextToast.current
     val scope = rememberCoroutineScope()
@@ -169,9 +170,13 @@ fun CalendarEventsPage(
     }
 
     val entries = remember(events, assignments) { buildEntries(events, assignments) }
-    val weeks = remember(month, entries) { buildWeeks(month, entries) }
-    val monthEntries = remember(month, entries) {
-        entries.filter { it.start <= month.atEndOfMonth() && it.end >= month.atDay(1) }
+    val visibleEntries = remember(entries, showOnlyEvents) {
+        if (showOnlyEvents) entries.filter { it.kind == CalendarEntryKind.EVENT } else entries
+    }
+    val weeks = remember(month, visibleEntries) { buildWeeks(month, visibleEntries) }
+    val monthEntries = remember(month, visibleEntries) {
+        visibleEntries
+            .filter { it.start <= month.atEndOfMonth() && it.end >= month.atDay(1) }
             .sortedWith(compareBy<CalendarEntry> { it.start }.thenBy { it.title })
     }
 
@@ -262,23 +267,29 @@ fun CalendarEventsPage(
                     weeks.forEach { week ->
                         MonthWeekView(week, month) { selectedEntry = it }
                     }
-                    Text(
-                        "作业按开放/截止时间自动铺在日历上；已完成作业会淡化。",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                    )
                 }
 
                 PageCard {
-                    Text(
-                        "本月 ${monthEntries.size} 条",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = NextPalette.Ink,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "日视图",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = NextPalette.Ink,
+                        )
+                        SoftChip(
+                            "仅看日程",
+                            onClick = { showOnlyEvents = !showOnlyEvents },
+                            selected = showOnlyEvents,
+                        )
+                    }
                     if (monthEntries.isEmpty()) {
                         Text(
-                            if (assignments.isEmpty()) "还没有缓存作业，点右上角刷新同步。"
-                            else "本月没有作业或日程。",
+                            when {
+                                showOnlyEvents -> "本月没有自建日程。"
+                                assignments.isEmpty() -> "还没有缓存作业，点右上角刷新同步。"
+                                else -> "本月没有作业或日程。"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = NextPalette.InkSecondary,
                         )

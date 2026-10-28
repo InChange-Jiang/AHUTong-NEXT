@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -35,46 +36,109 @@ import com.ahu.ahutong.next.ui.components.FeatureScaffold
 import com.ahu.ahutong.next.ui.components.FeatureScrollColumn
 import com.ahu.ahutong.data.phonebook.PhoneBookDirectory
 import com.ahu.ahutong.next.ui.components.LoadState
-import com.ahu.ahutong.next.ui.components.RefreshIconButton
+import com.ahu.ahutong.next.ui.components.LocalNextToast
+import com.ahu.ahutong.next.ui.components.SoftIconButton
 import com.ahu.ahutong.next.ui.components.SoftChip
 import com.ahu.ahutong.next.ui.components.SoftChipStrip
 import com.ahu.ahutong.next.ui.components.SoftPrimaryButton
 import com.ahu.ahutong.next.ui.components.toLoadFailure
 import com.ahu.ahutong.next.ui.theme.NextPalette
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
+import com.ahu.ahutong.next.R
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
+private fun formatCourseSyncTime(timestamp: Long): String =
+    DateTimeFormatter.ofPattern("MM-dd HH:mm").format(
+        Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()),
+    )
+
 @Composable
 fun CourseTasksPage(onBack: () -> Unit) {
     var progress by remember { mutableStateOf(LegacyCampusApi.cachedCourseProgress()) }
-    var state by remember { mutableStateOf<LoadState<Unit>>(LoadState.Loading) }
+    var state by remember {
+        mutableStateOf<LoadState<Unit>>(
+            if (progress.isEmpty()) LoadState.Loading else LoadState.Ready(Unit),
+        )
+    }
     var syncing by remember { mutableStateOf(false) }
+    var lastSync by remember {
+        mutableStateOf(
+            LegacyCampusApi.courseProgressLastSync()
+                .takeIf { it > 0 }
+                ?: progress.maxOfOrNull { it.updatedAt } ?: 0L,
+        )
+    }
     var showEmptyCourses by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val showToast = LocalNextToast.current
 
     suspend fun sync() {
         syncing = true
-        state = LoadState.Loading
+        if (progress.isEmpty()) state = LoadState.Loading
         runCatching {
             withContext(Dispatchers.IO) { LegacyCampusApi.syncCourseProgress().requireValue() }
         }.fold(
-            onSuccess = { progress = it; state = LoadState.Ready(Unit) },
-            onFailure = { state = it.toLoadFailure() },
+            onSuccess = {
+                progress = it
+                lastSync = LegacyCampusApi.courseProgressLastSync()
+                    .takeIf { it > 0 }
+                    ?: it.maxOfOrNull { course -> course.updatedAt } ?: 0L
+                state = LoadState.Ready(Unit)
+            },
+            onFailure = {
+                val failure = it.toLoadFailure()
+                if (progress.isEmpty()) state = failure else showToast(failure.message)
+            },
         )
         syncing = false
     }
 
     LaunchedEffect(Unit) {
-        if (progress.isEmpty()) sync() else state = LoadState.Ready(Unit)
+        if (progress.isEmpty()) {
+            sync()
+        } else {
+            lastSync = LegacyCampusApi.courseProgressLastSync()
+                .takeIf { it > 0 }
+                ?: progress.maxOfOrNull { it.updatedAt } ?: 0L
+            state = LoadState.Ready(Unit)
+        }
+    }
+
+    val subtitle = when {
+        syncing -> "正在同步课程任务…"
+        lastSync > 0 -> "上次更新 ${formatCourseSyncTime(lastSync)}"
+        else -> ""
     }
 
     FeatureScaffold(
         title = "课程任务",
+        subtitle = subtitle,
         onBack = onBack,
         actions = {
-            RefreshIconButton { if (!syncing) scope.launch { sync() } }
+            SoftIconButton(onClick = { if (!syncing) scope.launch { sync() } }) {
+                if (syncing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = NextPalette.Accent,
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_iconpark_refresh),
+                        contentDescription = "同步课程任务",
+                        tint = NextPalette.Ink,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         },
     ) {
         AsyncContent(state, onRetry = { scope.launch { sync() } }) {

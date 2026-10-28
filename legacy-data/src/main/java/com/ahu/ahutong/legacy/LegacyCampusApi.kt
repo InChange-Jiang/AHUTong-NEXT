@@ -164,6 +164,8 @@ object LegacyCampusApi {
 
     fun cachedCourseProgress(): List<CourseProgress> = Store.getCourseProgress()
 
+    fun courseProgressLastSync(): Long = Store.getCourseProgressSyncTime()
+
     suspend fun syncCourseProgress(): AhuResult<List<CourseProgress>> = withContext(Dispatchers.IO) {
         if (!hasChaoxingSession()) {
             return@withContext AhuResult.Failure(AhuError.Unauthorized("学习通未连接，请先登录"))

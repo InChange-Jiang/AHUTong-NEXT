@@ -161,7 +161,9 @@ object Store : ChaoxingReminderStore {
 
     fun saveCourseProgress(list: List<CourseProgress>) {
         putString("cx_course_progress", json.encodeToString(list))
+        putLong("cx_course_progress_sync", System.currentTimeMillis())
     }
+    fun getCourseProgressSyncTime(): Long = getLong("cx_course_progress_sync", 0L)
     fun getCourseProgress(): List<CourseProgress> {
         val raw = getString("cx_course_progress")
         if (raw.isEmpty()) return emptyList()
@@ -175,6 +177,7 @@ object Store : ChaoxingReminderStore {
         remove("cx_last_sync")
         remove("cx_reminded")
         remove("cx_course_progress")
+        remove("cx_course_progress_sync")
         remove("cx_cred_phone")
         remove("cx_cred_pwd")
     }

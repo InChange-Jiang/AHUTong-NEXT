@@ -97,11 +97,6 @@ fun PaymentQrCardDialog(
                                 fontWeight = FontWeight.SemiBold,
                                 color = NextPalette.Ink,
                             )
-                            Text(
-                                "仅限本人校园卡消费使用",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = NextPalette.InkSecondary,
-                            )
                         }
                         TextButton(onClick = onDismiss) { Text("关闭") }
                     }
@@ -139,12 +134,6 @@ fun PaymentQrCardDialog(
                         }
                     }
 
-                    Text(
-                        "请将二维码对准扫码设备；刷新后会生成新的付款码。",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NextPalette.InkSecondary,
-                        textAlign = TextAlign.Center,
-                    )
                     TextButton(onClick = { reload++ }) { Text("刷新二维码") }
 
                     Row(

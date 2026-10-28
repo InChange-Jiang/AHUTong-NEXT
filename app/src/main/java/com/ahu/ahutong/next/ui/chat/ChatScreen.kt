@@ -8,22 +8,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -35,6 +34,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -123,29 +123,22 @@ fun ChatScreen(
     }
 
     SoftBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-        ) {
-            FloatingTopBar(onOpenDrawer = onOpenDrawer)
-
-            Box(modifier = Modifier.weight(1f)) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 18.dp,
-                        end = 18.dp,
-                        top = 10.dp,
-                        bottom = 150.dp,
-                    ),
-                    verticalArrangement = if (state.items.isEmpty()) {
-                        Arrangement.Top
-                    } else {
-                        Arrangement.spacedBy(14.dp, Alignment.Bottom)
-                    },
-                ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    end = 18.dp,
+                    top = 132.dp,
+                    bottom = 150.dp,
+                ),
+                verticalArrangement = if (state.items.isEmpty()) {
+                    Arrangement.Top
+                } else {
+                    Arrangement.spacedBy(14.dp, Alignment.Bottom)
+                },
+            ) {
                     if (state.items.isEmpty()) {
                         item {
                             EmptyHero(onSend = onSend, showSuggestions = showSuggestions)
@@ -165,9 +158,9 @@ fun ChatScreen(
                             StatusPill(text = state.status, onCancel = onCancel)
                         }
                     }
-                }
             }
-        }
+
+            FloatingTopBar(onOpenDrawer = onOpenDrawer)
 
         Box(
             modifier = Modifier
@@ -182,16 +175,25 @@ fun ChatScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                SoftIconButton(onClick = {
-                    focusManager.clearFocus()
-                    showPaymentQr = true
-                }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_iconpark_qr),
-                        contentDescription = "校园卡付款码",
-                        tint = NextPalette.Ink,
-                        modifier = Modifier.size(21.dp),
-                    )
+                Surface(
+                    onClick = {
+                        focusManager.clearFocus()
+                        showPaymentQr = true
+                    },
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
+                    color = NextPalette.Surface,
+                    shadowElevation = 9.dp,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.8f)),
+                ) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_qr_code),
+                            contentDescription = "校园卡付款码",
+                            tint = NextPalette.Ink,
+                            modifier = Modifier.size(21.dp),
+                        )
+                    }
                 }
                 InputPill(
                     value = state.input,
@@ -202,6 +204,7 @@ fun ChatScreen(
                 )
             }
         }
+    }
     }
 
     if (showPaymentQr) {
@@ -221,10 +224,22 @@ fun ChatScreen(
 
 @Composable
 private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .background(
+                Brush.verticalGradient(
+                    0.0f to NextPalette.Background,
+                    0.55f to NextPalette.Background,
+                    0.80f to NextPalette.Background.copy(alpha = 0.90f),
+                    1.0f to Color.Transparent,
+                ),
+            )
+            .statusBarsPadding()
+            .padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 52.dp),
+    ) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SoftIconButton(onClick = onOpenDrawer) {
@@ -241,6 +256,7 @@ private fun FloatingTopBar(onOpenDrawer: () -> Unit) {
             style = MaterialTheme.typography.titleLarge,
             color = NextPalette.Ink,
         )
+    }
     }
 }
 
@@ -323,7 +339,7 @@ private fun InputPill(
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = NextPalette.Ink),
                 placeholder = {
                     Text(
-                        "问课表、作业、成绩、考勤…",
+                        "问点什么...",
                         style = MaterialTheme.typography.bodyLarge,
                         color = NextPalette.InkSecondary,
                     )

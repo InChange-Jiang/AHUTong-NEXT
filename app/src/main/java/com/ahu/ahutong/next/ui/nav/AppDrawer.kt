@@ -3,11 +3,13 @@ package com.ahu.ahutong.next.ui.nav
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,8 +62,7 @@ private val groups = listOf(
     DrawerGroup(
         "学习",
         listOf(
-            DrawerEntry("作业", AppRoute.Assignments, R.drawable.ic_iconpark_assignment),
-            DrawerEntry("课程任务", AppRoute.CourseTasks, R.drawable.ic_iconpark_assignment),
+            DrawerEntry("课程任务", AppRoute.CourseTasks, R.drawable.ic_iconpark_assignment, Color(0xFF8B1E3F)),
             DrawerEntry("学习资料", AppRoute.Materials, R.drawable.ic_repository, Color(0xFF8D6E63)),
             DrawerEntry("学生邮箱", AppRoute.Mail, R.drawable.ic_student_mail, Color(0xFF3978D4)),
         ),
@@ -92,13 +93,15 @@ fun AppDrawer(
     val studentId = LegacyCampusApi.currentStudentId()
 
     ModalDrawerSheet(
-        modifier = Modifier.width(318.dp).fillMaxHeight(),
+        modifier = Modifier.width(280.dp).fillMaxHeight(),
         drawerContainerColor = NextPalette.Background,
     ) {
+        Box(modifier = Modifier.fillMaxHeight()) {
         Column(
             modifier = Modifier
+                .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 18.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 104.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Row(
@@ -158,12 +161,37 @@ fun AppDrawer(
                 }
             }
 
-            DrawerRow(
-                label = "设置",
-                icon = R.drawable.ic_iconpark_setting,
-                selected = current == AppRoute.Settings,
-                onClick = { onNavigate(AppRoute.Settings) },
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(
+                    if (current == AppRoute.Settings) NextPalette.AccentSoft
+                    else NextPalette.Surface,
+                )
+                .clickable { onNavigate(AppRoute.Settings) }
+                .padding(horizontal = 18.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_iconpark_setting),
+                contentDescription = null,
+                tint = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.InkSecondary,
+                modifier = Modifier.size(19.dp),
             )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "设置",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = if (current == AppRoute.Settings) NextPalette.AccentDeep else NextPalette.Ink,
+            )
+        }
         }
     }
 }
