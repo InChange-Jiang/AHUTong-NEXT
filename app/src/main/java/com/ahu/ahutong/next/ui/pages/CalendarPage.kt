@@ -74,6 +74,7 @@ import java.time.LocalDateTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private enum class CalendarEntryKind { ASSIGNMENT, EVENT }
 
@@ -135,6 +136,7 @@ fun CalendarEventsPage(
     var events by remember { mutableStateOf(repository.calendarEvents()) }
     var assignments by remember { mutableStateOf(assignmentCache.load(accountId)) }
     var month by remember { mutableStateOf(YearMonth.now()) }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var initialLoading by remember { mutableStateOf(assignments.isEmpty()) }
     var syncing by remember { mutableStateOf(false) }
     var lastSync by remember { mutableStateOf(assignmentCache.lastModified(accountId)) }
@@ -172,10 +174,10 @@ fun CalendarEventsPage(
     val entries = remember(events, assignments) { buildEntries(events, assignments) }
     // 月历始终保留作业条；“仅看日程”只筛下面的日视图列表。
     val weeks = remember(month, entries) { buildWeeks(month, entries) }
-    val monthEntries = remember(month, entries, showOnlyEvents) {
+    val dayEntries = remember(entries, selectedDate, showOnlyEvents) {
         (if (showOnlyEvents) entries.filter { it.kind == CalendarEntryKind.EVENT } else entries)
-            .filter { it.start <= month.atEndOfMonth() && it.end >= month.atDay(1) }
-            .sortedWith(compareBy<CalendarEntry> { it.start }.thenBy { it.title })
+            .filter { selectedDate >= it.start && selectedDate <= it.end }
+            .sortedWith(compareBy<CalendarEntry> { it.startText }.thenBy { it.title })
     }
 
     val subtitle = when {
@@ -233,7 +235,11 @@ fun CalendarEventsPage(
                             style = MaterialTheme.typography.titleMedium,
                             color = NextPalette.Ink,
                         )
-                        SoftIconButton(onClick = { month = month.minusMonths(1) }) {
+                        SoftIconButton(onClick = {
+                            val target = month.minusMonths(1)
+                            month = target
+                            selectedDate = if (target == YearMonth.now()) LocalDate.now() else target.atDay(1)
+                        }) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_iconpark_left),
                                 contentDescription = "上个月",
@@ -242,7 +248,11 @@ fun CalendarEventsPage(
                             )
                         }
                         Spacer(Modifier.width(6.dp))
-                        SoftIconButton(onClick = { month = month.plusMonths(1) }) {
+                        SoftIconButton(onClick = {
+                            val target = month.plusMonths(1)
+                            month = target
+                            selectedDate = if (target == YearMonth.now()) LocalDate.now() else target.atDay(1)
+                        }) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_iconpark_left),
                                 contentDescription = "下个月",
@@ -263,36 +273,51 @@ fun CalendarEventsPage(
                         }
                     }
                     weeks.forEach { week ->
-                        MonthWeekView(week, month) { selectedEntry = it }
+                        MonthWeekView(
+                            week = week,
+                            month = month,
+                            selectedDay = selectedDate,
+                            onSelectDay = { date ->
+                                selectedDate = date
+                                if (YearMonth.from(date) != month) month = YearMonth.from(date)
+                            },
+                        ) { selectedEntry = it }
                     }
                 }
 
                 PageCard {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "日视图",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = NextPalette.Ink,
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "日视图",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = NextPalette.Ink,
+                            )
+                            Text(
+                                formatDayLabel(selectedDate),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = NextPalette.InkSecondary,
+                            )
+                        }
                         SoftChip(
                             "仅看日程",
                             onClick = { showOnlyEvents = !showOnlyEvents },
                             selected = showOnlyEvents,
                         )
                     }
-                    if (monthEntries.isEmpty()) {
+                    val dayLabel = if (selectedDate == LocalDate.now()) "今天" else formatShortDay(selectedDate)
+                    if (dayEntries.isEmpty()) {
                         Text(
                             when {
-                                showOnlyEvents -> "本月没有自建日程。"
+                                showOnlyEvents -> "${dayLabel}没有自建日程。"
                                 assignments.isEmpty() -> "还没有缓存作业，点右上角刷新同步。"
-                                else -> "本月没有作业或日程。"
+                                else -> "${dayLabel}没有安排。"
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = NextPalette.InkSecondary,
                         )
                     } else {
-                        monthEntries.take(12).forEachIndexed { index, entry ->
+                        dayEntries.take(12).forEachIndexed { index, entry ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -328,7 +353,7 @@ fun CalendarEventsPage(
                                     color = if (entry.done) NextPalette.InkSecondary else NextPalette.AccentDeep,
                                 )
                             }
-                            if (index != monthEntries.take(12).lastIndex) {
+                            if (index != dayEntries.take(12).lastIndex) {
                                 HorizontalDivider(color = NextPalette.Line)
                             }
                         }
@@ -420,33 +445,40 @@ fun CalendarEventsPage(
 private fun MonthWeekView(
     week: CalendarWeek,
     month: YearMonth,
+    selectedDay: LocalDate,
+    onSelectDay: (LocalDate) -> Unit,
     onClick: (CalendarEntry) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth()) {
             week.cells.forEach { day ->
                 val isToday = day == LocalDate.now()
+                val isSelected = day == selectedDay
                 val outside = day.month != month.month
                 Box(
-                    modifier = Modifier.weight(1f).height(32.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable { onSelectDay(day) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(if (isToday) NextPalette.AccentSoft else Color.Transparent),
+                            .background(if (isSelected) NextPalette.AccentSoft else Color.Transparent),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             day.dayOfMonth.toString(),
                             style = MaterialTheme.typography.labelSmall,
                             color = when {
-                                isToday -> NextPalette.AccentDeep
+                                isSelected || isToday -> NextPalette.AccentDeep
                                 outside -> NextPalette.InkSecondary.copy(alpha = 0.35f)
                                 else -> NextPalette.Ink
                             },
-                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
                         )
                     }
                 }
@@ -545,6 +577,12 @@ private fun buildEntries(
 
 private fun parseDay(value: String): LocalDate? =
     runCatching { LocalDate.parse(value.take(10)) }.getOrNull()
+
+private fun formatDayLabel(date: LocalDate): String =
+    date.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA))
+
+private fun formatShortDay(date: LocalDate): String =
+    date.format(DateTimeFormatter.ofPattern("M月d日", Locale.CHINA))
 
 private fun formatSyncTime(timestamp: Long): String =
     DateTimeFormatter.ofPattern("MM-dd HH:mm").format(
