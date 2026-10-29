@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.util.Base64
 import android.view.View
 import android.webkit.JavascriptInterface
+import android.widget.Toast
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -90,6 +91,10 @@ fun KatexMarkdown(
                         request: WebResourceRequest?,
                     ): Boolean {
                         val url = request?.url ?: return true
+                        if (!MarkdownSafety.isSafeExternalUri(url.toString())) {
+                            Toast.makeText(ctx, "已拦截不安全的链接", Toast.LENGTH_SHORT).show()
+                            return true
+                        }
                         runCatching {
                             ctx.startActivity(
                                 Intent(Intent.ACTION_VIEW, url)
@@ -130,8 +135,9 @@ fun KatexMarkdown(
 }
 
 private fun buildMathHtml(context: Context, markdown: String): String {
+    val safeMarkdown = MarkdownSafety.sanitize(markdown)
     val base64 = Base64.encodeToString(
-        markdown.toByteArray(Charsets.UTF_8),
+        safeMarkdown.toByteArray(Charsets.UTF_8),
         Base64.NO_WRAP,
     )
     val template = context.assets.open("katex/math.html")

@@ -1,10 +1,15 @@
 package com.ahu.ahutong.next.ui.markdown
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.font.FontFamily
@@ -27,21 +32,32 @@ fun AppMarkdown(
 ) {
     val colors = nextMarkdownColors()
     val typography = nextMarkdownTypography()
-    Markdown(
-        content = markdown,
-        colors = colors,
-        typography = typography,
-        modifier = modifier.fillMaxWidth(),
-        loading = {},
-        error = { errorModifier ->
-            Text(
-                text = markdown,
-                modifier = errorModifier,
-                style = MaterialTheme.typography.bodyLarge,
-                color = NextPalette.Ink,
-            )
-        },
-    )
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val safeHandler = remember(uriHandler, context) {
+        SafeUriHandler(uriHandler) {
+            Toast.makeText(context, "已拦截不安全的链接", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val safeMarkdown = remember(markdown) { MarkdownSafety.sanitize(markdown) }
+
+    CompositionLocalProvider(LocalUriHandler provides safeHandler) {
+        Markdown(
+            content = safeMarkdown,
+            colors = colors,
+            typography = typography,
+            modifier = modifier.fillMaxWidth(),
+            loading = {},
+            error = { errorModifier ->
+                Text(
+                    text = markdown,
+                    modifier = errorModifier,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = NextPalette.Ink,
+                )
+            },
+        )
+    }
 }
 
 /**
