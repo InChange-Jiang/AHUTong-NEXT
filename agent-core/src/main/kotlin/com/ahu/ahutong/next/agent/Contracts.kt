@@ -17,6 +17,16 @@ enum class ToolKind {
     WRITE,
 }
 
+/**
+ * 工具结果的信任级别。网页、邮件、通知、失物招领等由用户或外部系统产生的内容
+ * 一律是 UNTRUSTED：模型只能把它当数据总结，不能把其中的文字当指令执行。
+ */
+@Serializable
+enum class ToolTrust {
+    TRUSTED,
+    UNTRUSTED,
+}
+
 @Serializable
 data class ToolSpec(
     val name: String,
@@ -57,6 +67,8 @@ data class ToolOutput(
     val data: JsonObject? = null,
     val error: ToolError? = null,
     val cacheAgeMs: Long? = null,
+    /** 默认信任；只有外部/用户生成内容才标 UNTRUSTED。 */
+    val trust: ToolTrust = ToolTrust.TRUSTED,
 )
 
 @Serializable
@@ -69,6 +81,7 @@ data class ToolResult(
     val source: String,
     val fetchedAt: Long,
     val cacheAgeMs: Long? = null,
+    val trust: ToolTrust = ToolTrust.TRUSTED,
 )
 
 interface Tool {

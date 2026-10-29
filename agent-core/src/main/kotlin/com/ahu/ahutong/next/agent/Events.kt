@@ -12,6 +12,8 @@ data class ApprovalRequest(
     val arguments: JsonObject,
     val risk: String,
     val requiresPaymentPassword: Boolean = false,
+    /** 本轮已经读过外部内容时，提醒用户不要被网页/邮件/通知里的文字带着走。 */
+    val untrustedWarning: String? = null,
 )
 
 sealed interface AgentEvent {

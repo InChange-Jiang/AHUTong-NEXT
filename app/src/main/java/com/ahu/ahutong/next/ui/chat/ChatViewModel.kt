@@ -12,6 +12,7 @@ import com.ahu.ahutong.next.agent.ToolRegistry
 import com.ahu.ahutong.next.app.data.HistoryStore
 import com.ahu.ahutong.next.app.data.SettingsRepository
 import com.ahu.ahutong.next.app.data.SoulRepository
+import com.ahu.ahutong.next.app.data.WriteJournalStore
 import com.ahu.ahutong.next.data.CampusRepository
 import com.ahu.ahutong.next.app.data.NextCampusRepository
 import com.ahu.ahutong.next.app.data.modelLabel as buildModelLabel
@@ -35,6 +36,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = SettingsRepository(application)
     private val soul = SoulRepository(application)
     private val historyStore = HistoryStore(application)
+    private val writeJournal = WriteJournalStore(application)
     private val repository: CampusRepository = NextCampusRepository()
     private val gate = ApprovalGate()
     private var runJob: Job? = null
@@ -113,6 +115,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             model = buildModel(),
             registry = buildRegistry(),
             systemPrompt = buildSystemPrompt(),
+            writeJournal = writeJournal,
         )
         runJob = viewModelScope.launch {
             try {

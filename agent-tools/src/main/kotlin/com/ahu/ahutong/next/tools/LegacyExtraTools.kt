@@ -11,6 +11,7 @@ import com.ahu.ahutong.next.agent.ToolError
 import com.ahu.ahutong.next.agent.ToolKind
 import com.ahu.ahutong.next.agent.ToolOutput
 import com.ahu.ahutong.next.agent.ToolSpec
+import com.ahu.ahutong.next.agent.ToolTrust
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -245,6 +246,7 @@ class GetNoticesTool : Tool {
                                 }
                             })
                         },
+                        trust = ToolTrust.UNTRUSTED,
                     )
                 }
             }
@@ -274,6 +276,7 @@ class GetNoticesTool : Tool {
                     }
                 })
             },
+            trust = ToolTrust.UNTRUSTED,
         )
     }
 

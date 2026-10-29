@@ -6,6 +6,7 @@ import com.ahu.ahutong.next.agent.ToolError
 import com.ahu.ahutong.next.agent.ToolKind
 import com.ahu.ahutong.next.agent.ToolOutput
 import com.ahu.ahutong.next.agent.ToolSpec
+import com.ahu.ahutong.next.agent.ToolTrust
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -118,6 +119,7 @@ class WebSearchTool(private val client: WebSearchClient) : Tool {
                 put("count", results.size)
                 put("results", AgentJson.encodeToJsonElement(results))
             },
+            trust = ToolTrust.UNTRUSTED,
         )
     }
 }

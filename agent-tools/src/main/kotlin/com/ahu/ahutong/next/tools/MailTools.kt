@@ -7,6 +7,7 @@ import com.ahu.ahutong.next.agent.ToolError
 import com.ahu.ahutong.next.agent.ToolKind
 import com.ahu.ahutong.next.agent.ToolOutput
 import com.ahu.ahutong.next.agent.ToolSpec
+import com.ahu.ahutong.next.agent.ToolTrust
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -104,6 +105,7 @@ class GetMailTool : Tool {
                         }
                     })
                 },
+                trust = ToolTrust.UNTRUSTED,
             )
         }.getOrElse { error ->
             ToolOutput(false, error = ToolError("mail_failed", error.message ?: "邮箱查询失败"))

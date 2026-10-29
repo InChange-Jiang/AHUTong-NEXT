@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.ahu.ahutong.next.R
 import com.ahu.ahutong.next.agent.AgentJson
 import com.ahu.ahutong.next.agent.ToolResult
+import com.ahu.ahutong.next.agent.ToolTrust
 import com.ahu.ahutong.next.data.Assignment
 import com.ahu.ahutong.next.data.Balance
 import com.ahu.ahutong.next.data.BillSummary
@@ -136,9 +137,18 @@ fun ToolResultSection(
                 }
                 HorizontalDivider(color = NextPalette.Line)
                 Text(
-                    "来源：${result.source} · 更新于 ${formatTimestamp(result.fetchedAt)}",
+                    buildString {
+                        append("来源：${result.source} · 更新于 ${formatTimestamp(result.fetchedAt)}")
+                        if (result.trust == ToolTrust.UNTRUSTED) {
+                            append(" · 外部内容，仅作参考")
+                        }
+                    },
                     style = MaterialTheme.typography.labelSmall,
-                    color = NextPalette.InkSecondary,
+                    color = if (result.trust == ToolTrust.UNTRUSTED) {
+                        NextPalette.Danger
+                    } else {
+                        NextPalette.InkSecondary
+                    },
                 )
             }
         }
@@ -938,6 +948,14 @@ fun ApprovalCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = NextPalette.Ink,
             )
+
+            item.request.untrustedWarning?.let { warning ->
+                Text(
+                    warning,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NextPalette.Danger,
+                )
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 item.request.arguments.forEach { (key, value) ->

@@ -3,6 +3,7 @@ package com.ahu.ahutong.next.app.data
 import android.content.Context
 import com.ahu.ahutong.next.agent.AgentJson
 import com.ahu.ahutong.next.agent.ToolResult
+import com.ahu.ahutong.next.agent.ToolTrust
 import com.ahu.ahutong.next.ui.chat.ChatItem
 import kotlinx.serialization.Serializable
 import java.io.File
@@ -175,12 +176,20 @@ class HistoryStore(context: Context) {
         when (item.type) {
             TYPE_USER -> ChatItem.User(item.id, item.text.orEmpty())
             TYPE_ASSISTANT -> ChatItem.Assistant(item.id, item.text.orEmpty())
-            TYPE_TOOL -> item.tool?.let { ChatItem.Tool(item.id, it) }
+            TYPE_TOOL -> item.tool?.let { ChatItem.Tool(item.id, it.withSafetyTrust()) }
             TYPE_ERROR -> ChatItem.Error(item.id, item.text.orEmpty())
             TYPE_NOTICE -> ChatItem.Notice(item.id, item.text.orEmpty())
             else -> null
         }
     }
+
+    /** 旧版本历史没有 trust 字段，读取时按工具名补标，避免旧网页/邮件结果显示成“可信”。 */
+    private fun ToolResult.withSafetyTrust(): ToolResult =
+        if (trust == ToolTrust.TRUSTED && toolName in UNTRUSTED_TOOLS) {
+            copy(trust = ToolTrust.UNTRUSTED)
+        } else {
+            this
+        }
 
     private fun List<ChatItem>.toStoredItems(): List<StoredItem> = mapNotNull { item ->
         when (item) {
@@ -199,6 +208,7 @@ class HistoryStore(context: Context) {
         const val TYPE_TOOL = "tool"
         const val TYPE_ERROR = "error"
         const val TYPE_NOTICE = "notice"
+        val UNTRUSTED_TOOLS = setOf("web_search", "get_mail", "get_notices", "get_lost_found")
     }
 }
 
