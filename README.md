@@ -82,8 +82,13 @@ AHUTong NEXT is an AI-native campus assistant for Anhui University. It handles c
 
 ## 致谢
 
+- 感谢 [openahu/ahutong-android](https://github.com/OpenAHU/AHUTong-Android) 提供校园数据层与协议实现。
 - 图标来自 [IconPark](https://github.com/bytedance/IconPark)，Apache License 2.0。
 - Markdown 与数学公式渲染使用对应的开源组件，遵循其各自许可证。
+
+## License
+
+本项目以 [GPL-3.0](LICENSE) 发布。
 
 ---
 
