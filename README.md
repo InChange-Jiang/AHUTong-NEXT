@@ -1,25 +1,18 @@
 <div align="center">
-  <img src="docs/assets/hero.png" width="100%" alt="安大通 NEXT">
+  <img src="docs/assets/logo.png" width="88" alt="安大通 NEXT">
+  <h1>安大通 NEXT</h1>
+  <p>面向安徽大学的校园 AI 助手</p>
+  <p>Android 8.0+，Kotlin 和 Jetpack Compose</p>
+  <p><a href="../../releases/latest">下载最新版本</a></p>
 </div>
 
-<h1 align="center">安大通 NEXT</h1>
+## 功能
 
-<p align="center">面向安徽大学的校园 AI 助手，Android 8.0 及以上，使用 Kotlin 和 Jetpack Compose。</p>
+在对话框里直接输入需求，可以查课表、作业、成绩、考试、余额、账单、电费、校园通知、空闲教室、失物招领和学生邮箱。加日程、发邮件、评教、失物招领增删和充值会先弹确认。
 
-<p align="center">
-  <a href="../../releases/latest"><img src="https://img.shields.io/badge/下载-最新版本-F07B46?style=flat-square&logo=github&logoColor=white" alt="下载最新版本"></a>
-  <img src="https://img.shields.io/badge/Android-8.0%2B-F07B46?style=flat-square&logo=android&logoColor=white" alt="Android 8.0+">
-  <img src="https://img.shields.io/badge/Kotlin-2.2-F07B46?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin 2.2">
-  <img src="https://img.shields.io/badge/Compose-Material%203-F07B46?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
-</p>
+模型和 API Key 由使用者自己配置，支持 OpenAI 兼容接口。对话、缓存和密钥默认保存在本机，API Key 使用 Android Keystore 加密。
 
-## 能做什么
-
-直接在对话框里说需求。查课表、作业、成绩、考试、余额、账单、电费、校园通知、空闲教室、失物招领和学生邮箱都可以。加日程、发邮件、评教、失物招领增删和充值会先弹确认，确认后才执行。
-
-模型可以自己配。设置里填 Base URL、模型名和 API Key，就能接 OpenAI 兼容的服务。对话、缓存和密钥默认留在本机，API Key 用 Android Keystore 加密。
-
-界面支持亮色和暗色，回复是流式的，Markdown 和公式能正常显示。
+支持亮色和暗色主题，回复是流式的，Markdown 和公式能正常显示。
 
 ## 截图
 
@@ -33,15 +26,13 @@
 
 <p align="center"><sub>截图使用演示数据，楼栋名称取自安大校区。</sub></p>
 
-### 亮色和暗色
-
+<details>
+<summary>暗色模式</summary>
+<br>
 <div align="center">
-  <img src="docs/assets/screens/chat-light.png" width="236" alt="亮色模式">
-  &nbsp;&nbsp;
-  <img src="docs/assets/screens/chat-dark.png" width="236" alt="暗色模式">
+  <img src="docs/assets/screens/chat-dark.png" width="260" alt="暗色模式">
 </div>
-
-设置里可以跟随系统，也可以手动切换。
+</details>
 
 ## 结构
 
