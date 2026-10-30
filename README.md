@@ -4,8 +4,7 @@
 
 <h1 align="center">安大通 NEXT</h1>
 
-<p align="center"><strong>把校园生活，交给一句话。</strong></p>
-<p align="center">安徽大学 AI 原生校园助手 · Android · Jetpack Compose</p>
+<p align="center">面向安徽大学的校园 AI 助手，Android 8.0 及以上，使用 Kotlin 和 Jetpack Compose。</p>
 
 <p align="center">
   <a href="../../releases/latest"><img src="https://img.shields.io/badge/下载-最新版本-F07B46?style=flat-square&logo=github&logoColor=white" alt="下载最新版本"></a>
@@ -14,18 +13,13 @@
   <img src="https://img.shields.io/badge/Compose-Material%203-F07B46?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose">
 </p>
 
-> 安大通 NEXT 是面向安徽大学的 AI 原生校园助手。用自然语言完成校园查询与日常操作，支持多模型接入、本地优先存储与可持续扩展的校园能力。
+## 能做什么
 
-## 为什么是 NEXT
+直接在对话框里说需求。查课表、作业、成绩、考试、余额、账单、电费、校园通知、空闲教室、失物招领和学生邮箱都可以。加日程、发邮件、评教、失物招领增删和充值会先弹确认，确认后才执行。
 
-大多数校园 App 把功能藏进一层层菜单里。NEXT 换了一个入口：**说出你要做的事**。
+模型可以自己配。设置里填 Base URL、模型名和 API Key，就能接 OpenAI 兼容的服务。对话、缓存和密钥默认留在本机，API Key 用 Android Keystore 加密。
 
-- **一句话办事**：课表、作业、成绩、考试、余额、账单、电费、通知、失物招领、空闲教室、学生邮箱……不用记入口，直接问。
-- **工具调用，不只是聊天**：模型通过结构化工具读取真实数据，结果以原生卡片呈现；需要确认的写操作会停在你面前。
-- **自带模型**：兼容 OpenAI 格式的模型服务，填好 Base URL、模型名和 API Key 就能切换，不被单一供应商锁死。
-- **本地优先**：对话、缓存和密钥默认留在本机；API Key 使用 Android Keystore 加密保存。
-- **安全边界**：网页、邮件、通知等外部内容只当数据，不当指令；充值等真实资金操作必须确认，支付密码不会进入模型上下文。
-- **用得舒服**：流式回复、Markdown 与公式渲染、亮暗双主题、可切换的助手性格，以及抽屉里的完整校园工具。
+界面支持亮色和暗色，回复是流式的，Markdown 和公式能正常显示。
 
 ## 截图
 
@@ -37,9 +31,9 @@
   <img src="docs/assets/screens/drawer-light.png" width="236" alt="校园工具抽屉">
 </div>
 
-<p align="center"><sub>截图中的课程与余额为演示数据；楼栋名称使用安徽大学真实校区。</sub></p>
+<p align="center"><sub>截图使用演示数据，楼栋名称取自安大校区。</sub></p>
 
-### 亮暗双主题
+### 亮色和暗色
 
 <div align="center">
   <img src="docs/assets/screens/chat-light.png" width="236" alt="亮色模式">
@@ -47,7 +41,9 @@
   <img src="docs/assets/screens/chat-dark.png" width="236" alt="暗色模式">
 </div>
 
-## 架构
+设置里可以跟随系统，也可以手动切换。
+
+## 结构
 
 ```mermaid
 flowchart LR
@@ -69,35 +65,25 @@ flowchart LR
 | `legacy-data` | 校园数据适配层，负责登录态与真实接口 |
 | `app` | Compose 界面、设置、会话历史与整体装配 |
 
-## 快速开始
+## 运行
 
-**环境**
-
-- JDK 17
-- Android SDK 36
-- Android 8.0（API 26）及以上设备
-
-**构建**
+需要 JDK 17 和 Android SDK 36，设备为 Android 8.0 及以上。
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-Debug APK 输出在 `app/build/outputs/apk/debug/app-debug.apk`。
+Debug APK 在 `app/build/outputs/apk/debug/app-debug.apk`。
 
-**首次使用**
-
-1. 打开应用，按引导完成初始化。
-2. 在「设置 → 模型与性格」填入模型服务的 Base URL、模型名和 API Key。
-3. 需要个人校园数据时，在「设置 → 账号与学习通」登录校园账号。
+首次打开后，按引导完成初始化。需要聊天功能时，在「设置 → 模型与性格」填模型服务的 Base URL、模型名和 API Key；需要个人校园数据时，在「设置 → 账号与学习通」登录校园账号。
 
 ## 安全与隐私
 
-- 高风险操作（充值、缴费、发邮件、删改内容等）必须经过确认卡；支付密码只在本机确认时使用。
-- 网页、邮件、通知、失物招领等外部内容会被标记为不可信数据，不应当作指令执行。
-- 写操作带有本地幂等保护：上一次结果未知时，不会自动重复提交。
-- 对话历史、缓存和模型密钥默认保存在本机；当前版本不包含广告或第三方行为分析 SDK。
-- 只有在调用模型时，完成当前任务所需的上下文才会发送给你配置的模型服务商。
+- 充值、缴费、发邮件、删改内容这类操作会先弹确认，支付密码只在本机使用。
+- 网页、邮件、通知、失物招领等外部内容按数据处理，不会当成指令执行。
+- 写操作有本地重复提交保护，上一次结果未知时不会自动重试。
+- 对话历史、缓存和模型密钥默认存在本机，当前版本没有广告或第三方行为分析 SDK。
+- 调用模型时，完成当前任务所需的上下文会发给你配置的服务商。
 
 ## English
 
